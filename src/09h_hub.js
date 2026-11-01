@@ -2,7 +2,7 @@
    UI, Feza bir istasyona girince HUB.open(id, istasyon) çağırır (src/09_ui.js 'station'). Paneller büyük, resimli,
    okuma gerektirmez (her şeyi anlatıcı ve Pırıl söyler), iPad'de dokunması kolay (≥ 80 px):
      gardirop  → Gardırop (GAME.setCostume)            bilbo    → Pırıl'ın Köşesi (GAME.setBilboAccessory)
-     album     → Çıkartma Albümü (oda oda sayfalar)     mini     → Mini Oyun Köşesi (MINIGAME.start)
+     mini     → Mini Oyun Köşesi (MINIGAME.start)
    Panel açıkken dünya durur (UI.setPaused). Resimler: gerçek 3B modellerden küçük görüntü (renderer ile hedef dokuya çizilir).
    Kataloglar (KOSTUM, AKSESUAR, CIKARTMA) dışarıdan genişletilebilir: HUB.KOSTUM.push({id, ad, ikon, model?}). Genel ad: HUB. */
 const HUB = (() => {
@@ -318,106 +318,6 @@ const HUB = (() => {
     draw();
     sayOnce('bilbo_tanit', 3);
   }
-  // ── Çıkartma Albümü ──
-  // Huysuz türlerinin hangi odaya ait olduğu: oda listesi (normal + elit + boss + bossun çağırdığı minikler); kalanlar Gizli Hazineler sayfasında
-  function huysuzOdasi() {
-    const map = {};
-    if (typeof HUYSUZ === 'undefined' || !HUYSUZ.forZone) return map;
-    for (const o of odalar()) {
-      const H = HUYSUZ.forZone(o.id); if (!H) continue;
-      for (const t in H.enemies || {}) map[t] = map[t] || o.id;
-      for (const t of H.elites || []) map[t] = map[t] || o.id;
-      if (H.boss) { map[H.boss] = o.id; const bd = HUYSUZ.get(H.boss), add = bd && bd.bossKit && bd.bossKit.add; if (add && !map[add]) map[add] = o.id; }
-    }
-    return map;
-  }
-  function albumSayfa(z) {
-    const P = PP(), C = P.cikartmalar || {}, out = [], map = huysuzOdasi();
-    const H = typeof HUYSUZ !== 'undefined' && HUYSUZ.forZone ? HUYSUZ.forZone(z.id) : null, eli = new Set((H && H.elites) || []);
-    const ids = Object.keys(map).filter(t => map[t] === z.id && !(H && H.boss === t));
-    for (const t of ids) { const d = HUYSUZ.get && HUYSUZ.get(t); out.push({ id: t, tur: 'huysuz', ad: (d && d.ad) || tr(t), have: !!C[t], etiket: d && (d.nadir || /altin/i.test(t)) ? '✨' : eli.has(t) ? '⭐' : null }); }
-    if (H && H.boss) { const d = HUYSUZ.get && HUYSUZ.get(H.boss); out.push({ id: H.boss, tur: 'boss', ad: (d && d.ad) || tr(H.boss), have: !!C[H.boss], big: true }); }
-    const zd = typeof ZONE_DEFS !== 'undefined' && ZONE_DEFS[z.id], ky = zd && zd.kayipEsya;
-    if (ky) out.push({ id: 'kayip_' + ky, kayip: ky, tur: 'kayip', ad: KAYIP[ky] || tr(ky), ikon: KAYIP_IKON[ky], have: !!(P.kayipEsyalar && P.kayipEsyalar[z.id]) });
-    const GZ = GIZLI[z.id] || {};
-    for (const id in GZ) out.push({ id, tur: 'gizli', ad: GZ[id][0], ikon: GZ[id][1], have: !!C[id] });
-    for (const id in C) { const c = C[id]; if (c && c.tur === 'gizli' && c.bolum === z.id && !out.some(o => o.id === id) && !/^mini_/.test(id)) out.push({ id, tur: 'gizli', ad: (CIKARTMA[id] && CIKARTMA[id].ad) || tr(id), ikon: (CIKARTMA[id] && CIKARTMA[id].ikon) || '⭐', have: true }); }
-    return out;
-  }
-  function albumOzel() {   // Günün Sürprizi, mini oyun ve odası olmayan çıkartmalar
-    const P = PP(), C = P.cikartmalar || {}, out = [], map = huysuzOdasi(), known = new Set();
-    for (const z in GIZLI) for (const id in GIZLI[z]) known.add(id);
-    for (const id in CIKARTMA) { out.push({ id, tur: 'gizli', ad: CIKARTMA[id].ad, ikon: CIKARTMA[id].ikon, have: !!C[id] }); known.add(id); }
-    const ml = typeof MINIGAME !== 'undefined' ? MINIGAME.list() : [];
-    for (const m of ml) { const d = MINIGAME.get(m) || {}, id = 'mini_' + m; known.add(id); out.push({ id, tur: 'gizli', ad: d.ad || tr(m), ikon: d.ikon || MINI_IKON[m] || '🎮', have: !!C[id] }); }
-    for (const id in C) {
-      if (known.has(id) || map[id]) continue;
-      const c = C[id] || {};
-      if (c.tur === 'huysuz' || c.tur === 'boss') { const d = HUYSUZ.get && HUYSUZ.get(id); out.push({ id, tur: c.tur, ad: (d && d.ad) || tr(id), have: true }); continue; }
-      if (c.tur === 'gizli' && odalar().some(o => o.id === c.bolum)) continue;   // (odasının sayfasında)
-      out.push({ id, tur: 'gizli', ad: tr(id), ikon: '⭐', have: true });
-    }
-    return out;
-  }
-  function seenInit() { if (S.seen) return; S.seen = new Set(Object.keys(PP().cikartmalar || {})); }
-  function openAlbum(sayfa) {
-    seenInit();
-    const { body, card } = panel('album', 'Çıkartma Albümü', '📒', '#3a7fd8');
-    const tabs = el('div', 'hb-tabs', body), page = el('div', 'hb-page', body);
-    const P = PP();
-    const pages = odalar().map(o => ({ o, list: () => albumSayfa(o) })).concat([{ o: { id: 'ozel', ad: 'Gizli Hazineler', ikon: '✨', renk: '#ffb36b' }, list: albumOzel }]);
-    let cur = Math.max(0, Math.min(pages.length - 1, sayfa | 0));
-    const show = i => {
-      cur = i; tabs.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
-      page.innerHTML = ''; page.style.setProperty('--pc', pages[i].o.renk);
-      const list = pages[i].list(), have = list.filter(s => s.have).length;
-      const top = el('div', 'hb-pagetop', page);
-      el('div', 'hb-pageikon', top, pages[i].o.ikon);
-      const bar = el('div', 'hb-count', top); for (let k = 0; k < list.length; k++) el('span', k < have ? 'on' : '', bar, '');
-      const grid = el('div', 'hb-sgrid', page); let newAny = false;
-      list.forEach((s, k) => {
-        const isNew = s.have && !S.seen.has(s.id); if (s.have) S.seen.add(s.id);
-        const img = s.have ? (s.tur === 'kayip' ? imgKayip(s.kayip) : s.tur === 'huysuz' || s.tur === 'boss' ? imgHuysuz(s.id) : null) : null;
-        const b = el('button', 'hb-stk' + (s.have ? ' have' : '') + (s.big ? ' big' : '') + ' t-' + s.tur, grid);
-        b.style.setProperty('--rot', ((k * 37) % 9 - 4) + 'deg'); b.style.animationDelay = (k * 0.05) + 's';
-        const pic = el('div', 'hb-spic', b);
-        if (s.have) { if (img) { const im = el('img', '', pic); im.src = img; im.draggable = false; } else el('div', 'hb-emo', pic, s.ikon || (s.tur === 'boss' ? '👑' : '⭐')); }
-        else {   // gri siluet: kazanılmamış
-          const sil = s.tur === 'huysuz' || s.tur === 'boss' ? imgHuysuzSil(s.id) : s.tur === 'kayip' ? imgKayip(s.kayip) : null;
-          if (sil) { const im = el('img', 'sil', pic); im.src = sil; im.draggable = false; } else el('div', 'hb-emo sil', pic, s.ikon || '❓');
-        }
-        if (s.tur === 'boss') el('div', 'hb-crown', b, '👑');
-        if (s.etiket) el('div', 'hb-etiket', b, s.etiket);
-        el('div', 'hb-sname', b, s.have ? s.ad : '');
-        if (isNew) { b.classList.add('yeni'); el('div', 'hb-new', b, '✨'); newAny = true; }
-        b.addEventListener('click', () => zoom(s, b, img));
-      });
-      if (have === list.length && list.length) el('div', 'hb-full', page, '🌟');
-      if (newAny) { setTimeout(() => sfx('star', { vol: 0.7 }), 300); say('album_yeni', 3); }
-    };
-    pages.forEach((p, i) => {
-      const t = el('button', 'hb-tab', tabs); t.style.setProperty('--tc', p.o.renk);
-      el('span', 'e', t, p.o.ikon);
-      const n = p.list().filter(s => s.have).length; if (n) el('b', '', t, String(n));
-      t.addEventListener('click', () => { if (cur !== i) { sfx('click', { vol: 0.6 }); show(i); } });
-    });
-    // en son kazanılan çıkartmanın sayfasından aç
-    if (sayfa == null) { const last = Object.values(P.cikartmalar || {}).pop(); const k = last ? pages.findIndex(p => p.o.id === last.bolum) : -1; cur = k >= 0 ? k : 0; }
-    show(cur);
-    sayOnce('album_tanit', 3);
-    function zoom(s, b, img) {
-      const z = el('div', 'hb-zoom', S.cur.card);
-      const big = el('div', 'hb-zstk' + (s.have ? ' have' : ''), z);
-      if (s.have) { if (img) { const im = el('img', '', big); im.src = img; } else el('div', 'hb-emo', big, s.ikon || '⭐'); el('div', 'hb-zname', z, s.ad); }
-      else { el('div', 'hb-emo sil', big, '❓'); }
-      z.addEventListener('click', () => z.remove());
-      if (s.have) { sfx('star', { vol: 0.8 }); pop(innerWidth / 2, innerHeight / 2, 20); const key = 'ck_' + s.id; if (AUD && AUD.LINES && AUD.LINES[key]) say(key, 4); else say('cikartma_genel', 4); }
-      else { sfx('click', { vol: 0.5 }); say('album_bos', 4); }
-    }
-  }
-  function imgHuysuzSil(type) {   // siluet: aynı resim, CSS ile karartılır
-    return imgHuysuz(type);
-  }
   // ── Mini Oyun Köşesi ──
   function miniStars(id, best) {
     const d = typeof MINIGAME !== 'undefined' && MINIGAME.get ? MINIGAME.get(id) : null;
@@ -491,7 +391,7 @@ const HUB = (() => {
     }
   }
   // ── Giriş noktası: Gardırop, Pırıl'ın Köşesi, Çıkartma Albümü yalnız Mola menüsünden (UI) açılır; mini oyunlar yalnız bölüm içinde (UI 'station') ──
-  const OPEN = { gardirop: openGardirop, bilbo: openBilbo, album: () => openAlbum() };
+  const OPEN = { gardirop: openGardirop, bilbo: openBilbo };
   // İstemeden açılmasın: Feza istasyonda ~0,6 s durunca açılır (içinden geçip gidince açılmaz). HUB.open(id) (istasyonsuz) hemen açar.
   let pend = null;
   function open(id, st) {
@@ -522,5 +422,5 @@ const HUB = (() => {
     try { f(st); } catch (e) { console.warn('[HUB] open ' + id, e); close(true); }
   }
   return { open, close, say, warm, GIZLI, warmSteps, warmT: WT, KOSTUM, AKSESUAR, CIKARTMA, ODALAR, thumb, imgHuysuz, imgKostum, imgAks, imgKayip,
-    get current() { return S.cur ? S.cur.id : null; }, _S: S, _openAlbum: openAlbum };
+    get current() { return S.cur ? S.cur.id : null; }, _S: S };
 })();
