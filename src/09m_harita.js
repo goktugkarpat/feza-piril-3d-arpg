@@ -66,8 +66,8 @@ const HARITA = (() => {
     for (let i = 0; i < N; i++) {
       const id = ids[i], isDone = !!done[id], isOpen = (o.open && o.open[i]) || isDone;
       const d = seg(i);
-      if (isDone) g += `<path d="${d}" fill="none" stroke="#ffcf4a" stroke-width="16" stroke-linecap="round" opacity=".22"/><path d="${d}" fill="none" stroke="#ffe08a" stroke-width="8" stroke-linecap="round" opacity=".5"/><path d="${d}" fill="none" stroke="#fff3c4" stroke-width="3.4" stroke-linecap="round"/>`;
-      else if (isOpen) g += `<path d="${d}" fill="none" stroke="#ffcf4a" stroke-width="14" stroke-linecap="round" opacity=".16"/><path d="${d}" fill="none" stroke="#ffe08a" stroke-width="6.5" stroke-linecap="round" stroke-dasharray="0.1 13" opacity=".95"/>`;
+      if (isDone) g += `<path d="${d}" fill="none" stroke="#ffcf4a" stroke-width="26" stroke-linecap="round" opacity=".3"/><path d="${d}" fill="none" stroke="#ffe08a" stroke-width="8" stroke-linecap="round" opacity=".5"/><path d="${d}" fill="none" stroke="#fff3c4" stroke-width="3.4" stroke-linecap="round"/>`;
+      else if (isOpen) g += `<path d="${d}" fill="none" stroke="#ffcf4a" stroke-width="22" stroke-linecap="round" opacity=".22"/><path d="${d}" fill="none" stroke="#ffe08a" stroke-width="6.5" stroke-linecap="round" stroke-dasharray="0.1 13" opacity=".95"/>`;
       else g += `<path d="${d}" fill="none" stroke="#dbe6ff" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="0.1 13" opacity=".4"/>`;
     }
     // başlangıç fenerli şamandıra
@@ -86,7 +86,7 @@ const HARITA = (() => {
       if (isDone) g += `<g transform="translate(-70 -4)"><rect x="-1.5" y="-46" width="3" height="48" fill="#8a6a45"/><path d="M1.5 -46Q14 -42 22 -46L18 -37L22 -28Q12 -32 1.5 -28Z" fill="#ffd45a"/>${A.glow(0, -22, 30, 30, 'y', .6)}<rect x="-6" y="-30" width="12" height="14" rx="4" fill="#ffcf5a" stroke="#8a6a45" stroke-width="1.5"/><circle cy="-23" r="3.2" fill="#fffbe8"/></g>`;
       g += '</g>';
       ovs.push(box(p.x, p.y - 60 * sc, 210 * sc, 150 * sc, `<g transform="translate(${p.x} ${p.y}) scale(${sc})">${m.ov.join('')}</g>`));
-      if (!ok) veils.push(`<g transform="translate(${p.x} ${p.y}) scale(${sc})"><ellipse cy="-6" rx="86" ry="52" fill="url(#hmFog)" opacity=".26"/><ellipse cx="32" cy="8" rx="46" ry="11" fill="#e2eaf8" opacity=".3"/><ellipse cx="-24" cy="14" rx="44" ry="10" fill="#e2eaf8" opacity=".28"/></g>`);
+      if (!ok) veils.push(`<g transform="translate(${p.x} ${p.y}) scale(${sc})"><ellipse cy="-6" rx="86" ry="52" fill="url(#hmFog)" opacity=".5"/><ellipse cx="32" cy="8" rx="46" ry="11" fill="#e2eaf8" opacity=".42"/><ellipse cx="-24" cy="14" rx="44" ry="10" fill="#e2eaf8" opacity=".4"/></g>`);
     });
     g += veils.join('');
     // Büyük Fener (ortada)
@@ -107,6 +107,9 @@ const HARITA = (() => {
     const L1 = cl.slice(0, 2).map((c, i) => cloud(...c, i)).join('');
     L0 = L0.replace('</svg>', cl.slice(2).map(([x, y, k, op]) => `<g transform="translate(${x} ${y}) scale(${k})" opacity="${op}"><ellipse rx="70" ry="16" fill="#cdd9f4"/><ellipse cx="-34" cy="-10" rx="34" ry="15" fill="#cdd9f4"/><ellipse cx="14" cy="-16" rx="40" ry="19" fill="#d8e2f8"/><ellipse cx="46" cy="-4" rx="30" ry="13" fill="#cdd9f4"/></g>`).join('') + '</svg>');
 
+
+    let wv = ''; for (let r = 0; r < 2; r++) { let d = ''; for (let k = 0; k < 7; k++) { const y0 = H * (.2 + k * .11 + r * .05); d += `M-60 ${f1(y0)}` + `q30 -9 60 0t60 0`.repeat(Math.ceil((W + 240) / 120)); } wv += `<path class="hm-wv hm-wv${r}" d="${d}" fill="none" stroke="#bfe8ff" stroke-width="1.8" stroke-linecap="round" opacity="${r ? .1 : .14}"/>`; }
+    const LW = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" class="hm-L0 hm-Lw" aria-hidden="true">${wv}</svg>`;
     // ══ 3) IŞIK DEMETİ: yalnız fenerin çevresindeki kare dönüyor ══
     const bl = 210, bo = (.3 + .5 * K).toFixed(2), NB = 12;   // dönen demet: 12 yelpaze, sırayla belirip siliniyor (dönüş gibi, ucuz)
     let wd = '';
@@ -123,6 +126,13 @@ const HARITA = (() => {
     v += ovs.join('');
     // yüzen fenerler
     for (let i = 0; i < 4; i++) { const x = portrait ? 60 + R() * 580 : 50 + R() * 900, y = portrait ? 700 + R() * 260 : 450 + R() * 220; if (near(x, y)) continue; v += box(x + 4, y - 20, 50, 90, `<g transform="translate(${f1(x)} ${f1(y)})"><g><animateTransform attributeName="transform" type="translate" values="0 0;8 -${30 + i * 4};0 0" dur="${8 + i}s" repeatCount="indefinite"/>${A.glow(0, 0, 16, 16, 'o', .7)}<rect x="-4" y="-5" width="8" height="10" rx="3" fill="#ffb347"/><rect x="-2" y="-3" width="4" height="5" rx="2" fill="#fff3c0"/></g></g>`); }
+
+    // kuş sürüleri (iki küçük sürü, ayrı katman)
+    const bird = (dx, dy, d) => `<path d="M${dx - 7} ${dy}Q${dx - 3.5} ${dy - 6} ${dx} ${dy}Q${dx + 3.5} ${dy - 6} ${dx + 7} ${dy}" fill="none" stroke="#fff4dc" stroke-width="2" stroke-linecap="round"><animate attributeName="d" dur=".9s" begin="${d}s" repeatCount="indefinite" values="M${dx - 7} ${dy}Q${dx - 3.5} ${dy - 6} ${dx} ${dy}Q${dx + 3.5} ${dy - 6} ${dx + 7} ${dy};M${dx - 7} ${dy - 4}Q${dx - 3.5} ${dy + 1} ${dx} ${dy}Q${dx + 3.5} ${dy + 1} ${dx + 7} ${dy - 4};M${dx - 7} ${dy}Q${dx - 3.5} ${dy - 6} ${dx} ${dy}Q${dx + 3.5} ${dy - 6} ${dx + 7} ${dy}"/></path>`;
+    const flock = (path, dur, begin) => `<g opacity=".85"><animateMotion dur="${dur}s" begin="${begin}s" repeatCount="indefinite" path="${path}"/>${bird(0, 0, 0)}${bird(-16, 8, .2)}${bird(14, 9, .4)}</g>`;
+    v += portrait ? box(W / 2, 330, W + 80, 260, flock('M-30 220C150 150 400 260 740 120', 38, -6)) : box(W / 2, 250, W + 80, 260, flock('M-30 200C250 120 600 260 1040 110', 40, -8) );
+    // ışıldayan yıldız kümeleri (kenarlarda)
+    for (let i = 0; i < 7; i++) { const x = 40 + R() * (W - 80), y = 40 + R() * (H - 80); if (near(x, y)) continue; v += box(x, y, 30, 30, `<g transform="translate(${f1(x)} ${f1(y)})"><g class="hm-tw" style="animation-delay:${f1(-R() * 4)}s">${A.sparkle(0, 0, 5 + R() * 4, '#fff2b0')}</g></g>`); }
     // yelkenli tekneler
     const boat = (x, y, k, dur) => box(x + 60, y - 10, 180, 70, `<g transform="translate(${x} ${y}) scale(${k})"><g><animateMotion dur="${dur}s" repeatCount="indefinite" path="M0 0q30 -8 60 0t60 0t-60 6t-60 -6z"/><path d="M-12 0H12L8 7H-8Z" fill="#a8603a"/><path d="M0 -3V-30L14 -6Z" fill="#fff6e0"/><path d="M-1.5 -3V-26L-12 -6Z" fill="#ffd9a0"/><path d="M-16 8q16 -4 32 0" stroke="#e8f8ff" stroke-width="1.6" fill="none" opacity=".6"/></g></g>`);
     v += portrait ? boat(60, 640, 1, 20) + boat(430, 900, .9, 24) : boat(330, 642, 1, 20) + boat(780, 620, .9, 26);
@@ -153,7 +163,7 @@ const HARITA = (() => {
       v += box(mx, my, bw, bh, `<g opacity="0"><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.12;.88;1" dur="7s" repeatCount="indefinite"/><animateMotion dur="7s" repeatCount="indefinite" path="${seg(ni)}" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .6 1"/>${guide}</g>`);
     } else v += box(lamp.x, lamp.y, 260, 150, `<g><animateMotion dur="14s" repeatCount="indefinite" path="M${lamp.x - 90} ${lamp.y}a90 40 0 1 1 180 0a90 40 0 1 1 -180 0z"/>${guide}</g>`);
 
-    return { svg: L0 + L1 + L2 + v, vb: [W, H], pos };
+    return { svg: L0 + LW + L1 + L2 + v, vb: [W, H], pos };
   }
   return { render };
 })();

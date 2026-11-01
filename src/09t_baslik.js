@@ -297,12 +297,64 @@ const BASLIK = (() => {
     X.toyLH = glowSprite(X.texSoft, 0xffd27a, 0.28, 0.28, 0.5, [lx, ly + 0.325, -2.7]); R.add(X.toyLH);
   }
 
+
+  // ── sallanan perdeler (pembe, kıvrımlı; rüzgârla alt kenarı yavaşça sallanır) + toplama kurdelesi, pervaz ve saksı ──
+  function buildCurtains(R, X) {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uT: { value: 0 } }, transparent: false, side: THREE.DoubleSide, fog: false,
+      vertexShader: `uniform float uT; varying vec2 vUv; varying float vF; attribute float sd;
+        void main(){ vUv = uv; vec3 p = position; float k = (1.0 - uv.y); k *= k;
+          p.x += sd * (sin(uT * 1.1 + p.y * 2.0) * 0.045 + sin(uT * 0.63 + p.y * 3.1) * 0.025) * k;
+          p.z += (sin(uT * 0.9 + p.y * 2.4 + sd) * 0.03) * k; vF = sin(uv.x * 18.85);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `varying vec2 vUv; varying float vF;
+        void main(){ vec3 c = mix(vec3(1.0, 0.62, 0.80), vec3(1.0, 0.80, 0.90), 0.5 + 0.5 * vF);
+          c *= 0.62 + 0.38 * smoothstep(0.0, 1.0, vUv.y + 0.25);
+          c = mix(c, vec3(1.0, 0.9, 0.7) * 0.9, smoothstep(0.08, 0.0, vUv.y) * 0.8);
+          gl_FragColor = vec4(c, 1.0); }`,
+    });
+    [-1, 1].forEach(sx => {
+      const g = new THREE.PlaneGeometry(0.46, 1.95, 10, 14);
+      const n = g.attributes.position.count, sd = new Float32Array(n).fill(sx); g.setAttribute('sd', new THREE.BufferAttribute(sd, 1));
+      const m = new THREE.Mesh(g, mat); m.position.set(1.6 + sx * 1.15, 2.28, -2.70); m.renderOrder = 5; R.add(m);
+    });
+    X.curt = mat;
+    // pervaz + küçük saksı (yeşil yapraklı, sıcak)
+    const k = new Kit(), b = G.box(), s = G.sphere(14, 10), cy = G.cyl(1, 1, 16);
+    k.add(b, 0xd9a566, [1.6, 1.6, -2.70], null, [1.95, 0.07, 0.3]); k.add(b, 0xf3d9a6, [1.6, 1.56, -2.70], null, [1.85, 0.03, 0.26]);
+    k.add(cy, 0xe8785a, [1.0, 1.72, -2.68], null, [0.12, 0.14, 0.12]);
+    for (let i = 0; i < 5; i++) { const a = i * 1.26; k.add(s, i % 2 ? 0x6fcf6a : 0x4fb85a, [1.0 + Math.cos(a) * 0.07, 1.9 + (i % 3) * 0.04, -2.68 + Math.sin(a) * 0.03], null, [0.08, 0.16, 0.05]); }
+    k.add(s, 0xff8fb0, [1.0, 2.05, -2.66], null, 0.045);
+    k.add(cy, 0xfff1c9, [2.2, 1.7, -2.68], null, [0.05, 0.14, 0.05]); k.add(s, 0xffd96a, [2.2, 1.81, -2.68], null, 0.045);   // küçük mum fener
+    const mm = new THREE.Mesh(k.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })); R.add(mm);
+    X.candle = glowSprite(X.texSoft, 0xffc870, 0.5, 0.5, 0.6, [2.2, 1.82, -2.64]); R.add(X.candle);
+  }
+  // ── süzülen renkli ışık küreleri (yıldız parıltıları; yavaş, yumuşak) ──
+  function buildOrbs(R, X) {
+    const N = 26, pos = new Float32Array(N * 3), rr = new Float32Array(N * 4); for (let i = 0; i < N * 4; i++) rr[i] = rnd();
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('r', new THREE.BufferAttribute(rr, 4));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uT: { value: 0 }, uPx: { value: 600 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+      vertexShader: `uniform float uT, uPx; attribute vec4 r; varying float vA; varying vec3 vC;
+        void main(){ vec3 p = vec3(-3.2 + r.x * 6.0, 0.6 + r.y * 2.2, -2.2 + r.z * 3.4);
+          p.x += sin(uT * (0.2 + r.w * 0.2) + r.y * 20.0) * 0.4; p.y = 0.5 + mod(p.y - 0.5 + uT * (0.03 + r.w * 0.04), 2.4);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
+          float h = fract(r.x * 7.0); vC = h < 0.33 ? vec3(1.0, 0.85, 0.5) : (h < 0.66 ? vec3(0.6, 0.95, 0.95) : vec3(1.0, 0.7, 0.85));
+          vA = (0.5 + 0.5 * sin(uT * (0.5 + r.w) + r.z * 30.0)) * smoothstep(0.0, 0.25, fract((p.y - 0.5) / 2.4)) * smoothstep(1.0, 0.7, fract((p.y - 0.5) / 2.4));
+          gl_PointSize = (0.07 + r.w * 0.1) * uPx / max(-mv.z, 0.5); }`,
+      fragmentShader: `varying float vA; varying vec3 vC; void main(){ vec2 q = gl_PointCoord - 0.5; float d = length(q) * 2.0;
+        float star = max(smoothstep(0.09, 0.0, abs(q.x)) * smoothstep(0.5, 0.0, abs(q.y)), smoothstep(0.09, 0.0, abs(q.y)) * smoothstep(0.5, 0.0, abs(q.x)));
+        float a = smoothstep(1.0, 0.0, d); a = a * a * 0.5 + star * 0.8; gl_FragColor = vec4(vC * 1.6, a * vA * 0.7); if (gl_FragColor.a < 0.004) discard; }`,
+    });
+    const p = new THREE.Points(g, mat); p.frustumCulled = false; p.renderOrder = 9; R.add(p); X.orbs = mat;
+  }
+
   // ── kurulum / her kare ──
   function build(room) {
     S.room = room; const X = S.X = {}; const t0 = performance.now();
     try {
       X.texSoft = radialTex([[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,255,255,.55)'], [0.6, 'rgba(255,255,255,.12)'], [1, 'rgba(255,255,255,0)']]);
-      buildSky(room, X); buildShaft(room, X); buildDust(room, X); buildFairy(room, X); buildMobile(room, X); buildGlows(room, X); buildDecor(room, X);
+      buildSky(room, X); buildShaft(room, X); buildDust(room, X); buildFairy(room, X); buildMobile(room, X); buildGlows(room, X); buildDecor(room, X); buildCurtains(room, X); buildOrbs(room, X);
     } catch (e) { console.warn('BASLIK build', e); }
     if (typeof ATMO !== 'undefined' && ATMO.P) {
       ATMO.P.baslik = { sh: 0x7a6cff, hi: 0xffe4bc, con: 0.26, haze: [0x2c2a78, 0.34, 0.5], rays: [0xffe2b0, 0.12], fog: [1, 1], dust: { n: 1, col: 0xffffff, size: 0.01, mode: 'mote', a: 0, h: 1 } };
@@ -332,6 +384,9 @@ const BASLIK = (() => {
     if (X.shaft) { X.shaft.uniforms.uT.value = T; X.shaft.uniforms.uA.value = 1 + 0.15 * Math.sin(T * 0.4); }
     if (X.patch) X.patch.material.opacity = 0.17 + 0.03 * Math.sin(T * 0.4);
     if (X.dust) { X.dust.uniforms.uT.value = T; X.dust.uniforms.uPx.value = px * 1.3; }
+    if (X.curt) X.curt.uniforms.uT.value = T;
+    if (X.orbs) { X.orbs.uniforms.uT.value = T; X.orbs.uniforms.uPx.value = px * 1.2; }
+    if (X.candle) X.candle.material.opacity = 0.5 + 0.12 * Math.sin(T * 4.1) + 0.06 * Math.sin(T * 9.7);
     if (X.fairy) { X.fairy.uniforms.uT.value = T; X.fairy.uniforms.uPx.value = px * 1.4; }
     // mobil
     if (X.mobile) { X.mobile.g.rotation.y = T * 0.28; X.mobile.g.position.y = 2.45; X.mobile.items.forEach(it => { it.hang.rotation.z = Math.sin(T * 0.9 + it.ph) * 0.12; it.hang.rotation.y = -T * 0.28 + Math.sin(T * 0.5 + it.ph) * 0.4; }); }

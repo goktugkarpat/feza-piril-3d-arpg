@@ -156,6 +156,7 @@ const YANARDAG = (() => {
 
   // ════════════════ Dekor (kur) ════════════════
   function kur(L, api) {
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'yanardag'); } catch (e) { console.warn('SUS610', e); }
     const rnd = api.rnd, M = L.yd || {};
     const cyl = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 7)), cone = api.tmp(new THREE.ConeGeometry(1, 1, 7)),
       ico = api.tmp(new THREE.IcosahedronGeometry(1, 0)), hemi = api.tmp(new THREE.SphereGeometry(1, 12, 6, 0, TAU, 0, PI / 2));

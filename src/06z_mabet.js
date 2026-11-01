@@ -223,6 +223,7 @@ const MABET = (() => {
 
   // ════════════════ Dekor (kur): zemin renkleri + kenarda sütun, kristal kubbe, yıldız çukuru, dikilitaş, flama, bulut ════════════════
   function kur(L, api) {
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'mabet'); } catch (e) { console.warn('SUS610', e); }
     const rnd = api.rnd, A = L.areas || [];
     // zemin: yumuşak, düz (dışarıdaki tümsekler düzleşir: bulut denizi gibi)
     try {

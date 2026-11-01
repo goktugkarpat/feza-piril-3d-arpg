@@ -161,6 +161,7 @@ const FENER = (() => {
 
   // ════════════════ Dekor ════════════════
   function kur(L, api) {
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'fener'); } catch (e) { console.warn('SUS610', e); }
     const F = L.fn || {}, rnd = api.rnd;
     try {
       const fl = api.floor || L.floorMesh;

@@ -175,6 +175,7 @@ const KALE = (() => {
 
   // ════════════════ Dekor (kur) ════════════════
   function kur(L, api) {
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'kale'); } catch (e) { console.warn('SUS610', e); }
     const K = L.kl || {}, rnd = api.rnd;
     try { if (typeof KALE_DEKOR !== 'undefined' && typeof YAPI !== 'undefined' && typeof SEHIR_DEKOR !== 'undefined') K.dekor = KALE_DEKOR.olustur(L, api, K); } catch (e) { console.warn('KALE_DEKOR', e); }   // E8910: yeni çevre takımı (src/07m_dekor_kale.js)
     // yumuşak gül-kum sis ışığı (kale ışığı isik tanımında); odalara sıcak parıltı

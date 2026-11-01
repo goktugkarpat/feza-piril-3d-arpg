@@ -178,6 +178,7 @@ const SEHIR = (() => {
 
   // ════════════════ Dekor (kur) ════════════════
   function kur(L, api) {
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'sehir'); } catch (e) { console.warn('SUS610', e); }
     const rnd = api.rnd, Z = L.sh || {};
     const box = api.tmp(new THREE.BoxGeometry(1, 1, 1)), cyl = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 12)), cone4 = api.tmp(new THREE.ConeGeometry(1, 1, 4)),
       sph = api.tmp(new THREE.SphereGeometry(1, 10, 7)), cone = api.tmp(new THREE.ConeGeometry(1, 1, 9)), hemi = api.tmp(new THREE.SphereGeometry(1, 12, 6, 0, TAU, 0, PI / 2));

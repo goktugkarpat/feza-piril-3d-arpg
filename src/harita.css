@@ -47,3 +47,15 @@
 @media (prefers-reduced-motion: reduce) { .hm-cl, .hm-beam, .hm-flame { animation: none; } }
 .hm-stage .hm-name { max-width: calc(var(--hmf, 17px) * 9.5) !important; font-size: calc(var(--hmf, 17px) * .68); }
 .hm-stage .hm-name.next, .hm-stage .hm-isle:hover .hm-name, .hm-stage .hm-isle:focus-visible .hm-name { opacity: 1; background: rgba(8, 14, 48, .5); }
+
+/* ── güzelleştirme: dalga katmanı, eşit ad levhaları ── */
+.hm-wv0 { animation: hm-wave 14s ease-in-out infinite alternate; }
+.hm-wv1 { animation: hm-wave 19s ease-in-out infinite alternate-reverse; }
+@keyframes hm-wave { from { transform: translateX(-60px); } to { transform: translateX(0); } }
+.hm-svg > .hm-Lw { overflow: hidden; }
+.hm-stage .hm-name { background: rgba(10, 18, 58, .62); border: 1.5px solid rgba(255, 226, 150, .5); padding: 1px 9px 3px; border-radius: 14px; opacity: 1; min-width: calc(var(--hmf, 17px) * 5.2); box-shadow: 0 2px 8px #0008; }
+.hm-stage .hm-name.done { border-color: #ffd45a; background: rgba(60, 40, 6, .62); }
+.hm-stage .hm-name.locked { border-color: rgba(190, 205, 235, .35); background: rgba(40, 50, 90, .55); opacity: .8; }
+.hm-stage .hm-name.locked::before { content: "🔒 "; font-size: .8em; }
+.hm-stage .hm-name.next { border-color: #fff; background: rgba(120, 80, 10, .7); box-shadow: 0 0 14px #ffd45aaa; }
+@media (prefers-reduced-motion: reduce) { .hm-wv0, .hm-wv1 { animation: none; } }
