@@ -360,6 +360,7 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 /* centre banners */
 .u-banner { position: absolute; left: 50%; top: 22%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; text-align: center;
   pointer-events: none; visibility: hidden; }
+.u-banner.zone, .u-banner.alan { display: none !important; }   /* Feza 4.5 yaşında, okuyamıyor; ekranı kaplayan dev şeritler kaldırıldı */
 .u-banner.on { visibility: visible; animation: u-bin 0.55s cubic-bezier(.2, 1.6, .4, 1) both; }
 .u-banner.out { visibility: visible; animation: u-bout 0.45s ease-in both; }
 @keyframes u-bin { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }

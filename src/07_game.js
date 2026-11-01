@@ -1284,7 +1284,7 @@ const GAME = (() => {
   // Tekrar oynama / serbest seçim: doğrudan Feza'nın o anki P.level, saldırı gücü, zırhı ve fener ışığı sayısına göre dinamik ölçeklenir.
   const SC = {
     hpPerLight: 0.03, dmgPerLight: 0.035, master: 9,        // ışık başına Feza canı/hasarı; usta Feza = 9 ışık
-    mobHp: [0.85, 1.35], mobDmg: [0.82, 1.45], bossHp: [0.85, 1.25], bossDmg: [0.82, 1.48],   // net: 1. bölümden 10. bölüme
+    mobHp: [0.85, 1.35], mobDmg: [0.85, 1.55], bossHp: [0.85, 1.25], bossDmg: [0.85, 1.65],   // net: 1. bölümden 10. bölüme; yetenek ve iksir kullanmayı anlamlı kılar
     replayT: 0.68, replay: { hp: 1.3, dmg: 1.3, bossHp: 1.15, bossDmg: 1.25, cd: 0.85 },
     adapt: { min: 0.8, max: 1.35, win: 120, low: 0.35, high: 1.6 },   // sessiz uyum (görünmez)
     bossMult: {
@@ -1368,7 +1368,7 @@ const GAME = (() => {
   // stays close to the other small ones instead of taking ~2x their hits.
   const SMALL_HEAVY_HP_MUL = 0.6;
   const DEV_BOSS_HP = SC.bossMult;
-  const MOB_HIT_K = 5.0, BOSS_HIT_K = 3.8;   // MOTOR2 tek mod: dikkatsiz oynanırsa 1-2 kez yorulup Hala/Pırıl kaldırışı yaşansın; bkz. _calisma/denge_olcek.md
+  const MOB_HIT_K = 5.2, BOSS_HIT_K = 4.2;   // MOTOR2 tek mod: dikkatsiz oynanırsa 1-2 kez yorulup Hala/Pırıl kaldırışı yaşansın; yetenek/kaçınma ile rahat kazanılır
   // Chapter order + Feza's current level, gear and lantern lights decide combat strength.
   const LEVEL_ROLES = {
     melee:  { hits: 4, hp: 28, damage: 0.060, dmg: 8 },

@@ -2036,6 +2036,7 @@ const UI = (() => {
     Array.from({ length: 10 }, (_, i) => `H${i * 40 + 8}V0H${i * 40 + 32}V16`).join('') + 'H400V20Z"/></svg>';   // (10 merlons on a ledge)
   const ZONE_FLAGS = '<div class="u-zflags">' + '<i></i>'.repeat(11) + '</div>';
   function banner(o) {
+    if (o.kind === 'zone' || o.alan) return;   // Feza 4.5 yaşında, okuyamıyor, anlatıcı zaten seslendiriyor; ekranı kaplayan dev bölge/alan şeritleri kaldırıldı
     for (let i = BQ.length - 1; i >= 0; i--) if (BQ[i].kind === o.kind && (o.kind === 'level' || o.kind === 'zone')) BQ.splice(i, 1);   // newest wins
     if (BQ.length > 4) BQ.shift();
     BQ.push(o);
