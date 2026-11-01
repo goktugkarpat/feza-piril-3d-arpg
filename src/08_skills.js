@@ -26,9 +26,7 @@ const { SKILLS, SKILLS_update, SKILLS_clear } = (function () {
   const S = { ready: false, warm: false, t: 0, P: null, H: null, castLeft: 0, root: null };
   // ── Dev Ev: yetenek kademeleri (1..3, yıldız şekerle; 08j_his paneli). P.yetenek.kademe[id] ──
   function tier(id) {
-    const g = gm(), k = g && g.P && g.P.yetenek && g.P.yetenek.kademe;
-    const t = k ? k[id] | 0 : 1;
-    return t < 1 ? 1 : t > 3 ? 3 : t;
+    return 2;   // yetenek geliştirme sistemi kaldırıldı: her yetenek sabit orta güçte
   }
   // Ekonomi (_calisma/ekonomi_yildiz.md): HER yükseltme tam 1 yıldız; 3 yetenek × 2 yükseltme = 6 yıldız (MAX_YILDIZ). Gelir yalnız boss (08j_his).
   const MAX_YILDIZ = 6;
