@@ -1,0 +1,8 @@
+/* ── Bölüm geçişi sahnesi (09t_gecis.js) ── */
+.u-dream-travel-art.gecis { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+.gecis-cv { display: block; width: 100%; height: 100%; }
+.u-dream-travel:has(.gecis)::before, .u-dream-travel:has(.gecis)::after { display: none; }
+.u-dream-travel:has(.gecis) .u-dt-name { z-index: 2; bottom: 17%; text-shadow: 0 2px 10px #050a24, 0 3px 0 #14132f; }
+@media (max-aspect-ratio: 1/1) { .u-dream-travel:has(.gecis) .u-dt-name { bottom: 24%; font-size: clamp(24px, 7vw, 44px); } }
+#ui .u-dream-travel:has(.gecis) .u-dt-skip { z-index: 5; }
+.gecis-cv { pointer-events: none; }

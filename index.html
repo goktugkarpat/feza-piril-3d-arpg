@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kayıp Işıklar">
+<meta name="theme-color" content="#1d2250">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Feza ve Pırıl: Kayıp Işıklar</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a2f5a; touch-action: none; overscroll-behavior: none; }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: radial-gradient(circle at 50% 45%, #5a5aa0, #22264a); color: #fff; font: 800 26px "Avenir Next", system-ui, sans-serif; z-index: 50; }
+  #loading .ld { width: 64px; height: 64px; border-radius: 50%; border: 8px solid #ffffff33; border-top-color: #ffd66b; animation: ldspin 0.9s linear infinite; }
+  @keyframes ldspin { to { transform: rotate(360deg); } }
+</style>
+<link rel="stylesheet" href="src/ui.css">
+<link rel="stylesheet" href="src/hub.css">
+<link rel="stylesheet" href="src/harita.css">
+<link rel="stylesheet" href="src/gecis.css">
+<link rel="stylesheet" href="src/baslik.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading"><div class="ld"></div><div>Yükleniyor…</div></div>
+<script src="vendor/three.js"></script>
+<script src="src/00_i18n.js"></script>
+<script src="sesler.js"></script>
+<script src="src/00_core.js"></script>
+<script src="src/01_textures.js"></script>
+<script src="src/02_audio.js"></script>
+<!-- ses satırları (SES): Object.assign(AUD.LINES, {...}); sonraki dosya aynı anahtarı ezer -->
+<script src="src/02l_oyun.js"></script>
+<script src="src/02l_hikaye.js"></script>
+<script src="src/02l_yuva.js"></script>
+<script src="src/02l_piril.js"></script>
+<script src="src/02l_arayuz.js"></script>
+<!--02L-->
+<script src="src/02l_mantar.js"></script>
+<script src="src/02l_mercan.js"></script>
+<script src="src/02l_orman.js"></script>
+<script src="src/02l_degirmen.js"></script>
+<script src="src/02l_magara.js"></script>
+<script src="src/02l_mabet.js"></script>
+<script src="src/02l_yanardag.js"></script>
+<script src="src/02l_sehir.js"></script>
+<script src="src/02l_kale.js"></script>
+<script src="src/02l_fener.js"></script>
+<!--/02L-->
+<script src="src/03_fx.js"></script>
+<script src="src/03g_atmosfer.js"></script>
+<script src="src/03p_performans.js"></script>
+<script src="src/04_feza.js"></script>
+<script src="src/04_esyalar.js"></script>
+<!-- Pırıl (PIRIL3D): model, takip, yetenekler (motor uyumu: BILBO / BILBO_FOLLOW / BILBO_FUN takma adları) -->
+<script src="src/04_piril.js"></script>
+<script src="src/04_piril_takip.js"></script>
+<script src="src/04_piril_guc.js"></script>
+<!--04Y-->
+<script src="src/04_bilbo.js"></script>
+<script src="src/04_bilbo_takip.js"></script>
+<script src="src/04_baba.js"></script>
+<script src="src/04_kartal.js"></script>
+<script src="src/04_hala.js"></script>
+<script src="src/04_ejderha.js"></script>
+<!--/04Y-->
+<script src="src/05_enemies.js"></script>
+<script src="src/05a_huysuz_kayit.js"></script>
+<script src="src/05c_boss_davranis.js"></script>
+<!--05Z-->
+<script src="src/05z_mantar.js"></script>
+<script src="src/05z_mercan.js"></script>
+<script src="src/05z_orman.js"></script>
+<script src="src/05z_degirmen.js"></script>
+<script src="src/05z_magara.js"></script>
+<script src="src/05z_mabet.js"></script>
+<script src="src/05z_yanardag.js"></script>
+<script src="src/05z_sehir.js"></script>
+<script src="src/05z_kale.js"></script>
+<script src="src/05z_fener.js"></script>
+<!--/05Z-->
+<!-- bölüm dosyaları: tools/liste.py işaretler arasını var olan dosyalarla doldurur -->
+<script src="src/06a_bolum_kayit.js"></script>
+<script src="src/06y_odakit.js"></script>
+<script src="src/07m_kit.js"></script>
+<script src="src/07m_agac.js"></script>
+<script src="src/07m_dekor.js"></script>
+<script src="src/07m_kit_e567.js"></script>
+<script src="src/07m_dekor_magara.js"></script>
+<script src="src/07m_dekor_mabet.js"></script>
+<script src="src/07m_dekor_yanardag.js"></script>
+<script src="src/07m_kit_yapi.js"></script>
+<script src="src/07m_dekor_sehir.js"></script>
+<script src="src/07m_dekor_kale.js"></script>
+<script src="src/07m_dekor_fener.js"></script>
+<script src="src/07m_kit_ortak.js"></script>
+<script src="src/07m_dekor_orman.js"></script>
+<script src="src/07m_dekor_degirmen.js"></script>
+<script src="src/07m_dekor_mercan.js"></script>
+<!--06Z-->
+<script src="src/06z_mantar.js"></script>
+<script src="src/06z_mercan.js"></script>
+<script src="src/06z_orman.js"></script>
+<script src="src/06z_degirmen.js"></script>
+<script src="src/06z_magara.js"></script>
+<script src="src/06z_mabet.js"></script>
+<script src="src/06z_yanardag.js"></script>
+<script src="src/06z_sehir.js"></script>
+<script src="src/06z_kale.js"></script>
+<script src="src/06z_fener.js"></script>
+<!--/06Z-->
+<script src="src/06b_bolum_sirasi.js"></script>
+<script src="src/06_level.js"></script>
+<script src="src/07_game.js"></script>
+<script src="src/08_skills.js"></script>
+<script src="src/08m_minigame.js"></script>
+<script src="src/08j_his.js"></script>
+<script src="src/08n_mini_oyunlar.js"></script>
+<script src="src/10_story.js"></script>
+<script src="src/09m_harita_art.js"></script>
+<script src="src/09m_harita.js"></script>
+<script src="src/09t_gecis.js"></script>
+<script src="src/09_ui.js"></script>
+<script src="src/09h_hub.js"></script>
+<script src="src/09t_baslik.js"></script>
+<script>
+/* internetsiz çalışma (yalnız http/https; testte ?sessiz ile kapalı) */
+if ("serviceWorker" in navigator && /^https?:/.test(location.protocol) && !/[?&](sessiz|nosw)/.test(location.search)) addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+</script>
+</body>
+</html>

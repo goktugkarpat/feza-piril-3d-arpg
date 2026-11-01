@@ -1,0 +1,49 @@
+/* ── Dünya Haritası: tam ekran resimli harita (MOTOR1, 09m_harita.js) ── */
+.u-dream-screen.hm { padding: 0 !important; background: radial-gradient(circle at 50% 45%, #1d5a86, #0a1640 70%) !important; backdrop-filter: none; }
+.u-dream-screen.hm .u-dream-panel { width: 100%; height: 100%; max-height: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.hm-stage { position: relative; flex: 0 0 auto; }
+.hm-stage > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hm-tw { animation: hm-twinkle 4s ease-in-out infinite; }
+@keyframes hm-twinkle { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+.hm-cloud { animation: hm-drift 90s linear infinite alternate; }
+@keyframes hm-drift { from { transform: translateX(-40px); } to { transform: translateX(40px); } }
+.hm-spin { transform-box: fill-box; transform-origin: center; animation: hm-rot 8s linear infinite; }
+@keyframes hm-rot { to { transform: rotate(360deg); } }
+.hm-pir { animation: hm-bob 1.6s ease-in-out infinite alternate; }
+@keyframes hm-bob { from { transform: translateY(-3px); } to { transform: translateY(5px); } }
+.hm-next { animation: hm-pulse 2.2s ease-in-out infinite; }
+@keyframes hm-pulse { 0%, 100% { opacity: .92; } 50% { opacity: 1; } }
+#ui .hm-isle { position: absolute; transform: translate(-50%, -62%); width: 14%; height: 15%; padding: 0; margin: 0; background: none; border: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hm-portrait #ui .hm-isle, .hm-stage.hm-portrait .hm-isle { width: 30%; height: 10%; }
+#ui .hm-isle.down { filter: brightness(1.2); }
+#ui .hm-isle:focus-visible { outline: 3px solid #ffe5aa; outline-offset: 2px; border-radius: 20px; }
+.hm-name { position: absolute; pointer-events: none; font: 900 var(--hmf, 18px)/1.12 var(--f); color: #fff6d6; text-shadow: 0 2px 0 #0b1236, 0 0 6px #0b1236, 0 0 10px #0b1236; max-width: 15%; text-align: center; }
+.hm-name.done { color: #ffe27a; }
+.hm-name.locked { color: #c4cde4; opacity: .85; }
+.hm-name.next { color: #fff; font-size: calc(var(--hmf, 18px) * 1.12); }
+.hm-star { position: absolute; pointer-events: none; font-size: var(--hmf2, 26px); filter: drop-shadow(0 2px 3px #000a); transform: translate(-50%, -50%); }
+.hm-top { position: absolute; z-index: 3; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); pointer-events: none; }
+.hm-top > * { pointer-events: auto; }
+.hm-title { font: 900 clamp(20px, 3.2vw, 34px)/1.1 var(--f); color: #ffecc3; text-shadow: 0 3px 0 #0b1236, 0 0 10px #0b1236; padding-left: 78px; padding-top: 6px; }
+@media (max-aspect-ratio: 1/1) { .hm-title { padding-left: 64px; } }
+#ui .hm-close { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); min-height: 44px; }
+
+.hm-stage.hm-portrait .hm-name { max-width: 24%; }
+
+/* ── yeni harita (katmanlı): sabit resim + canlı katmanlar ── */
+.hm-svg > svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.hm-svg > .hm-L0 { overflow: hidden; }
+.hm-L { will-change: transform; }
+.hm-cl { animation: hm-cdrift 60s ease-in-out infinite alternate; }
+@keyframes hm-cdrift { from { transform: translateX(-14px); } to { transform: translateX(14px); } }
+.hm-beam { animation: hm-rot 22s linear infinite; }
+.hm-flame { transform-box: fill-box; transform-origin: 50% 100%; animation: hm-flick .5s ease-in-out infinite alternate; }
+@keyframes hm-flick { from { transform: scale(.9, 1.05); } to { transform: scale(1.12, .88); } }
+.u-screen.on .hm-stage { animation: hm-open .9s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes hm-open { from { transform: scale(.72) rotate(-4deg); opacity: 0; filter: brightness(1.6); } 60% { opacity: 1; } to { transform: none; opacity: 1; filter: none; } }
+.hm-stage .hm-isle:nth-of-type(10) { width: calc(var(--hmf, 17px) * 9) !important; height: calc(var(--hmf, 17px) * 17) !important; }
+.hm-stage .hm-isle:nth-of-type(10) .hm-star { display: none !important; }
+.hm-name { background: rgba(8, 14, 48, .22); padding: 0 7px 2px; border-radius: 999px; opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .hm-cl, .hm-beam, .hm-flame { animation: none; } }
+.hm-stage .hm-name { max-width: calc(var(--hmf, 17px) * 9.5) !important; font-size: calc(var(--hmf, 17px) * .68); }
+.hm-stage .hm-name.next, .hm-stage .hm-isle:hover .hm-name, .hm-stage .hm-isle:focus-visible .hm-name { opacity: 1; background: rgba(8, 14, 48, .5); }
