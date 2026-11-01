@@ -236,7 +236,7 @@ const ORMAN = (() => {
     if (typeof DEKOR_BOL === 'function') DEKOR_BOL(L, api, 14, 14000);   // PERF: büyük birleşik dekor parçalarını böl
     // PERF: üçgen/çizim bütçesi için ağaç ve çalı örnekleri seyrelir (ağaçların ~%35'i, çalıların ~%40'ı); boşalan parçalar gizlenir
     try {
-      const keep = /seyreksiz/.test(location.search) ? {} : { oak: 0.45, blossom: 0.45, pine: 0.45, lolli: 0.45, bush: 0.3 }, m4 = new api.THREE.Matrix4(), cl = new api.THREE.Color();
+      const keep = /seyreksiz/.test(location.search) ? {} : { oak: 0.4, blossom: 0.4, pine: 0.4, lolli: 0.4, bush: 0.25 }, m4 = new api.THREE.Matrix4(), cl = new api.THREE.Color();
       let h = 12345; const rr = () => { h = (h * 16807) % 2147483647; return h / 2147483647; };
       let bulundu = 0;
       const seyrelt = () => (L.group || scene).traverse(o => {
@@ -255,7 +255,7 @@ const ORMAN = (() => {
         for (const nm in grp) {
           const ms = grp[nm], bins = new Map(), m4 = new api.THREE.Matrix4(), cl = new api.THREE.Color();
           for (const o of ms) for (let i = 0; i < o.count; i++) {
-            o.getMatrixAt(i, m4); const key = Math.floor(m4.elements[12] / 44) * 1000 + Math.floor(m4.elements[14] / 44);
+            o.getMatrixAt(i, m4); const key = Math.floor(m4.elements[12] / 66) * 1000 + Math.floor(m4.elements[14] / 66);
             let b = bins.get(key); if (!b) bins.set(key, b = []); const c = new api.THREE.Color(1, 1, 1); if (o.instanceColor) o.getColorAt(i, c); b.push([m4.clone(), c]);
           }
           const o0 = ms[0];

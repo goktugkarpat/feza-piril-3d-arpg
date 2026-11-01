@@ -120,7 +120,7 @@ const EMODEL = (function (G0) {
   // built) so a character stays about 5-8k triangles (dragon about 20k). The shared core cache G0 keeps every variant. ──
   // (the little volcano creatures come in packs inside the sun's shadow box, skinned twice: a leaner LOD keeps the volcano's
   // shadow pass in line with the other zones; the town's people carry many small props, so theirs are lean too: 6.8-7.9k)
-  const LOD = { ejderha: 0.72, baby: 0.7, owl: 1, kraljole: 0.85, kostebekusta: 0.8, lavkaplumbaga: 0.8, kaplumbaga: 0.45, ateskusu: 0.5,
+  const LOD = { ejderha: 0.72, baby: 0.7, owl: 0.72, kraljole: 0.85, kostebekusta: 0.8, lavkaplumbaga: 0.8, kaplumbaga: 0.45, ateskusu: 0.5,
     yogurt: 0.55, kaymak: 0.55, kopuk: 0.5, peynir: 0.65, kefirdev: 0.8,
     nobetci: 0.5, simitci: 0.55, supurgeci: 0.55, tellal: 0.5, sancak: 0.6, sovalye: 0.66 };
   let LODK = 1;
