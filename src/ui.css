@@ -1284,3 +1284,16 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 .u-win.u-dim { background: radial-gradient(circle at 50% 45%, rgba(20, 50, 100, 0.55), rgba(6, 16, 40, 0.84)); }
 .u-win .u-panel { background: radial-gradient(ellipse at 50% 0%, #4a90e0, #23559f 55%, #153466) padding-box, var(--gold) border-box; }
 .u-xpstar { display: none !important; }
+
+/* Mola menüsü küçültüldü */
+.u-pause-panel { width: calc(var(--k) * 330px); max-width: 90%; padding: calc(var(--k) * 14px) calc(var(--k) * 18px); gap: calc(var(--k) * 6px); }
+.u-pause-panel .u-ptitle { font-size: calc(var(--k) * 36px); margin-bottom: 0; }
+.u-pause-panel .u-main { gap: calc(var(--k) * 8px); }
+.u-pause-panel .u-btn, .u-pause-panel .u-btn.wide, .u-pause-panel .u-btn.p.wide { min-height: calc(var(--k) * 46px); font-size: calc(var(--k) * 21px); }
+.u-pause-panel .u-btn svg { width: calc(var(--k) * 20px); height: calc(var(--k) * 20px); }
+
+/* Boss can çubuğu: ekranın tam ortasında */
+.u-boss { left: 0; right: 0; margin: 0 auto; width: min(calc(var(--k) * 520px), 70%); max-width: none; }
+.u-pause-panel:not(.asking):not(.choosing-difficulty) .u-main { display: flex; flex-direction: column; gap: calc(var(--k) * 8px); }
+.u-pause-panel .u-btn span { white-space: nowrap; }
+.u-pause-panel .u-btn, .u-pause-panel .u-btn.wide { min-width: 0; width: 100%; box-sizing: border-box; }

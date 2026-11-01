@@ -630,7 +630,6 @@ const UI = (() => {
     // Gardırop, Pırıl'ın Köşesi ve Çıkartma Albümü yalnız Mola menüsünde (başlıkta yok; mini oyunlar menüde yok — yalnız bölüm içinde)
     D.pauseGardirop = el('button', 'u-btn o wide', m, '<span>👕 Gardırop</span>');
     D.pauseBilbo = el('button', 'u-btn p wide', m, '<span>💜 Pırıl\u2019ın Köşesi</span>');
-    D.pauseAlbum = el('button', 'u-btn b u-small', m, '<span>📒 Çıkartma Albümü</span>');
     D.restart = el('button', 'u-btn o wide', m, SVG.again + '<span>Baştan Başla</span>');
     D.difficultyChoices = []; D.difficultyBack = document.createElement('button');
     // Restart question: the small red "Evet" only fires after a 2 s press-and-hold.
@@ -986,7 +985,7 @@ const UI = (() => {
   function wireButtons() {
     [D.dreamBtn, D.titleMap, D.pauseMap, D.winMap].forEach(b => accessiblePress(b, openDreamMap));
     const hubAc = id => () => { if (S.menu) closeMenu(); setTimeout(() => { if (typeof HUB !== 'undefined' && HUB.open) safe('HUB.' + id, () => HUB.open(id)); }, S.menu ? 0 : 60); };
-    accessiblePress(D.pauseGardirop, hubAc('gardirop')); accessiblePress(D.pauseBilbo, hubAc('bilbo')); accessiblePress(D.pauseAlbum, hubAc('album'));
+    accessiblePress(D.pauseGardirop, hubAc('gardirop')); accessiblePress(D.pauseBilbo, hubAc('bilbo'));
     accessiblePress(D.rideBtn, rideNow, false);
     onPress(D.playBtn, () => { if (!D.contBtn.classList.contains('u-hide')) bastanSor(); else startGame(false); }, { menu: true });   // (Pırıl: kayıt varken önce sor)
     onPress(D.contBtn, () => startGame(true), { menu: true });
