@@ -164,7 +164,7 @@ const ATMO = (() => {
     const P = L.path && L.path.length > 12 ? L.path : null, fl = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && L.grid[j * L.W + i] === 1; };
     const wall = (x, z, r) => { for (let a = 0; a < 8; a++) if (fl(x + Math.cos(a * 0.785) * r, z + Math.sin(a * 0.785) * r)) return false; return !fl(x, z); };
     const used = []; let placed = 0;
-    const south = (x, z, m = 14) => { for (let q = 1; q <= m; q += 2) for (const o of [-5, -2.5, 0, 2.5, 5]) if (fl(x + o, z + q)) return true; return false; };   // kamera güneyden bakar: önü yürünür alan olmasın
+    const south = (x, z, m = 16) => { for (let q = 1; q <= m; q += 2) for (const o of [-6, -3, 0, 3, 6]) if (fl(x + o, z - q) || fl(x + o, z + q)) return true; return false; };   // kamera güneyden (+z) bakar: yürünür alanın önünde veya dibinde olmasın
     specs.forEach((sp, k) => {
       const fr = [0.18, 0.5, 0.8][k], base = P ? P[Math.floor(P.length * fr)] : { x: L.W * (0.25 + 0.25 * k), z: L.H * 0.5 }, cl = 3.5 + sp[1] * 1.5;
       for (let pass = 0; pass < 2 && placed <= k; pass++) for (let d = 5; d < 34 && placed <= k; d += 1) for (let a = 0; a < 16 && placed <= k; a++) {

@@ -596,8 +596,8 @@
           for (const da of lanes) {
             const an = a0 + da, dx = Math.sin(an), dz = Math.cos(an), x0 = b.x + dx * (b.r + 0.3), z0 = b.z + dz * (b.r + 0.3);
             const len = Math.max(3, a.laneLen(x0, z0, dx, dz, 13, 0.5, rm));
-            // SADE10: cümle "halkalar" diyor → yer işareti şerit değil, her yolda dışa doğru dizilen mavi HALKALAR (yollar arası boşluk belirgin)
-            for (let q = 0, n = Math.max(2, Math.floor(len / 2.2)); q < n; q++) { const u = (q + 0.6) / n * len; zoneMark(x0 + dx * u, z0 + dz * u, 0.62 + q * 0.06, '#4ab4ff', 2.6 + q * 0.1, 0.22); }
+            // SADE10/TELEG: cümle "halkalar" diyor → en çok 2 temiz şerit, şerit başına en çok 4 net mavi halka (kalabalık yok)
+            for (let q = 0, n = Math.min(4, Math.max(2, Math.floor(len / 3.0))); q < n; q++) { const u = (q + 0.6) / n * len; zoneMark(x0 + dx * u, z0 + dz * u, 0.62 + q * 0.06, '#4ab4ff', 2.6 + q * 0.1, 0.22); }
             S.lanes.push({ x0, z0, dx, dz, len });
           }
           sadeFt(a, b.x, b.height + 0.4, b.z, 'Fuuu!', 'word'); a.sfx('bubble', { x: b.x, z: b.z, pitch: 0.7 });
@@ -605,7 +605,6 @@
         if (b.did === 1 && t >= 2.3) {
           b.did = 2;
           S.lanes.forEach((L, i) => blowRing(b, L.x0, L.z0, L.dx, L.dz, L.len, i * 0.12));
-          if (S.stage === 3) S.lanes.forEach((L, i) => { if (i % 2 === 0) blowRing(b, L.x0, L.z0, L.dx, L.dz, L.len, 0.7 + i * 0.1); });
           a.sfx('whoosh', { x: b.x, z: b.z, pitch: 1.4, vol: 0.6 }); const m = a.muzzle(b); a.burst('bubble', m.x, m.y, m.z, { count: 7, scale: 1.3 });
         }
         if (t >= b.phD) { S.n = (S.n || 0) + 1; clearMarks(b); a.bossEnd(b, 1.4, 1.3); }
@@ -650,8 +649,7 @@
           b.did = 1; cue(a, S, 'yuvarlan', 'b02_yuvarlan'); const an = Math.atan2(ux, uz), dx = Math.sin(an), dz = Math.cos(an), rm = a.bossRoom();
           S.len = Math.max(3, Math.min(15, a.laneLen(b.x, b.z, dx, dz, 15, b.r * 0.8, rm)));
           S.x0 = b.x; S.z0 = b.z; S.dx = dx; S.dz = dz; S.hit = false; b.face = an;
-          b.tele = a.telegraphLine(b.x, b.z, b.x + dx * (S.len + b.r * 0.5), b.z + dz * (S.len + b.r * 0.5), b.r * 2 + 0.3, 2.3, '#3fd96a');   // ses "yeşil yol" diyor → yeşil
-          laneMark(b.x, b.z, b.x + dx * (S.len + b.r * 0.5), b.z + dz * (S.len + b.r * 0.5), b.r * 2 + 0.3, '#38c85c', 2.4, 0.32);
+          laneMark(b.x, b.z, b.x + dx * (S.len + b.r * 0.5), b.z + dz * (S.len + b.r * 0.5), b.r * 2 + 0.3, '#38c85c', 2.4, 0.32);   // TELEG: tek yeşil yol (çift çizim yok)
           sadeFt(a, b.x, b.height + 0.5, b.z, 'Yuvarlanıyorum!', 'word'); a.sfx('bubble', { x: b.x, z: b.z, pitch: 0.55 });
         }
         if (b.did === 1 && t >= 2.3) { a.bossPhase(b, 'yuvarlanGo', S.len / 6 + 0.8); a.sfx('whoosh', { x: b.x, z: b.z, pitch: 0.7 }); }

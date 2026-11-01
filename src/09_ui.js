@@ -97,20 +97,20 @@ const UI = (() => {
       <rect x="40.5" y="30" width="19" height="6" rx="3" fill="#ffd23f" stroke="#7a4205" stroke-width="2"/>
       <ellipse cx="38" cy="54" rx="6" ry="10" fill="#fff" fill-opacity=".65" transform="rotate(28 38 54)"/>
       <circle cx="60" cy="74" r="3.2" fill="#fff" fill-opacity=".5"/><circle cx="52" cy="82" r="2" fill="#fff" fill-opacity=".45"/></svg>`,
-    // Friendly purple dragon head (stand-in until the portrait of the real boss model is rendered, see bossPortrait).
+    // Friendly silver-gold dragon head (stand-in until the portrait of the real boss model is rendered, see bossPortrait).
     // Flat fills only (no gradient ids): several copies can be on the page at once. The pastel disc behind it is CSS (.u-dimg).
     dragon: '<svg class="u-dimg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
-      '<g stroke="#3a1d66" stroke-width="2.6" stroke-linejoin="round">' +
-      '<path d="M34 31C29 22 28 14 31 8C36 14 41 21 44 28Z" fill="#f6dfae"/><path d="M66 31C71 22 72 14 69 8C64 14 59 21 56 28Z" fill="#f6dfae"/>' +
-      '<path d="M22 46C12 43 7 35 8 27C16 30 23 35 28 41Z" fill="#f47cc6"/><path d="M78 46C88 43 93 35 92 27C84 30 77 35 72 41Z" fill="#f47cc6"/>' +
-      '<path d="M44 25C45 17 55 17 56 25Z" fill="#f47cc6"/>' +
-      '<ellipse cx="50" cy="50" rx="31" ry="27.5" fill="#8d5ad9"/><ellipse cx="50" cy="68" rx="22" ry="14.5" fill="#c7a6f4"/></g>' +
+      '<g stroke="#1e3868" stroke-width="2.6" stroke-linejoin="round">' +
+      '<path d="M34 31C29 22 28 14 31 8C36 14 41 21 44 28Z" fill="#ffe082"/><path d="M66 31C71 22 72 14 69 8C64 14 59 21 56 28Z" fill="#ffe082"/>' +
+      '<path d="M22 46C12 43 7 35 8 27C16 30 23 35 28 41Z" fill="#ffb74d"/><path d="M78 46C88 43 93 35 92 27C84 30 77 35 72 41Z" fill="#ffb74d"/>' +
+      '<path d="M44 25C45 17 55 17 56 25Z" fill="#ffb74d"/>' +
+      '<ellipse cx="50" cy="50" rx="31" ry="27.5" fill="#7ca2d8"/><ellipse cx="50" cy="68" rx="22" ry="14.5" fill="#d6e6fa"/></g>' +
       '<ellipse cx="39" cy="34" rx="12" ry="5.5" fill="#fff" opacity=".3" transform="rotate(-18 39 34)"/>' +
-      '<ellipse cx="43.5" cy="63" rx="2.3" ry="1.5" fill="#3a1a5a"/><ellipse cx="56.5" cy="63" rx="2.3" ry="1.5" fill="#3a1a5a"/>' +
-      '<path d="M39 69.5Q50 82 61 69.5Q50 73 39 69.5Z" fill="#5c1733" stroke="#3a1250" stroke-width="2.2" stroke-linejoin="round"/>' +
+      '<ellipse cx="43.5" cy="63" rx="2.3" ry="1.5" fill="#1e3868"/><ellipse cx="56.5" cy="63" rx="2.3" ry="1.5" fill="#1e3868"/>' +
+      '<path d="M39 69.5Q50 82 61 69.5Q50 73 39 69.5Z" fill="#5c1733" stroke="#1e3868" stroke-width="2.2" stroke-linejoin="round"/>' +
       '<path d="M45 75.2Q50 79 55 75.2Q50 73.6 45 75.2Z" fill="#ff7aa0"/>' +
       '<rect x="46.2" y="70.6" width="3.4" height="3.2" rx="1" fill="#fffaf0"/><rect x="50.4" y="70.6" width="3.4" height="3.2" rx="1" fill="#fffaf0"/>' +
-      '<g stroke="#3a1d66" stroke-width="2"><ellipse cx="37.5" cy="47" rx="8.4" ry="9.8" fill="#fff"/><ellipse cx="62.5" cy="47" rx="8.4" ry="9.8" fill="#fff"/></g>' +
+      '<g stroke="#1e3868" stroke-width="2"><ellipse cx="37.5" cy="47" rx="8.4" ry="9.8" fill="#fff"/><ellipse cx="62.5" cy="47" rx="8.4" ry="9.8" fill="#fff"/></g>' +
       '<circle cx="38.5" cy="49" r="5.8" fill="#b8661e"/><circle cx="61.5" cy="49" r="5.8" fill="#b8661e"/>' +
       '<circle cx="38.5" cy="49.6" r="3.1" fill="#2a1030"/><circle cx="61.5" cy="49.6" r="3.1" fill="#2a1030"/>' +
       '<circle cx="36.2" cy="45.7" r="2.3" fill="#fff"/><circle cx="59.2" cy="45.7" r="2.3" fill="#fff"/>' +
@@ -118,7 +118,7 @@ const UI = (() => {
     // Stand-ins for the other bosses (same flat style, same use as SVG.dragon): Kral Jöle — a big jelly with a golden crown
     kraljole: '<svg class="u-dimg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
       '<g stroke="#0c4a6a" stroke-width="2.6" stroke-linejoin="round">' +
-      '<path d="M16 60C10 72 9 84 12 92H30Z" fill="#8a4ad8"/><path d="M84 60C90 72 91 84 88 92H70Z" fill="#8a4ad8"/>' +
+      '<path d="M16 60C10 72 9 84 12 92H30Z" fill="#20a8c8"/><path d="M84 60C90 72 91 84 88 92H70Z" fill="#20a8c8"/>' +
       '<path d="M14 82C12 56 28 35 50 35C72 35 88 56 86 82C86 88 80 90 74 88C66 92 34 92 26 88C20 90 14 88 14 82Z" fill="#3fd0de"/>' +
       '<path d="M31 39L32 18L42 28L50 12L58 28L68 18L69 39Z" fill="#ffd23f"/><rect x="29" y="35" width="42" height="8.5" rx="3" fill="#ffb81c"/>' +
       '<circle cx="32" cy="17.5" r="2.6" fill="#fff3a0" stroke-width="1.8"/><circle cx="50" cy="11.5" r="2.8" fill="#fff3a0" stroke-width="1.8"/><circle cx="68" cy="17.5" r="2.6" fill="#fff3a0" stroke-width="1.8"/></g>' +
@@ -1831,12 +1831,12 @@ const UI = (() => {
   // counts and fog type, so the boss's shader programs are reused (no compile hitch later). Until it exists — or without
   // WebGL / EMODEL, or while EMODEL does not know that boss yet — a cute inline SVG stands in. Never a fierce 🐲/🐉 emoji.
   const BOSS_UI = {   // ad: name fallback · lines: voice key prefixes · disc/halo: badge colours (CSS .b-<type> matches disc)
-    kraljole: { ad: 'Kral Jöle', svg: SVG.kraljole, lines: ['kraljole_'], disc: ['#fbf6ff', '#e6d8ff', '#b99cf2'], halo: 'rgba(80,220,235,0.85)' },
+    kraljole: { ad: 'Kral Jöle', svg: SVG.kraljole, lines: ['kraljole_'], disc: ['#eefcff', '#a8f0f8', '#2ca8c8'], halo: 'rgba(80,220,235,0.85)' },
     kefirdev: { ad: 'Köpüklü Kefir Devi', svg: SVG.kefirdev, lines: ['kefirdev_'], disc: ['#eaf7ff', '#b4e0fc', '#5494dc'], halo: 'rgba(130,205,255,0.9)' },
     kostebekusta: { ad: 'Usta Köstebek', svg: SVG.kostebekusta, lines: ['usta_'], disc: ['#fffaf0', '#ffe3b0', '#f5b86a'], halo: 'rgba(255,190,80,0.85)' },
     lavkaplumbaga: { ad: 'Koca Lav Kaplumbağası', svg: SVG.lavkaplumbaga, lines: ['kaplumbaga_'], disc: ['#fff8f0', '#ffd6b0', '#ff9f6a'], halo: 'rgba(255,130,60,0.85)' },
     sovalye: { ad: 'Huysuz Şövalye', svg: SVG.sovalye, lines: ['sovalye_'], disc: ['#fffbea', '#ffe39a', '#3d64d8'], halo: 'rgba(90,130,255,0.9)' },   // royal blue + gold
-    ejderha: { ad: 'Huysuz Ejderha', svg: SVG.dragon, lines: ['ejderha_', 'ejder'], disc: ['#fff6fc', '#ffc9ec', '#f59ad6'], halo: 'rgba(255,90,140,0.85)' },
+    ejderha: { ad: 'Huysuz Ejderha', svg: SVG.dragon, lines: ['ejderha_', 'ejder'], disc: ['#fff9ec', '#ffe09e', '#e8963e'], halo: 'rgba(255,180,70,0.85)' },
   };
   const BOSS_ORDER = ['kraljole', 'kefirdev', 'kostebekusta', 'lavkaplumbaga', 'sovalye', 'ejderha'];   // when ZONES has no boss fields yet
   const bossUi = t => BOSS_UI[t] || { ad: 'Kocaman Huysuz', svg: SVG.bstar, lines: [], disc: BOSS_UI.ejderha.disc, halo: BOSS_UI.ejderha.halo };
@@ -2660,7 +2660,7 @@ const UI = (() => {
       bump(D.lvl, 1.35); portraitSoon(0.2);
     });
     // Dev Ev: "Yeni Yetenek!" savaşın ortasında çıkmaz: yakında kızgın huysuz yokken ya da en geç 6 s sonra (skillTick)
-    on('sinematik', d => { if (D.mini) D.mini.style.visibility = d.on ? 'hidden' : ''; });   // sinematikte mini harita gizlenir ('Geç' düğmesinin altında kalmasın)
+    on('sinematik', d => { const on = !!(d && d.on); if (D.root) D.root.classList.toggle('cine-on', on); if (D.mini) D.mini.style.visibility = on ? 'hidden' : ''; if (D.sbtns) D.sbtns.style.visibility = on ? 'hidden' : ''; });   // sinematikte mini harita ve sağ üst düğmeler gizlenir ('Geç' düğmesinin altında kalmasın)
     on('yeniGuc', d => { S.skillQ = S.skillQ || []; S.skillQ.push({ guc: d, due: S.t + 4 }); });
     on('skill', d => { S.skillQ = S.skillQ || []; S.skillQ.push({ i: d.index, due: S.t + 6 }); });
     on('item', d => {
@@ -3273,6 +3273,13 @@ const UI = (() => {
     if (M.GAME && D.shopPrompt) {
       D.shopPrompt.classList.toggle('u-hide', S.mode !== 'play' || !!S.menu || M.GAME.state !== 'play' || !M.GAME.merchantNear());
       D.wardTag.classList.toggle('u-hide', !M.GAME.merchantWard());
+    }
+    if (typeof window !== 'undefined' && !window.seenInit) window.seenInit = () => {};
+    if (M.GAME && D.root) {
+      const cineOn = !!((M.GAME.sinematik && M.GAME.sinematik.aktif) || (M.GAME.kameraIstek && M.GAME.kameraIstek.aktif));
+      D.root.classList.toggle('cine-on', cineOn);
+      if (D.mini) D.mini.style.visibility = cineOn ? 'hidden' : '';
+      if (D.sbtns) D.sbtns.style.visibility = cineOn ? 'hidden' : '';
     }
     try { hudTick(dt); } catch (e) { warn('hud', e); }
     if (render && (!S.paused || S.needRender)) { S.needRender = false; try { renderFrame(); } catch (e) { warn('renderFrame', e); } }

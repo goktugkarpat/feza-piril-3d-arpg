@@ -590,20 +590,20 @@ const HZ_DEGIRMEN = (() => {
       }
       if (t >= b.phD) { S.n++; clearMarks(S); A.bossEnd(b, 1.4, 1.3); }
     },
-    // Un Bulutu Dansı (Kefir 'bubbles'): üç adımlık dans; her adımda yerde 5 küçük beyaz nokta yelpaze gibi, aralarından geçilir.
+    // Un Bulutu Dansı (Kefir 'bubbles'): iki ardışık sıra; her sırada yerde 4 küçük beyaz nokta yelpaze gibi (2,0 sn uyarı), aralarından geçilir.
     dans(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
         b.did = 1; S.dots = []; S.hit = false;
         const base = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z);
-        [[3.4, 0.7, 0.0, 1.5], [5.2, 0.5, 1.7, 3.2]].forEach(([R, da, t0, tp], k) => {
-          const a0 = base + (k % 2 ? 0.2 : -0.2);
-          for (let i = -2; i <= 2; i++) { const a = a0 + i * da, x = b.x + Math.sin(a) * R, z = b.z + Math.cos(a) * R; if (A.isFloor(x, z)) S.dots.push({ x, z, t0, tp, on: false, done: false, m: null }); }
+        [[3.4, 0.72, 0.0, 2.0], [5.2, 0.55, 2.2, 4.2]].forEach(([R, da, t0, tp], k) => {
+          const a0 = base + (k % 2 ? 0.18 : -0.18);
+          for (let i = -1.5; i <= 1.5; i += 1) { const a = a0 + i * da, x = b.x + Math.sin(a) * R, z = b.z + Math.cos(a) * R; if (A.isFloor(x, z)) S.dots.push({ x, z, t0, tp, on: false, done: false, m: null }); }
         });
       }
       faceTo(b, A.P.pos.x, A.P.pos.z, 2, dt);
       for (const d of S.dots) {
-        if (!d.on && t >= d.t0) { d.on = true; d.m = zoneMark(d.x, d.z, 0.6, '#ffffff', d.tp - d.t0 + 0.4, 0.4); }   // TELEG: nokta başına tek işaret (zoneMark), iki sıra ardışık
+        if (!d.on && t >= d.t0) { d.on = true; d.m = zoneMark(d.x, d.z, 0.6, '#ffffff', d.tp - d.t0 + 0.35, 0.4); }   // TELEG: nokta başına tek işaret (zoneMark), iki sıra ardışık (≥2,0 sn)
         if (d.on && !d.done && t >= d.tp) {
           d.done = true; shut(d.m); A.fx('ring', d.x, d.z, { r0: 0.3, r1: 1.2, dur: 0.4, color: '#ffffff', width: 0.4 }); flour(A, d.x, 0.3, d.z, 7, 1.6);
           if (!S.hit && Math.hypot(A.P.pos.x - d.x, A.P.pos.z - d.z) < 0.95) { S.hit = true; A.hurtPlayer(b.dmg * 0.3, d.x, d.z, 0.3); }
@@ -663,7 +663,7 @@ const HZ_DEGIRMEN = (() => {
         if (S.stage >= 2 && A.gt - (S.lastBalon === undefined ? -99 : S.lastBalon) > 22 && !balloonAlive()) { S.lastBalon = A.gt; A.bossPhase(b, 'balon', 2.8); return; }
         const opts = S.stage === 1 ? [['adim', 0.5], ['fiskir', 0.5]] : S.stage === 2 ? [['adim', 0.25], ['fiskir', 0.25], ['dans', 0.5]] : [['adim', 0.2], ['fiskir', 0.3], ['cark', 0.5]];
         const ph = A.pickPhase(b, opts);
-        A.bossPhase(b, ph, { adim: 2.7, fiskir: 3.4, dans: 4.0, cark: 4.4 }[ph]);
+        A.bossPhase(b, ph, { adim: 2.7, fiskir: 3.4, dans: 4.8, cark: 4.4 }[ph]);
       },
       moves: MOVES,
       hints: { adim: 'b04_boss_adim', fiskir: 'b04_boss_fiskir', dans: 'b04_boss_dans', cark: 'b04_boss_cark', balon: 'b04_balon', hapsu: 'b04_hapsu' },

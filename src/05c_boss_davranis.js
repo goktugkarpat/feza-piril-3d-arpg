@@ -313,6 +313,12 @@ const BOSSDAV = (() => {
         if (b.difficultyHp) b.difficultyHp = b.difficultyHp.map(v => Math.round(v * k));
       }
     }
+    const D0 = DEFS[b.type];
+    if (!b.dvHp && D0 && D0.hpK && b.sized) {
+      b.dvHp = true; const k = D0.hpK;
+      b.maxHp = Math.round(b.maxHp * k); b.hp = Math.round(b.hp * k);
+      if (b.difficultyHp) b.difficultyHp = b.difficultyHp.map(v => Math.round(v * k));
+    }
     W.boss = b;
     return S;
   }

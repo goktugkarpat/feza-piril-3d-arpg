@@ -172,12 +172,12 @@ const MABET = (() => {
     const grp = new THREE.Group(); grp.position.set(gate.x, 0, gate.z); grp.rotation.y = Math.atan2(nx, nz) - PI / 2; api.add(grp);
     const k = new Kit(), cyl = geo('kCyl', () => kp(new THREE.CylinderGeometry(1, 1, 1, 14))), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
     for (const sx of [w0 - 0.2, w1 + 0.2]) {
-      k.add(box, 0xd8d0bb, [sx, 0.25, 0], null, [0.95, 0.5, 0.95]); k.add(cyl, 0xe6dfcb, [sx, 1.5, 0], null, [0.38, 2.2, 0.38]); k.add(box, 0xcfc6ae, [sx, 2.75, 0], null, [0.95, 0.3, 0.95]);
-      k.add(moonFlat(1, 0.2), 0xd9dde8, [sx, 1.6, 0.39], [PI / 2, 0, 0], 1);
+      k.add(box, 0xd8d0bb, [sx, 0.22, 0], null, [0.92, 0.44, 0.92]); k.add(cyl, 0xe6dfcb, [sx, 0.95, 0], null, [0.36, 1.15, 0.36]); k.add(box, 0xcfc6ae, [sx, 1.62, 0], null, [0.92, 0.26, 0.92]);
+      k.add(moonFlat(1, 0.2), 0xd9dde8, [sx, 1.0, 0.37], [PI / 2, 0, 0], 1);
     }
     const frame = new THREE.Mesh(k.build(), stoneMat()); frame.castShadow = true; grp.add(frame); api.dispose(frame.geometry);
     const pm = new THREE.MeshBasicMaterial({ color: 0x9cc8ff, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 2.6, 1); panel.position.set(cx, 1.4, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
+    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 1.55, 1); panel.position.set(cx, 0.92, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
     const solids = [];
     for (let o = w0 + 0.2; o <= w1 - 0.2 + 0.01; o += 0.8) { const so = { x: gate.x + nx * o, z: gate.z + nz * o, r: 0.7, alive: true, tag: 'mabetKapi' }; L.solids.push(so); solids.push(so); }
     L._sh = null;
@@ -235,7 +235,54 @@ const MABET = (() => {
       box = api.tmp(new THREE.BoxGeometry(1, 1, 1)), hemi = api.tmp(new THREE.SphereGeometry(1, 14, 7, 0, TAU, 0, PI / 2)), ico = api.tmp(new THREE.IcosahedronGeometry(1, 0)),
       bowl = api.tmp(new THREE.LatheGeometry([[0, 0.03], [0.4, 0.04], [0.7, 0.1], [0.9, 0.2], [1.0, 0.3], [1.14, 0.12], [1.2, 0.03]].map(q => new THREE.Vector2(q[0], q[1])), 20));
     // E567: yeni çevre kiti (07m_kit_e567.js + 07m_dekor_mabet.js); yüklenemezse eski basit süsler çalışır
-    const HASD = typeof MABET_DEKOR !== 'undefined' && (() => { try { return MABET_DEKOR.olustur(L, api, { K: typeof ODAKIT !== 'undefined' ? ODAKIT : null }); } catch (e) { console.warn('MABET_DEKOR', e); return false; } })();
+    // Kamera güneyde (+z, pitch 0.86): yürünebilir zeminin güneyinde kalan yüksek sütun/kemer/dikilitaşları alçalt
+    const flGrid = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && L.grid[j * L.W + i] === 1; };
+    const southHides = (x, z, topY) => {
+      if (topY <= 0.85) return false;
+      const dMax = Math.min(22, Math.max(10, Math.ceil(topY * 2.4)));
+      for (let dz = 1; dz <= dMax; dz += 1.5) {
+        const halfW = 3.6 + dz * 0.44;
+        for (const dx of [-halfW, -halfW * 0.5, 0, halfW * 0.5, halfW]) {
+          if (flGrid(x + dx, z - dz)) return true;
+        }
+      }
+      return false;
+    };
+    const rawPut = api.put.bind(api);
+    const sphLow = api.tmp(new THREE.SphereGeometry(1, 10, 7));
+    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0) => {
+      const h = Math.abs(sy || 1), topY = (y || 0) + h * 0.5;
+      if (southHides(x, z, topY)) {
+        if (!flGrid(x, z) && ((Math.abs(Math.round(x * 3 + z * 5))) % 5 === 0)) {
+          rawPut(sphLow, x, 0.14, z, 0.55, 0.22, 0.55, 0xd8d0bc, 0, 0, 0);
+        }
+        return;
+      }
+      rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz);
+    };
+    let origBake = null;
+    if (typeof PROPKIT !== 'undefined' && PROPKIT && PROPKIT.bake) {
+      origBake = PROPKIT.bake;
+      PROPKIT.bake = function(kit, x, z, yaw = 0, s = 1) {
+        const b = kit && kit.bounds;
+        const topY = b ? b.max.y * s : 2.6 * s;
+        if (southHides(x, z, topY)) return;
+        return origBake.call(this, kit, x, z, yaw, s);
+      };
+    }
+    let HASD = false;
+    try {
+      if (typeof MABET_DEKOR !== 'undefined') HASD = MABET_DEKOR.olustur(L, api, { K: typeof ODAKIT !== 'undefined' ? ODAKIT : null });
+    } catch (e) { console.warn('MABET_DEKOR', e); HASD = false; }
+    finally { if (origBake) PROPKIT.bake = origBake; }
+    // Antik taş mabet avlusu: oda merkezlerine alçak taş usturlap / güneş-ay rozeti (y=0.02, engel olmaz)
+    const ringFlat = api.tmp(new THREE.RingGeometry(0.78, 1.0, 28).rotateX(-PI / 2));
+    for (let ri = 0; ri < L.rooms.length; ri++) {
+      const rm = L.rooms[ri]; if (!rm || rm.kind === 'side') continue;
+      const rr = Math.min(3.8, (rm.r || 7) * 0.45);
+      rawPut(ringFlat, rm.x, 0.022, rm.z, rr, 1, rr, 0xc8b482, 0, 0, 0);
+      rawPut(ringFlat, rm.x, 0.024, rm.z, rr * 0.58, 1, rr * 0.58, 0x9ab4d8, 0, 0, 0);
+    }
     const P = (g, x, y, z, sx, sy, sz, c, yaw, rx, rz) => api.put(g, x, y, z, sx, sy, sz, c, yaw || 0, rx || 0, rz || 0);
     const clouds = (x, z, s) => { P(sph, x, 0.05, z, 2.6 * s, 0.5 * s, 2.2 * s, 0xc4d4ee); P(sph, x + 1.4 * s, 0.12, z + 0.6 * s, 1.8 * s, 0.5 * s, 1.5 * s, 0xdbe6f8); P(sph, x - 1.3 * s, 0.1, z - 0.4 * s, 1.6 * s, 0.45 * s, 1.4 * s, 0xb4c6e6); };
     let shafts = 0;
@@ -494,15 +541,23 @@ const MABET = (() => {
     });
   }
 
+  if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.mabet) {
+    Object.assign(ZEMIN.TEMA.mabet, {
+      tile:  { n: 26, r: 0.88, h: 0.04, bev: 0.06, rough: 0.78, c1: 0xd6cfc0, c2: 0xc8c0b0, c3: 0xe0d8c8, edge: 0x8c94a8 },
+      cover: ['grass', 0x5c7396, [0xa8d4ff, 0xf4f8ff, 0xffe8a0]],   // MOR YOK: gümüş-mavi, inci beyazı, yıldız altını
+      spark: [0x9fd8ff, 0xffe8a0],
+    });
+  }
+
   BOLUM.define('mabet', {
     ad: 'Ay Tapınağı',
-    taban: 'mabet',              // gece zemini (yıldız tozu); dekor kur()'da yeniden çerçevelenir
+    taban: 'mabet',              // bulutların üstünde gece zirvesi, antik taş mabet; dekor kur()'da yeniden çerçevelenir
     size: 100, side: 2, lowGravity: true,
     areas: [{ id: 'a1', ad: 'Bulut Kapısı', rooms: 1 }, { id: 'a2', ad: 'Yıldız Tozu Avlusu', rooms: 2 }, { id: 'a3', ad: 'Rün Taşları Bahçesi', rooms: 2 }, { id: 'a4', ad: 'Yıldız Basamakları', rooms: 1 }, { id: 'a5', ad: 'Mabet İç Salonu', rooms: 1 }],
     muzik: 'ay', malzeme: 'isik6', kayipEsya: null, final: false,
-    isik: { fog: [0x16224a, 34, 95], hemiSky: 0xb4cbf5, hemiGround: 0x3a4468, hemi: 0.85, sunColor: 0xfff0dc, sun: 1.2, sunOffset: [-12, 26, 14],
-      env: [0x34507c, 0x5c7ba8, 0x1a2442, 0.55], bloom: 0.34, exposure: 1.08, sat: 1.05, vig: 0.24, fezaLight: 1.5, fezaLightColor: 0xcfe8ff },
-    zemin: { tA: 0xdfe8f4, tB: 0xe9eff7, tC: 0xd6e4f6, out: 0x3f5686, outAmt: 0.8, macro: 0xbcd0ea },
+    isik: { fog: [0x182650, 36, 98], hemiSky: 0xc4d8f8, hemiGround: 0x464e6a, hemi: 0.88, sunColor: 0xfff2dc, sun: 1.28, sunOffset: [-12, 26, 14],
+      env: [0x385482, 0x6482ae, 0x1e2846, 0.56], bloom: 0.30, exposure: 1.08, sat: 1.08, vig: 0.22, fezaLight: 1.72, fezaLightColor: 0xfff4dc },
+    zemin: { tA: 0xd8d1c2, tB: 0xe2dbd0, tC: 0xcfdbe8, out: 0x384e7c, outAmt: 0.82, macro: 0xb8c6dc, soluk: 0.22 },
     minimap: { zemin: '#2c3b66' },
     harita: { ad: 'Ay Tapınağı', detay: 'Dolunayın altında taş tapınak, ay evresi basamakları ve Ay Tavşanı', renk: '#5b8def', simge: '🌙' },
     yolculuk: { arac: 'yaprak', cumle: 'Yaprak kayığımız kızıl parıltıya doğru süzülüyor!' },

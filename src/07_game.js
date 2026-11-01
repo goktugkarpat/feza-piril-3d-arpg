@@ -386,6 +386,8 @@ const GAME = (() => {
     pos: new THREE.Vector3(), face: Math.PI, hp: T.baseHp, maxHp: T.baseHp, lvl: 1, xp: 0, xpNext: xpFor(1), gold: 0,
     zoneLevel: null, roundPower: null, shopStock: {}, shopWard: null, heroClass: 'warrior', potions: DIFF.potions, maxPotions: 5, dmg: 8, armor: 0, speed: T.speed, equip: { weapon: null, offhand: null, hat: null, cape: null }, bag: [],
     skills: [], spin: 0, shield: 0, dead: false, checkpoint: { x: 0, z: 0 }, zone: 0, ng: 0,
+    get level() { return this.lvl; },
+    set level(v) { this.lvl = clamp(Math.floor(+v || 1), 1, 99); if (typeof syncPlayerScale === 'function') syncPlayerScale(); },
   };
   // Controller (input intent, swing, timers). Private.
   const C = {
@@ -710,7 +712,7 @@ const GAME = (() => {
     P.xpNext = xpFor(P.lvl);
   }
   const heroDamageNow = magic => Math.max(1, Math.round((magic ? P.magicDmg : P.meleeDmg) * frand(0.9, 1.12)));
-  const entryLevel = () => P.zoneLevel || clamp(Math.floor(P.lvl), 1, 99);
+  const entryLevel = () => Math.max(P.zoneLevel || 1, clamp(Math.floor(P.lvl), 1, 99));
   const itemTier = () => Math.min(50, 1 + Math.floor((entryLevel() - 1) / 2));
   const ilvlNow = () => itemTier() + (Math.random() < 0.35 ? 1 : 0);
   const rewardRate = () => 1 + 0.1 * (entryLevel() - 1);
@@ -1277,18 +1279,26 @@ const GAME = (() => {
     return { ng: P.ng, damage: Math.max(20, raw.damage), magic: Math.max(20, raw.magic), health: Math.max(T.baseHp, raw.health) };
   }
   // ── Ölçekleme sistemi (_calisma/denge_olcek.md) ──
-  // Düşman gücü NET olarak bölüm sırasıyla (1→10) düzgün artar; Feza'nın "ışık gücü" (toplanan fener ışıkları, menüsüz) can ve
-  // kılıç hasarını biraz artırır, düşman çarpanı bununla çarpılır ki net etki tabloda yazdığı gibi kalsın.
-  // Tekrar oynama (bitmiş bölüm): sabit "usta Feza" gücü + sabit orta-son bölüm ölçeği, can/hasar x1.3, boss can x1.4, boss biraz sık.
+  // Düşman gücü NET olarak bölüm sırasıyla (1→10) düzgün artar; Feza'nın "ışık gücü" (toplanan fener ışıkları, menüsüz), seviyesi (P.lvl/P.level)
+  // ve kuşanılan eşyaları can ve kılıç hasarını artırır; düşman çarpanı bununla çarpılır ki ne çok zor ne de "ölmek imkansız" olsun.
+  // Tekrar oynama / serbest seçim: doğrudan Feza'nın o anki P.level, saldırı gücü, zırhı ve fener ışığı sayısına göre dinamik ölçeklenir.
   const SC = {
     hpPerLight: 0.03, dmgPerLight: 0.035, master: 9,        // ışık başına Feza canı/hasarı; usta Feza = 9 ışık
-    mobHp: [0.85, 1.35], mobDmg: [0.80, 1.40], bossHp: [0.90, 1.30], bossDmg: [0.80, 1.45],   // net: 1. bölümden 10. bölüme
-    replayT: 0.68, replay: { hp: 1.3, dmg: 1.3, bossHp: 1.4, bossDmg: 1.3, cd: 0.85 },
-    adapt: { min: 0.8, max: 1.4, win: 120, low: 0.5, high: 2.2 },   // sessiz uyum (görünmez)
+    mobHp: [0.85, 1.35], mobDmg: [0.82, 1.45], bossHp: [0.85, 1.25], bossDmg: [0.82, 1.48],   // net: 1. bölümden 10. bölüme
+    replayT: 0.68, replay: { hp: 1.3, dmg: 1.3, bossHp: 1.15, bossDmg: 1.25, cd: 0.85 },
+    adapt: { min: 0.8, max: 1.35, win: 120, low: 0.35, high: 1.6 },   // sessiz uyum (görünmez)
+    bossMult: {
+      uykucuHortum: 2.2, kocaPofudukMantar: 1.06, kocaKirpiBalik: 1.30, sismanMercanBaligi: 1.30, kralJole: 2.85,
+      degirmenBekcisi: 1.20, ustaKostebek: 0.85, kristalKostebek: 0.85, mabetBekcisi: 1.32, kocaLavKaplumbagasi: 2.68,
+      huysuzSovalye: 2.35, huysuzEjderha: 1.0, unutulanKralTonton: 1.0, golgeKrali: 1.0,
+    },
   };
-  const lightPower = () => P.replay ? SC.master : clamp(isikSayisi(), 0, 9);
+  const lightPower = () => P.replay ? Math.max(clamp(isikSayisi(), 0, 9), clamp(entryLevel() - 1, 0, 9)) : clamp(isikSayisi(), 0, 9);
   const powHp = () => 1 + SC.hpPerLight * lightPower(), powDmg = () => 1 + SC.dmgPerLight * lightPower();
-  const chapterT = () => P.replay ? SC.replayT : clamp((P.zone | 0) / 9, 0, 1);
+  const chapterT = () => {
+    const zt = clamp((P.zone | 0) / 9, 0, 1), lt = clamp((entryLevel() - 1) / 9, 0, 1);
+    return P.replay ? Math.max(SC.replayT, zt, lt) : Math.max(zt, lt * 0.85);
+  };
   const scLerp = a => a[0] + (a[1] - a[0]) * chapterT();
   const scRep = k => P.replay ? SC.replay[k] : 1;
   const scMobHp = () => scLerp(SC.mobHp) * scRep('hp') * powDmg();
@@ -1296,12 +1306,31 @@ const GAME = (() => {
   const scBossHp = () => scLerp(SC.bossHp) * scRep('bossHp') * powDmg();
   const scBossDmg = () => scLerp(SC.bossDmg) * scRep('bossDmg') * powHp();
   const roundCooldown = () => P.replay ? SC.replay.cd : 1;
-  function setReplayFlag() {   // bölüme girerken bir kez: bitmiş bölüm = tekrar (bölüm içinde boss bitince değişmez)
+  function setReplayFlag() {   // bölüme girerken bir kez: bitmiş bölüm veya yüksek seviye serbest seçim = tekrar (bölüm içinde boss bitince değişmez)
     const id = zdef().id;
-    P.replay = !!(P.ng > 0 || (P.bossNese && P.bossNese[id]));
+    P.replay = !!(P.ng > 0 || (P.bossNese && P.bossNese[id]) || entryLevel() > (P.zone | 0) + 2);
+    P._scaledLvl = P.lvl;
     recalcStats();
   }
-  // Sessiz uyum: son ~2 dk SAVAŞ süresindeki can kaybı + Hala'nın kaldırışları; düşman hasarı 0.8x-1.4x yumuşakça. Ekranda hiçbir şey yok.
+  function syncPlayerScale() {   // P.level / P.lvl serbest seçimde veya dışarıdan değiştiğinde canlı düşmanları da ölçekle
+    P.zoneLevel = clamp(Math.floor(P.lvl), 1, 99);
+    setReplayFlag();
+    P.hp = P.maxHp;
+    for (const e of enemies) {
+      if (e.dead || e.whelp) continue;
+      const hpFor = tough => Math.round(e.boss ? bossHpNow(e.type, tough)
+        : ENEMY_HP_MUL * levelMobHp(e.type, e.def, e.elite, tough) * (e.elite ? ELITE_HP_MUL : SMALL_MOB_HP_MUL * (levelRole(e.type, e.def) === LEVEL_ROLES.heavy ? SMALL_HEAVY_HP_MUL : 1)));
+      setEnemyHp(e, hpFor(false), hpFor(true));
+      if (e.boss && e.dvHp && typeof BOSSDAV !== 'undefined' && BOSSDAV.DEFS && BOSSDAV.DEFS[e.type] && BOSSDAV.DEFS[e.type].hpK) {
+        const k = BOSSDAV.DEFS[e.type].hpK;
+        e.maxHp = Math.round(e.maxHp * k); e.hp = Math.round(e.hp * k);
+        if (e.difficultyHp) e.difficultyHp = e.difficultyHp.map(v => Math.round(v * k));
+      }
+      e.dmg = levelEnemyDamage(e.type, e.def, e.boss, e.elite);
+      if (e.boss) e.dmg0 = e.dmg;
+    }
+  }
+  // Sessiz uyum: son ~2 dk SAVAŞ süresindeki can kaybı + Hala'nın kaldırışları; düşman hasarı 0.8x-1.35x yumuşakça. Ekranda hiçbir şey yok.
   const ADAPT = { k: 1, fc: 0, ev: [], rate: 0, falls: 0, lost: 0 };
   function adaptNote(frac) { ADAPT.ev.push([ADAPT.fc, frac]); ADAPT.lost += frac; }
   function adaptTick(dt) {
@@ -1317,22 +1346,30 @@ const GAME = (() => {
     const tk = rate <= mid ? 1 + (A.max - 1) * clamp((mid - rate) / (mid - A.low), 0, 1) : 1 - (1 - A.min) * clamp((rate - mid) / (A.high - mid), 0, 1);
     ADAPT.k += clamp(tk - ADAPT.k, -dt * 0.02, dt * 0.02);
   }
-  function levelDamage(magic = false) { return 14 + 3 * (entryLevel() - 1); }
-  const levelHealth = () => T.baseHp + 12 * (entryLevel() - 1);
+  function levelDamage(magic = false) {
+    const lvlBase = 14 + 3 * (entryLevel() - 1);
+    const eqDmg = ((magic ? P.magicDmg : P.meleeDmg) || P.dmg || 14) / Math.max(1, powDmg());
+    return Math.max(lvlBase, eqDmg * 0.75 + lvlBase * 0.25);
+  }
+  function levelHealth() {
+    const lvlBase = T.baseHp + 12 * (entryLevel() - 1);
+    const eqHp = (P.maxHp || T.baseHp) / Math.max(1, powHp());
+    return Math.max(lvlBase, eqHp * 0.75 + lvlBase * 0.25);
+  }
   const learningAid = () => clamp((8 - entryLevel()) / 7, 0, 1) * 0.5;   // MOTOR2: öğrenme yardımı yarıya (tek mod)
   // Dev Ev denge (SPEC › "Denge doğrulaması (Dev Ev)", 5 yaş çocuk botu): bütün can/hasar ayarları burada.
   // ENEMY_HP_MUL: every foe (ordinary, elite, boss, summoned helper) has 25 % more health (family request).
   // SMALL_MOB_HP_MUL: ordinary (not elite, not boss) foes get more on top (family request; kid-bot check).
   // ELITE_HP_MUL: elites on top of their own ×1.8, so a "Kocaman" one stays clearly sturdier than the small ones.
-  // DEV_BOSS_HP: bosses without a BOSSDAV hpK (05c) get the same length as the others (Balkon's Uykucu Hortum).
+  // DEV_BOSS_HP: boss başına süre dengeleme çarpanı (~55–70 sn hedef penceresi; BOSSDAV kullanmayan B3 Kral Jöle ve B7 Lav Kaplumbağası dahil).
   // MOB_HIT_K / BOSS_HIT_K: incoming hits as a share of level health × this (Normal and Zor alike).
   const ENEMY_HP_MUL = 1.25, SMALL_MOB_HP_MUL = 1.3, ELITE_HP_MUL = 1.5;
   // SMALL_HEAVY_HP_MUL: an ordinary (not elite) foe that only counts as 'heavy' because of its slam attack (kaktüs, kaşık, şekerleme)
   // stays close to the other small ones instead of taking ~2x their hits.
   const SMALL_HEAVY_HP_MUL = 0.6;
-  const DEV_BOSS_HP = { uykucuHortum: 2.2 };
-  const MOB_HIT_K = 4.6, BOSS_HIT_K = 3.4;   // MOTOR2 tek mod: 2.5/2.5 idi (bot çocuk boss'ta hiç yenilmiyordu); bkz. _calisma/denge.md
-  // Chapter order must not decide combat strength. Size a creature by its role and captured player level.
+  const DEV_BOSS_HP = SC.bossMult;
+  const MOB_HIT_K = 5.0, BOSS_HIT_K = 3.8;   // MOTOR2 tek mod: dikkatsiz oynanırsa 1-2 kez yorulup Hala/Pırıl kaldırışı yaşansın; bkz. _calisma/denge_olcek.md
+  // Chapter order + Feza's current level, gear and lantern lights decide combat strength.
   const LEVEL_ROLES = {
     melee:  { hits: 4, hp: 28, damage: 0.060, dmg: 8 },
     ranged: { hits: 3.2, hp: 32, damage: 0.055, dmg: 7 },
@@ -1357,9 +1394,9 @@ const GAME = (() => {
     const role = levelRole(type, def), cfg = isBoss ? bossCfg(type) : role;
     const fraction = isBoss ? 0.105 : role.damage;
     const variety = clamp((isBoss ? cfg.dmg : def.dmg || role.dmg) / (isBoss ? 20 : role.dmg), 0.85, 1.15);
-    const eliteDmg = 1.25;
+    const eliteDmg = 1.25, armorComp = 1 / Math.max(0.72, 1 - (P.armor || 0) * 0.006);
     // Final Normal damage is a readable share of level health. Apply the existing Hard factors separately.
-    return levelHealth() * fraction * variety * (isBoss ? scBossDmg() * BOSS_HIT_K : scMobDmg() * MOB_HIT_K) / DIFF.damageTaken.normal
+    return levelHealth() * fraction * variety * armorComp * (isBoss ? scBossDmg() * BOSS_HIT_K : scMobDmg() * MOB_HIT_K) / DIFF.damageTaken.normal
       * (elite ? eliteDmg : 1) * (hard ? (isBoss ? HC.bossDmg : HC.dmg) : 1);
   }
 
@@ -2165,6 +2202,7 @@ const GAME = (() => {
     if (!b.sized) {   // use the same captured entry level when the fight starts
       b.sized = true;
       setEnemyHp(b, bossHpNow(b.type, false), bossHpNow(b.type, true));
+      b.dmg = levelEnemyDamage(b.type, b.def, true, false); b.dmg0 = b.dmg;
     }
     if (!b.intro) { b.intro = true; const k = b.kit.lines.giris; if (k && hasLine(k)) say(k, 3); }
     // Falling asleep in the fight must not mean the long walk back: wake up at the arena entrance — just OUTSIDE it, so
@@ -4757,7 +4795,7 @@ const GAME = (() => {
     if (merchantNear()) return false;
     if (P.shield > 0) { burst('sparkle', P.pos.x, 1, P.pos.z, { color: '#ff8fd8', count: 10 }); sfx('shield', { vol: 0.5 }); return false; }
     // A late-area heavy hit cannot defeat a healthy level-1 child in one blow. Armour still reduces it afterwards.
-    const envelope = hard ? 0.55 - 0.15 * learningAid() : 0.42 - 0.12 * learningAid();   // MOTOR2: 0.30 → 0.36 (tek mod)
+    const envelope = hard ? 0.55 - 0.15 * learningAid() : 0.44 - 0.10 * learningAid();   // MOTOR2: 0.30 → 0.44 (tek mod)
     const incoming = Math.min(amount * DIFF.damageTaken[hard ? 'hard' : 'normal'] * ADAPT.k, levelHealth() * powHp() * envelope);
     const a = Math.max(1, Math.round(incoming * (1 - P.armor / 100) * (merchantWard() ? 0.92 : 1)));
     P.hp -= a; adaptNote(Math.min(a, P.maxHp) / P.maxHp); C.lastHurt = gt; C.hurtT = 1; C.invuln = T.iframes + learningAid() * (hard ? 0.175 : 0.35);
@@ -5165,6 +5203,10 @@ const GAME = (() => {
         }
       }
       if (C.targetE && C.targetE.dead) C.targetE = null;
+      if (C.targetObj) {
+        const r = C.targetObj.ref;
+        if (r && (r.broken || r.opened || r.yerlesik || r.tut || r.done || r.active === false)) C.targetObj = null;
+      }
       // MOTOR1 (QA1): parmak bir nesne/yaratık üstünde basılı kalmışken hedef bitti/bırakıldı (öldü, ulaşılamadı, kullanıldı)
       // → mod 'move'a döner, Feza parmağın altındaki yere yürür (basılı parmak asla yürümeyi iptal etmesin)
       if (C.mode && C.mode !== 'move' && !C.targetE && !C.targetObj && !C.swing && typeof groundFromScreen === 'function') {
@@ -6347,6 +6389,8 @@ const GAME = (() => {
       }
       if (o) {
         C.targetObj = o; C.targetE = null; C.drag = false; C.hasT = false; C.mode = 'object';
+        const g0 = typeof groundFromScreen === 'function' ? groundFromScreen(sx, sy, 0) : null;
+        C.downGx = g0 ? g0.x : NaN; C.downGz = g0 ? g0.z : NaN;
         fx('ring', o.x, o.z, { r0: 0.4, r1: 1.4, dur: 0.35, color: '#ffd84a', width: 0.2 });
         return 'object';
       }
@@ -6358,20 +6402,25 @@ const GAME = (() => {
     },
     move(sx, sy) {
       C.sx = sx; C.sy = sy;
-      // a finger that follows a hopping enemy keeps attacking it; a real drag turns into walking — at once (≥ 26 px) when the
-      // finger heads away from the tapped one (parent: "kaçmaya çalışınca Feza boss'un yanından ayrılmıyor"), else after 90 px
+      // a finger that follows a hopping enemy keeps attacking it; a real drag turns into walking — at once (≥ 22 px) when the
+      // finger heads away from the tapped one (parent: "kaçmaya çalışınca Feza boss'un yanından ayrılmıyor"), else after 45 px
       if (C.mode && C.mode !== 'move') {
-        const md = Math.hypot(sx - C.downSx, sy - C.downSy);
-        let away = false;
-        if (md >= 26 && md <= 90 && C.targetE && typeof groundFromScreen === 'function') {
-          const g = groundFromScreen(sx, sy, 0), e = C.targetE;
-          // the finger's way on the ground since it touched the creature, against Feza → creature: heading back / off to the side
+        const md = Math.hypot(sx - C.downSx, sy - C.downSy), tgt = C.targetE || C.targetObj;
+        let away = !tgt && md >= 16;
+        if (md >= 22 && md <= 45 && tgt && typeof groundFromScreen === 'function') {
+          const g = groundFromScreen(sx, sy, 0);
+          // the finger's way on the ground since it touched the creature/object, against Feza → target: heading back / off to the side
           if (g && C.downGx === C.downGx) {
-            const dx = g.x - C.downGx, dz = g.z - C.downGz, l = Math.hypot(dx, dz), ex = e.x - P.pos.x, ez = e.z - P.pos.z, el = Math.hypot(ex, ez) || 1;
-            away = l > 0.3 && (dx * ex + dz * ez) / (l * el) < Math.cos(T.fleeArc);   // back or sideways
+            const dx = g.x - C.downGx, dz = g.z - C.downGz, l = Math.hypot(dx, dz), ex = tgt.x - P.pos.x, ez = tgt.z - P.pos.z, el = Math.hypot(ex, ez) || 1;
+            away = l > 0.25 && (dx * ex + dz * ez) / (l * el) < Math.cos(T.fleeArc);   // back or sideways
           }
         }
-        if (md > 90 || away) { C.mode = 'move'; C.drag = true; C.targetE = null; C.targetObj = null; C.dragWinT = -1; C.swing = C.swing && C.swing.magic ? C.swing : null; C.queued = false; }
+        if (md > 45 || away) {
+          C.mode = 'move'; C.drag = true; C.targetE = null; C.targetObj = null; C.dragWinT = -1; C.route = null; C.routeTried = false; C.dragRoute = null;
+          C.swing = C.swing && C.swing.magic ? C.swing : null; C.queued = false;
+          const g1 = typeof groundFromScreen === 'function' ? groundFromScreen(sx, sy, 0) : null;
+          if (g1) { C.tx = g1.x; C.tz = g1.z; C.hasT = true; }
+        }
       }
     },
     up() {   // (a way round found while dragging: the walk to the last point goes on along it)

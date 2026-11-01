@@ -671,9 +671,9 @@ const HZ_MANTAR = (() => {
     return J;
   }
   const MOVES = {
-    // Hapşu! Derin nefes (yerde yeşil-sarı halkalar ~1,5 s), sonra parıltılı spor bulutları iner (az hasar + yavaşlatan bulut).
+    // Hapşu! Derin nefes (yerde yeşil-sarı halkalar ≥2,0 s), sonra parıltılı spor bulutları iner (az hasar + yavaşlatan bulut).
     hapsu(b, S, dt) {
-      const A = BOSSDAV.api, t = b.stT, AT = S.stage === 1 ? 1.6 : 1.4;
+      const A = BOSSDAV.api, t = b.stT, AT = S.stage === 1 ? 2.2 : 2.0;
       faceTo(b, A.P.pos.x, A.P.pos.z, 3, dt);
       if (b.did === 0) {
         b.did = 1; const n = S.stage === 1 ? 3 : 4;
@@ -693,31 +693,31 @@ const HZ_MANTAR = (() => {
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.4, 1.3); }
     },
-    // Şapkasıyla zıplar: Feza'nın yanındaki pembe halkaya (1,4 s önce belli) "pof!" diye iner.
+    // Şapkasıyla zıplar: Feza'nın yanındaki pembe halkaya (≥2,0 s önce belli) "pof!" diye iner.
     zipla(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
-      if (b.did === 0) { b.did = 1; S.J = newJump(b, S, 0.45, 1.6, 2.6, 2.6, 7.5); warn(S, 'pr_ipucu_zipla'); sadeFt(A, b.x, b.height + 0.4, b.z, 'Hop hop!', 'word'); }
-      if (t < 0.45) faceTo(b, S.J.x1, S.J.z1, 6, dt);
+      if (b.did === 0) { b.did = 1; S.J = newJump(b, S, 0.55, 2.1, 2.6, 2.6, 7.5); warn(S, 'pr_ipucu_zipla'); sadeFt(A, b.x, b.height + 0.4, b.z, 'Hop hop!', 'word'); }
+      if (t < 0.55) faceTo(b, S.J.x1, S.J.z1, 6, dt);
       jumpStep(b, S, t, S.J, A);
       if (t >= b.phD) { b.y = 0; b.st.air = 0; b.st.land = 0; S.n++; A.bossEnd(b, 1.5, 1.3); }
     },
-    // Dönerek spor halkası: önce yakın halka, sonra uzak halka; aralarında ve halkalardaki boşlukta güvenli yer var.
+    // Dönerek spor halkası: önce yakın halka (3 adet), bittikten sonra uzak halka (4 adet, toplam ≤7); aralarında ve halkalardaki boşlukta güvenli yer var.
     halka(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       function halkaDalga(A, b, S, R, n, dur, t0) {
-        const gap = Math.floor(rnd(0, n)), gap2 = n > 5 ? (gap + 1) % n : -1;
+        const gap = Math.floor(rnd(0, n));
         for (let i = 0; i < n; i++) {
-          if (i === gap || i === gap2) continue;
+          if (i === gap) continue;
           const a = S.a0 + i / n * TAU, x = b.x + Math.sin(a) * R, z = b.z + Math.cos(a) * R;
           if (!A.isFloor(x, z)) continue;
-          const at = t0 + dur; tele(S, x, z, 1.05, dur, '#8fe84a'); const m = zoneMark(x, z, 1.05, '#7ee03a', dur + 0.35, 0.26);
+          const at = t0 + dur; tele(S, x, z, 1.05, dur, '#8fe84a'); const m = zoneMark(x, z, 1.05, '#7ee03a', dur + 0.3, 0.26);
           S.ring.push({ x, z, at, done: false, m });
         }
       }
       if (b.did === 0) {
         b.did = 1; sadeFt(A, b.x, b.height + 0.5, b.z, 'Spor halkası!', 'word'); A.sfx('whoosh', { x: b.x, z: b.z, pitch: 1.1 });
-        S.a0 = rnd(0, TAU); S.ring = []; S.ringHit = false; S.wave = 0;   // TELEG: dalgalar ARDIŞIK (en çok 4 + 4 halka); ikinci dalga ilki patlayınca çizilir
-        halkaDalga(A, b, S, b.r + 1.6, 5, 1.4, 0);
+        S.a0 = rnd(0, TAU); S.ring = []; S.ringHit = false; S.wave = 0;   // TELEG: dalgalar ARDIŞIK (3 + 4 = 7 halka); ikinci dalga ilki patladıktan sonra çizilir (2,0 sn uyarı)
+        halkaDalga(A, b, S, b.r + 1.6, 4, 2.0, 0);
         warn(S, S.stageLine || 'pr_ipucu_halka'); S.stageLine = null;   // ("…spor halkası yapacak, boşluktan kaç!" — halkalar yerde, aynı anda)
       }
       for (const p of S.ring || []) if (!p.done && t >= p.at) {
@@ -726,13 +726,13 @@ const HZ_MANTAR = (() => {
         const inR = Math.hypot(A.P.pos.x - p.x, A.P.pos.z - p.z) < 1.3;
         if (inR && !S.ringHit) { S.ringHit = true; A.bossRing(b, p.x, p.z, 1.05, 0.11, 0.4, '#eaffc0'); }
         else A.fx('ring', p.x, p.z, { r0: 0.6, r1: 1.65, dur: 0.5, color: '#eaffc0', width: 0.6 });
-        if (p.m && p.m.on) p.m.d = Math.min(p.m.d, p.m.t + 0.3);
+        if (p.m && p.m.on) p.m.d = Math.min(p.m.d, p.m.t + 0.25);
         A.burst('sparkle', p.x, 0.5, p.z, { color: '#eaffb0', count: 4 });
         if (Math.random() < 0.35) cloud(p.x, p.z, 1.1, 2.4);
       }
-      if (b.did >= 1 && S.wave === 0 && t >= 1.9) { S.wave = 1; halkaDalga(A, b, S, b.r + 4.3, 6, 1.4, t); }   // TELEG: 1. dalga patladı → 2. dalga
-      if (b.did === 1 && t > 1.38) { b.did = 2; A.sfx('bubblePop', { x: b.x, z: b.z, pitch: 0.7 }); }
-      if (b.did === 2 && t > 3.28) { b.did = 3; A.sfx('bubblePop', { x: b.x, z: b.z, pitch: 0.9 }); }
+      if (b.did >= 1 && S.wave === 0 && t >= 2.35) { S.wave = 1; halkaDalga(A, b, S, b.r + 4.3, 5, 2.0, t); }   // TELEG: 1. dalga patladı → 2. dalga (en çok 4 halka)
+      if (b.did === 1 && t > 1.98) { b.did = 2; A.sfx('bubblePop', { x: b.x, z: b.z, pitch: 0.7 }); }
+      if (b.did === 2 && t > 4.32) { b.did = 3; A.sfx('bubblePop', { x: b.x, z: b.z, pitch: 0.9 }); }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.4, 1.2); }
     },
     // Üç zıplama art arda (3. aşama): her inişin halkası önceden belli, sonuncusunda yorulur.
@@ -774,14 +774,14 @@ const HZ_MANTAR = (() => {
         S.stage = S.stage || 1; S.napN = S.napN || 0; S.n = S.n || 0;
         if (S.stage > 1 && S.sasirStage !== S.stage) { S.sasirStage = S.stage; A.bossPhase(b, 'sasir', 2.4); return; }
         // SADE4: aşama cümlesi bir sonraki hamleyi anlatıyor ("spor halkası" / "üç kere zıplayacak, pembe halkalar") → o hamle hemen gelsin
-        if (S.forceNext) { const f = S.forceNext; S.forceNext = null; A.bossPhase(b, f, { halka: 4.6, uclu: 4.4 }[f]); return; }
+        if (S.forceNext) { const f = S.forceNext; S.forceNext = null; A.bossPhase(b, f, { halka: 5.2, uclu: 4.4 }[f]); return; }
         if (S.n >= (S.stage === 3 ? 3 : 4)) { A.bossPhase(b, 'uyku', S.stage === 1 ? 4.4 : 3.8); return; }
         let opts;
         if (S.stage === 1) opts = [['hapsu', 0.5], ['zipla', 0.5]];
         else if (S.stage === 2) opts = [['hapsu', 0.3], ['zipla', 0.3], ['halka', 0.4]];
         else opts = [['uclu', 0.45], ['halka', 0.3], ['hapsu', 0.25]];
         const ph = A.pickPhase(b, opts);
-        A.bossPhase(b, ph, { hapsu: 3.4, zipla: 2.2, halka: 4.6, uclu: 4.4 }[ph]);
+        A.bossPhase(b, ph, { hapsu: 3.8, zipla: 2.7, halka: 5.2, uclu: 4.4 }[ph]);
       },
       moves: MOVES,
       hints: {},   // QA3: ipucu cümleleri hamlenin içinde, işaretle aynı anda (warn); 05c'nin sıraya koyduğu geç ipucu yok

@@ -17,7 +17,7 @@ const ORMAN_DEKOR = (() => {
     const ok = (x, z, r = 0.5) => api.isFloor(x, z) && api.circleFree(x, z, r) && free(x, z, r);
 
     // ── uzak/orta ağaç katmanları: yürünmez bölgede kenardan 2.2..14 m dışarıda ──
-    const lay = [[3.2, 6.5, 0.2, 'near'], [6, 11, 0.09, 'mid'], [11, 17, 0.04, 'far']];
+    const lay = [[3.2, 6.5, 0.14, 'near'], [6, 11, 0.06, 'mid'], [11, 17, 0.025, 'far']];
     const hides = (x, z, h) => { for (let t = 1.2; t < h * 0.8; t += 1.2) for (const o of [-1, -0.5, 0, 0.5, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * (1.5 + t * 0.7))]) return true; return false; };
     for (let j = 0; j < F.H; j++) for (let i = 0; i < F.W; i++) {
       if (F.floor[j * F.W + i]) continue;
@@ -41,7 +41,7 @@ const ORMAN_DEKOR = (() => {
     }
     // ── yürünür alanda küme süsleri ──
     const centers = [];
-    const nCl = Math.round(L.W * L.H / 55);
+    const nCl = Math.round(L.W * L.H / 68);
     const kinds = ['logs', 'stump', 'rocks', 'flowers', 'ferns', 'bushes', 'mushring', 'litter', 'flowers', 'ferns', 'logs', 'bushes'];
     function around(x, z, rmax, n, fn) { for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = Math.sqrt(rnd()) * rmax, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz, 0.25)) fn(px, pz, i); } }
     const fernAt = (x, z, s) => { const n = 3 + ((rnd() * 2) | 0), c = pick([0x4aa850, 0x5ab85a, 0x6cc860, 0x3f9a50]), k0 = (rnd() * 3) | 0; for (let i = 0; i < n; i++) put(P.frond(k0 + (i % 2)), x, 0.02, z, s, s, s, c, i / n * TAU + rnd() * 0.3, 0.1 * i % 0.3, 0, 'decor'); st.fern++; };
@@ -49,7 +49,7 @@ const ORMAN_DEKOR = (() => {
     const flowerAt = (x, z, s) => put(P.flower((rnd() * 5) | 0), x, 0, z, s, s, s, 0xffffff, rnd() * TAU, 0, 0, 'decor');
     const smallMush = (x, z, s) => { const cc = pick([[0xe8503a, 0xffffff], [0xe89a3a, 0xfff0c8], [0xf0e0c0, 0xffffff], [0xc8683a, 0xffe8c0]]), h = (0.14 + rnd() * 0.16) * s; put(P.stem('plain', 3), x, 0, z, 0.05 * s, h, 0.05 * s, 0xf4ecdc, rnd() * TAU, 0, 0, 'shinyNS'); put(P.cap(pick(['dome', 'bell', 'flat']), 3), x, h * 0.95, z, 0.13 * s, 0.11 * s, 0.13 * s, cc[0], rnd() * TAU, 0, 0, 'shinyNS'); st.mush++; };
     const bushAt = (x, z, s) => { const b = P.bush((rnd() * 4) | 0), yaw = rnd() * TAU; put(b.leaf, x, 0, z, s, s * 0.9, s, pick(rnd() < 0.15 ? AUTUMN : GREENS), yaw, 0, 0, 'shinyNS'); put(b.glow, x, 0, z, s * 0.9, s * 0.9, s * 0.9, pick([0xff8a6a, 0xfff08a, 0xffb0d8]), yaw, 0, 0, 'shinyNS'); st.bush++; };
-    const stoneAt = (x, z, s) => put(P.rock((rnd() * 5) | 0, 'orman', s > 0.6 ? 0 : 1), x, 0, z, s * 1.1, s * 0.95, s * 1.1, 0xffffff, rnd() * TAU, 0, 0, 'shinyNS');
+    const stoneAt = (x, z, s) => put(P.rock((rnd() * 5) | 0, 'orman', s > 0.8 ? 0 : 1), x, 0, z, s * 1.1, s * 0.95, s * 1.1, 0xffffff, rnd() * TAU, 0, 0, 'shinyNS');
     const litterAt = (x, z) => put(E.litter((rnd() * 4) | 0), x, 0, z, 1, 1, 1, 0xffffff, rnd() * TAU, 0, 0, 'shinyNS');
     function cluster(kind, x, z, dp) {
       switch (kind) {
@@ -63,25 +63,25 @@ const ORMAN_DEKOR = (() => {
         }
         case 'stump': {
           const s = 0.9 + rnd() * 1.1; put(E.stump((rnd() * 3) | 0), x, 0, z, s, s, s, 0xffffff, rnd() * TAU, 0, 0, 'shinyNS'); st.stump++;
-          around(x, z, 1.1 * s, 4, (px, pz) => { if (hyp(px - x, pz - z) > 0.35 * s) smallMush(px, pz, 1.1); });
+          around(x, z, 1.1 * s, 3, (px, pz) => { if (hyp(px - x, pz - z) > 0.35 * s) smallMush(px, pz, 1.1); });
           around(x, z, 1.6, 3, (px, pz) => tuftAt(px, pz, 1.1)); litterAt(x + 0.6, z + 0.5); if (rnd() < 0.5) fernAt(x - 0.8, z + 0.4, 0.55);
           break;
         }
         case 'rocks': {
           const s = 0.7 + rnd() * 0.8; stoneAt(x, z, s); st.rock++;
-          for (let i = 0, n = 1 + ((rnd() * 3) | 0); i < n; i++) { const a = rnd() * TAU, d = s * (0.9 + rnd() * 0.5), px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz, 0.2)) stoneAt(px, pz, s * (0.3 + rnd() * 0.35)); }
-          around(x, z, 1.8, 3, (px, pz) => fernAt(px, pz, 0.5)); around(x, z, 1.8, 4, (px, pz) => tuftAt(px, pz, 1.3));
+          for (let i = 0, n = 1 + ((rnd() * 2) | 0); i < n; i++) { const a = rnd() * TAU, d = s * (0.9 + rnd() * 0.5), px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz, 0.2)) stoneAt(px, pz, s * (0.3 + rnd() * 0.35)); }
+          around(x, z, 1.8, 2, (px, pz) => fernAt(px, pz, 0.5)); around(x, z, 1.8, 3, (px, pz) => tuftAt(px, pz, 1.3));
           if (rnd() < 0.5) smallMush(x + 0.8, z - 0.6, 1);
           break;
         }
         case 'flowers': {
-          const n = 4 + ((rnd() * 4) | 0); around(x, z, 1.9, n, (px, pz) => flowerAt(px, pz, 1 + rnd() * 0.7)); around(x, z, 2, 6, (px, pz) => tuftAt(px, pz, 1)); st.flo += n;
+          const n = 4 + ((rnd() * 3) | 0); around(x, z, 1.9, n, (px, pz) => flowerAt(px, pz, 1 + rnd() * 0.7)); around(x, z, 2, 4, (px, pz) => tuftAt(px, pz, 1)); st.flo += n;
           if (rnd() < 0.35) { put(P.cap('dome', 2), x + 0.3, 0.17, z, 0.25, 0.2, 0.25, 0xff9a3a, 0, 0, 0, 'shinyNS'); }
           break;
         }
-        case 'ferns': { const n = 3 + ((rnd() * 3) | 0); around(x, z, 1.6, n, (px, pz) => fernAt(px, pz, 0.6 + rnd() * 0.5)); around(x, z, 1.6, 3, (px, pz) => tuftAt(px, pz, 1.2)); if (rnd() < 0.4) stoneAt(x + 0.4, z - 0.5, 0.35); break; }
-        case 'bushes': { const n = 1 + ((rnd() * 2) | 0); for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = i ? 1 + rnd() * 0.7 : 0, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz, 0.5)) bushAt(px, pz, 0.7 + rnd() * 0.6); } around(x, z, 2, 3, (px, pz) => flowerAt(px, pz, 1)); around(x, z, 2, 3, (px, pz) => fernAt(px, pz, 0.45)); break; }
-        case 'mushring': { const n = 6 + ((rnd() * 4) | 0), R = 0.7 + rnd() * 0.4; for (let i = 0; i < n; i++) { const a = i / n * TAU + rnd() * 0.3, px = x + Math.sin(a) * R, pz = z + Math.cos(a) * R; if (ok(px, pz, 0.15)) smallMush(px, pz, 0.9 + rnd() * 0.6); } api.glow(x, z, 1.4, 0xffe8b0, 0.1); break; }
+        case 'ferns': { const n = 3 + ((rnd() * 2) | 0); around(x, z, 1.6, n, (px, pz) => fernAt(px, pz, 0.6 + rnd() * 0.5)); around(x, z, 1.6, 3, (px, pz) => tuftAt(px, pz, 1.2)); if (rnd() < 0.4) stoneAt(x + 0.4, z - 0.5, 0.35); break; }
+        case 'bushes': { const n = 1 + ((rnd() * 2) | 0); for (let i = 0; i < n; i++) { const a = rnd() * TAU, d = i ? 1 + rnd() * 0.7 : 0, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz, 0.5)) bushAt(px, pz, 0.7 + rnd() * 0.6); } around(x, z, 2, 2, (px, pz) => flowerAt(px, pz, 1)); around(x, z, 2, 2, (px, pz) => fernAt(px, pz, 0.45)); break; }
+        case 'mushring': { const n = 5 + ((rnd() * 3) | 0), R = 0.7 + rnd() * 0.4; for (let i = 0; i < n; i++) { const a = i / n * TAU + rnd() * 0.3, px = x + Math.sin(a) * R, pz = z + Math.cos(a) * R; if (ok(px, pz, 0.15)) smallMush(px, pz, 0.9 + rnd() * 0.6); } api.glow(x, z, 1.4, 0xffe8b0, 0.1); break; }
         default: { litterAt(x, z); litterAt(x + 1.1, z + 0.4); around(x, z, 1.8, 3, (px, pz) => tuftAt(px, pz, 1.1)); }
       }
     }
@@ -118,7 +118,15 @@ const ORMAN_DEKOR = (() => {
   }
   return { olustur };
 })();
-// PERF: orman çim öbeği sayısı azaltılır, öbekler biraz iri olur (üçgen bütçesi ≤400k)
-if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.orman) { const c = ZEMIN.TEMA.orman.cover[0]; if (c && c.k === 'tuft' && c.n > 2500) { c.n = 2500; c.s = [1.1, 2.0]; } }
-// PERF: orman zemin örtüsünden çakıl taneleri çıkarılır (çok küçük, çizim çağrısı yer)
-if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.orman) ZEMIN.TEMA.orman.cover = ZEMIN.TEMA.orman.cover.filter(c => c.k !== 'pebble');
+// PERF: orman çim öbeği sayısı azaltılır, ORMAN_DEKOR zaten yaprak/eğrelti/mantar kümesi koyduğu için mükerrer zemin instanced çağrıları kaldırılır
+if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.orman) {
+  ZEMIN.TEMA.orman.cover = ZEMIN.TEMA.orman.cover.filter(c => c.k !== 'pebble' && c.k !== 'leaf' && c.k !== 'fern' && c.k !== 'mush');
+  const c = ZEMIN.TEMA.orman.cover[0];
+  if (c && c.k === 'tuft' && c.n > 1700) { c.n = 1700; c.s = [1.2, 2.1]; }
+}
+// PERF: DEKOR_BOL hücre boyu en az 24m tutularak fazla parça çizim çağrısı (draw call) önlenir, üçgenler yine frustum-culled kalır
+if (typeof window !== 'undefined' && typeof DEKOR_BOL === 'function' && !DEKOR_BOL._perf) {
+  const _db0 = DEKOR_BOL;
+  window.DEKOR_BOL = function (L, api, cell = 24, min = 18000) { return _db0(L, api, Math.max(cell || 24, 24), Math.max(min || 18000, 18000)); };
+  window.DEKOR_BOL._perf = 1;
+}

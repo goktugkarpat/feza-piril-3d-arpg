@@ -150,7 +150,7 @@ const SEHIR_DEKOR = (() => {
     if (!items.length) return null;
     const geo = PROPKIT.bake(items);
     const fl = new Float32Array(geo.attributes.position.count); let o = 0;
-    for (const it of items) { const uv = it.geo.attributes.uv, n = it.geo.attributes.position.count; for (let i = 0; i < n; i++) fl[o + i] = uv && uv.getX(i) > 35 ? uv.getY(i) : 0; o += n; }
+    for (const it of (PROPKIT.sonSecilen || items)) { const uv = it.geo.attributes.uv, n = it.geo.attributes.position.count; for (let i = 0; i < n; i++) fl[o + i] = uv && uv.getX(i) > 35 ? uv.getY(i) : 0; o += n; }
     geo.setAttribute('aFl', new THREE_.BufferAttribute(fl, 1));
     const satU = { value: 0.25 }, mat = new THREE_.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE_.DoubleSide });
     mat.onBeforeCompile = sh => {

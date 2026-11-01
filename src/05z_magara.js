@@ -160,12 +160,10 @@ const HZ_MAGARA = (() => {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
         b.did = 1; faceTo(b, A.P.pos.x, A.P.pos.z, 30, 1);
-        const sp = [{ x: A.P.pos.x, z: A.P.pos.z }];
-        if (S.stage >= 3) { const a = rnd(0, PI * 2); sp.push({ x: A.P.pos.x + Math.sin(a) * 3.6, z: A.P.pos.z + Math.cos(a) * 3.6 }); }
-        for (const p of sp) {
-          if (!A.isFloor(p.x, p.z)) continue;
-          BOSSDAV.tele(p.x, p.z, 2.3, AT, '#ff9a2e');
-          const m = place(ballMesh()); m.visible = false; W.balls.push({ x: p.x, z: p.z, r: 2.3, t: 0, at: AT, m, b });
+        const p = { x: A.P.pos.x, z: A.P.pos.z }, r = S.stage >= 3 ? 2.5 : 2.3;   // TELEG: 3. aşamada da 2 eşzamanlı daire yerine Feza'ya nişanlı TEK net turuncu daire
+        if (A.isFloor(p.x, p.z)) {
+          BOSSDAV.tele(p.x, p.z, r, AT, '#ff9a2e');
+          const m = place(ballMesh()); m.visible = false; W.balls.push({ x: p.x, z: p.z, r, t: 0, at: AT, m, b });
         }
         A.sfx('rumble', { x: b.x, z: b.z, vol: 0.5, pitch: 0.8 });
       }

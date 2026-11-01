@@ -232,7 +232,7 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
   transition: opacity 0.4s, visibility 0s linear 0.4s; }
 .u-boss.on { opacity: 1; visibility: visible; transition: opacity 0.4s; animation: u-drop 0.6s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes u-drop { from { transform: translateY(-140%); } to { transform: translateY(0); } }
-.u-bossname { font-weight: 900; font-size: calc(var(--k) * 26px); --t1: var(--bn1, #ffe3fb); --t2: var(--bn2, #ff9ae0); --ol: var(--bno, #3a0a4a); }
+.u-bossname { font-weight: 900; font-size: calc(var(--k) * 26px); --t1: var(--bn1, #fff6d8); --t2: var(--bn2, #ffc860); --ol: var(--bno, #4a2204); }
 .u-bossrow { position: relative; width: 100%; display: flex; align-items: center; }
 .u-bossico { position: absolute; left: calc(var(--k) * -18px); top: 50%; transform: translateY(-50%); width: calc(var(--k) * 58px); height: calc(var(--k) * 58px);
   border-radius: 50%; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: calc(var(--k) * 34px);
@@ -240,14 +240,14 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
   box-shadow: 0 calc(var(--k) * 4px) calc(var(--k) * 8px) rgba(10, 0, 30, 0.5); }
 /* friendly boss portrait (rendered PNG, or the SVG stand-in): a round badge on its own pastel disc (per boss: .b-<type>) */
 .u-dimg { display: block; flex: none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; overflow: hidden;
-  background: radial-gradient(circle at 50% 36%, #fff6fc, #ffc9ec 55%, #f59ad6); }
-.u-dimg.b-kraljole { background: radial-gradient(circle at 50% 36%, #fbf6ff, #e6d8ff 55%, #b99cf2); }
+  background: radial-gradient(circle at 50% 36%, #fff9ec, #ffe09e 55%, #e8963e); }
+.u-dimg.b-kraljole { background: radial-gradient(circle at 50% 36%, #eefcff, #a8f0f8 55%, #2ca8c8); }
 .u-dimg.b-kostebekusta { background: radial-gradient(circle at 50% 36%, #fffaf0, #ffe3b0 55%, #f5b86a); }
 .u-dimg.b-lavkaplumbaga { background: radial-gradient(circle at 50% 36%, #fff8f0, #ffd6b0 55%, #ff9f6a); }
 .u-dimg.b-kefirdev { background: radial-gradient(circle at 50% 36%, #eaf7ff, #c4e8ff 42%, #5494dc); }   /* (a deeper blue rim: the white bottle stands out at 46–59 px) */
 .u-dimg.b-sovalye { background: radial-gradient(circle at 50% 36%, #fffbea, #ffe39a 44%, #3d64d8); }   /* Huysuz Şövalye: gold centre, royal-blue rim */
-/* per-boss bar colours (09_ui.js sets data-b from the 'boss' event's type); the dragon keeps the pink → violet default */
-.u-boss[data-b="kraljole"] { --bf1: #8ff5e4; --bf2: #27c6d6; --bf3: #4a84ff; --bn1: #e8fffd; --bn2: #7fe8f0; --bno: #0a3a5a; --bi1: #c9a6ff; --bi2: #6a3cc8; }
+/* per-boss bar colours (09_ui.js sets data-b from the 'boss' event's type); default is warm gold → amber */
+.u-boss[data-b="kraljole"] { --bf1: #8ff5e4; --bf2: #27c6d6; --bf3: #4a84ff; --bn1: #e8fffd; --bn2: #7fe8f0; --bno: #0a3a5a; --bi1: #9ef5ff; --bi2: #1c88b8; }
 .u-boss[data-b="kostebekusta"] { --bf1: #ffe066; --bf2: #ffab3c; --bf3: #f0703a; --bn1: #fff6d8; --bn2: #ffc860; --bno: #4a2204; --bi1: #ffe0a0; --bi2: #c07a2a; }
 .u-boss[data-b="lavkaplumbaga"] { --bf1: #ffd23c; --bf2: #ff8a2c; --bf3: #ff4f86; --bn1: #fff2dc; --bn2: #ffa060; --bno: #4a1004; --bi1: #ffc9a0; --bi2: #d8542a; }
 /* Kefir Devi: milky white → kefir-bottle blue, with fizzy bubbles rising inside the fill (.u-bossfizz, see bossFill in 09_ui.js) */
@@ -374,22 +374,22 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
   font-size: calc(var(--k) * 56px); border: calc(var(--k) * 6px) solid transparent;
   background: radial-gradient(circle at 50% 32%, #fff, var(--c, #ffd23f) 45%, var(--cd, #6a4a20)) padding-box, var(--gold) border-box; }
 .u-btitle { position: relative; font-weight: 900; font-size: calc(var(--k) * 62px); line-height: 1.05; margin-top: calc(var(--k) * 4px); }
-.u-bsub { position: relative; font-weight: 900; font-size: calc(var(--k) * 32px); margin-top: calc(var(--k) * 2px); --t1: #ffffff; --t2: #e5dcff; }
+.u-bsub { position: relative; font-weight: 900; font-size: calc(var(--k) * 32px); margin-top: calc(var(--k) * 2px); --t1: #ffffff; --t2: #dcecff; }
 /* --zs (09 nextBanner): < 1 when a long zone name would be wider than a narrow portrait screen — title and ribbon shrink to fit */
 .u-banner.zone .u-btitle { font-size: calc(var(--k) * 60px * var(--zs, 1)); }
 .u-zrib { position: relative; padding: calc(var(--k) * 10px) calc(var(--k) * 56px * var(--zs, 1)) calc(var(--k) * 14px); margin-top: calc(var(--k) * 6px);
   background: linear-gradient(180deg, var(--zr1, #4a90e8), var(--zr2, #2058b8)); border-top: calc(var(--k) * 4px) solid #ffd766; border-bottom: calc(var(--k) * 4px) solid #b5720f;
   box-shadow: 0 calc(var(--k) * 10px) calc(var(--k) * 22px) rgba(0, 12, 40, 0.45);
   clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%); }
-.u-zsm { font-weight: 900; font-size: calc(var(--k) * 24px); letter-spacing: 0.12em; color: #ffe38a; text-shadow: 0 2px 0 rgba(40, 10, 60, 0.6); }
-/* zone journey gems under the ribbon: done (gold) · here (big, glowing pink) · ahead (hollow) */
+.u-zsm { font-weight: 900; font-size: calc(var(--k) * 24px); letter-spacing: 0.12em; color: #ffe38a; text-shadow: 0 2px 0 rgba(10, 24, 60, 0.65); }
+/* zone journey gems under the ribbon: done (gold) · here (big, glowing amber) · ahead (hollow) */
 .u-zpips { position: relative; display: flex; align-items: center; gap: calc(var(--k) * 22px); margin-top: calc(var(--k) * 14px); }
 .u-zpips i { width: calc(var(--k) * 22px); height: calc(var(--k) * 22px); transform: rotate(45deg); border-radius: calc(var(--k) * 5px);
   background: rgba(255, 246, 214, 0.28); box-shadow: 0 0 0 calc(var(--k) * 3px) rgba(255, 227, 138, 0.95), 0 0 0 calc(var(--k) * 5px) rgba(90, 42, 0, 0.8),
     0 calc(var(--k) * 4px) calc(var(--k) * 8px) rgba(0, 12, 40, 0.45); }
 .u-zpips i.d { background: linear-gradient(135deg, #fff6c0, #ffd23f 50%, #d98f10); }
-.u-zpips i.c { width: calc(var(--k) * 32px); height: calc(var(--k) * 32px); background: linear-gradient(135deg, #fff, #ff9ad6 45%, #e0409a);
-  box-shadow: 0 0 0 calc(var(--k) * 3.5px) #fff3b0, 0 0 0 calc(var(--k) * 5.5px) rgba(90, 42, 0, 0.8), 0 0 calc(var(--k) * 18px) #ff7ac8;
+.u-zpips i.c { width: calc(var(--k) * 32px); height: calc(var(--k) * 32px); background: linear-gradient(135deg, #fff, #ffe38a 45%, #f08a24);
+  box-shadow: 0 0 0 calc(var(--k) * 3.5px) #fff3b0, 0 0 0 calc(var(--k) * 5.5px) rgba(90, 42, 0, 0.8), 0 0 calc(var(--k) * 18px) #ffb83c;
   animation: u-gem 1.1s ease-in-out infinite alternate; }
 @keyframes u-gem { from { transform: rotate(45deg) scale(0.9); } to { transform: rotate(45deg) scale(1.12); } }
 /* Kefir Vadisi zone card: a creamy ribbon with strawberry-pink letters and milk dripping from its lower edge */
@@ -397,9 +397,9 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
   filter: drop-shadow(0 calc(var(--k) * 4px) 0 rgba(120, 66, 30, 0.5)) drop-shadow(0 calc(var(--k) * 9px) calc(var(--k) * 12px) rgba(40, 10, 40, 0.35)); }
 .u-banner.t-dairy .u-zrib { background: linear-gradient(180deg, #ffffff, #fff9ee 55%, #fff0d8); border-bottom: 0; padding-bottom: calc(var(--k) * 16px); }
 .u-banner.t-dairy .u-btitle .u-ol { --t1: #ffd6e8; --t2: #ff5f9e; --ol: #5a1030; }
-/* the valley is bright and creamy: the small "2. Bölge" line sits on a soft berry pill so it reads */
+/* the valley is bright and creamy: the small "2. Bölge" line sits on a soft blueberry-navy pill so it reads */
 .u-banner.t-dairy .u-zsm { padding: calc(var(--k) * 3px) calc(var(--k) * 16px); border-radius: 99px;
-  background: linear-gradient(180deg, rgba(122, 52, 128, 0.78), rgba(80, 26, 96, 0.78)); box-shadow: 0 calc(var(--k) * 3px) calc(var(--k) * 8px) rgba(60, 20, 60, 0.3); }
+  background: linear-gradient(180deg, rgba(38, 72, 138, 0.82), rgba(22, 44, 96, 0.85)); box-shadow: 0 calc(var(--k) * 3px) calc(var(--k) * 8px) rgba(12, 24, 60, 0.35); }
 .u-zmk { display: inline-block; font-size: 1.3em; line-height: 1; vertical-align: -0.12em; letter-spacing: 0;
   filter: drop-shadow(0 calc(var(--k) * 2px) 0 rgba(40, 10, 60, 0.6)); }
 .u-banner.t-dairy .u-zpips { margin-top: calc(var(--k) * 26px); }   /* (below the drips) */
@@ -1158,18 +1158,18 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 @media (orientation: landscape) { #ui .u-banner.zone:not(.alan) { top: 34%; } }   /* (Pırıl: bölüm bayrağı üst HUD satırının (ışık yuvaları) altında) */
 .u-bastan { position: fixed; inset: 0; z-index: 70; display: none; align-items: center; justify-content: center; background: rgba(20, 16, 60, 0.55); }
 .u-bastan.on { display: flex; }
-.u-bastan-kart { background: linear-gradient(#f6f2ff, #e6deff); border: 6px solid #fff; border-radius: 36px; padding: 26px 34px 30px; text-align: center;
-  box-shadow: 0 16px 40px rgba(20, 16, 60, 0.45); max-width: min(560px, 90vw); font-family: "Avenir Next Rounded", "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif; }
+.u-bastan-kart { background: linear-gradient(#fffaf0, #ffecc8); border: 6px solid #fff; border-radius: 36px; padding: 26px 34px 30px; text-align: center;
+  box-shadow: 0 16px 40px rgba(10, 24, 60, 0.45); max-width: min(560px, 90vw); font-family: "Avenir Next Rounded", "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif; }
 .u-bastan-resim { font-size: 74px; line-height: 1.1; }
-.u-bastan-soru { font-size: 36px; font-weight: 900; color: #4a3a9a; margin-top: 6px; }
-.u-bastan-not { font-size: 22px; font-weight: 700; color: #6a89b8; margin: 4px 0 18px; }
+.u-bastan-soru { font-size: 36px; font-weight: 900; color: #1c3568; margin-top: 6px; }
+.u-bastan-not { font-size: 22px; font-weight: 700; color: #4a6b9c; margin: 4px 0 18px; }
 .u-bastan-dugme { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .u-bastan-hayir { font-size: 30px !important; min-width: 300px; min-height: 84px; }
 .u-bastan-evet { font-size: 20px !important; min-height: 60px; opacity: 0.9; }
-/* (Pırıl: alan tabelası okunur — koyu yarı saydam bant, beyaz yazı) */
-#ui .u-banner.alan .u-zrib { background: rgba(26, 18, 66, 0.78); border-top: 0; border-bottom: 0; border-radius: 999px; clip-path: none;
-  padding: calc(var(--k) * 8px) calc(var(--k) * 40px * var(--zs, 1)) calc(var(--k) * 10px); box-shadow: 0 0 0 calc(var(--k) * 3px) rgba(255, 255, 255, 0.35); }
-#ui .u-banner.alan .u-btitle .u-ol { --t1: #ffffff; --t2: #fff4cf; --ol: #1a1240; }
+/* (Pırıl: alan tabelası okunur — koyu lacivert yarı saydam bant, beyaz yazı) */
+#ui .u-banner.alan .u-zrib { background: rgba(18, 38, 82, 0.84); border-top: 0; border-bottom: 0; border-radius: 999px; clip-path: none;
+  padding: calc(var(--k) * 8px) calc(var(--k) * 40px * var(--zs, 1)) calc(var(--k) * 10px); box-shadow: 0 0 0 calc(var(--k) * 3px) rgba(255, 232, 160, 0.45); }
+#ui .u-banner.alan .u-btitle .u-ol { --t1: #ffffff; --t2: #fff4cf; --ol: #0e2048; }
 #ui.toast-on .u-sub { opacity: 0 !important; }
 @media (orientation: portrait) { #ui .u-banner.skill { top: 70%; } }
 #ui.boss-on.banner-on .u-sub, #ui.boss-on.toast-on .u-sub { opacity: 1 !important; }   /* (Pırıl: boss savaşında uyarı cümlesi altyazısı hiç gizlenmez) */
@@ -1265,13 +1265,6 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
   .his-col { top: calc(var(--k) * 206px); }   /* yıldız şeker düğmesi çubukların altında */
 }
 
-/* Mola menüsü yatayda (1180x820, 1024x768 …): düğmeler iki sütun, hepsi ekrana sığar (sığmazsa panel kayar) */
-@media (min-aspect-ratio: 1/1) and (max-height: 960px) and (min-width: 700px) {
-  .u-pause-panel { width: min(94%, 760px); padding: 12px 24px; gap: 8px; }
-  .u-pause-panel:not(.asking):not(.choosing-difficulty) .u-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; justify-items: stretch; }
-  .u-pause-panel .u-btn.wide { min-width: 0; width: 100%; }
-  .u-pause-panel .u-btn.p.wide { font-size: calc(var(--k) * 26px); }
-}
 .u-difficulty-tag, .u-difficulty { display: none !important; }   /* zorluk seçimi kaldırıldı */
 
 /* Mor yalnız Pırıl'ın: bölüm bayrağı şeridi ve bölüm sonu kartı bölüm temasına göre sıcak / mavi */
@@ -1300,3 +1293,6 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 
 /* Yıldızla yetenek geliştirme kaldırıldı: düğme, kademe yıldızları ve panel görünmez */
 .his-starbtn, .his-pips, .his-up { display: none !important; }
+
+/* Sinematik sırasında sağ üstteki mini harita ve düğmeler tamamen gizlenir ("Geç" düğmesiyle asla çakışmaz) */
+#ui.cine-on .u-mini, #ui.cine-on .u-sbtns, .st-cinema #ui .u-tr { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }

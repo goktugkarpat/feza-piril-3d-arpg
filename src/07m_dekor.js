@@ -18,18 +18,19 @@ const MANTAR_DEKOR = (() => {
     function mushroom(x, z, h, s, o = {}) {
       const ci = o.ci ?? ((rnd() * T.cap.length) | 0), c = T.cap[ci], gc = T.glow[(ci + (o.go || 0)) % T.glow.length], yaw = rnd() * TAU2;
       const tx = o.tilt ? (rnd() - 0.5) * o.tilt : 0, tz = o.tilt ? (rnd() - 0.5) * o.tilt : 0;
-      const lod = o.lod ?? (s > 1.5 ? 0 : s > 0.7 ? 1 : 2), kind = o.kind || pick(s < 1 ? CAPK_S : CAPK), ys = (KY[kind] || 0.8) * (o.flat ? o.flat / 0.8 : 1);
+      const lod = o.lod ?? (s > 2.3 ? 0 : s > 1.15 ? 1 : 2), slod = Math.min(2, lod + (s < 1.8 ? 1 : 0));
+      const kind = o.kind || pick(s < 1 ? CAPK_S : CAPK), ys = (KY[kind] || 0.8) * (o.flat ? o.flat / 0.8 : 1);
       const sw = Math.max(0.16, s * 0.27), mk = h + s > 6 ? 'shiny' : 'shinyNS';
-      put(P.stem(lod === 0 && s > 1.7 && rnd() < 0.4 ? 'ring' : 'plain', lod), x, 0, z, sw, h, sw, pick(T.stem), yaw, tx, tz, mk);
-      if (lod < 2 && h > 0.9) put(P.roots(lod === 0 ? 5 : 4, lod), x, 0, z, sw, sw, sw, T.root, yaw, 0, 0, 'shinyNS');
+      put(P.stem(lod === 0 && s > 2.0 && rnd() < 0.4 ? 'ring' : 'plain', slod), x, 0, z, sw, h, sw, pick(T.stem), yaw, tx, tz, mk);
+      if (lod === 0 && h > 1.6) put(P.roots(4, 1), x, 0, z, sw, sw, sw, T.root, yaw, 0, 0, 'shinyNS');
       const cx = x - tz * h * 0.9, cy = h * 0.97, cz = z + tx * h * 0.9;
       put(P.cap(kind, lod), cx, cy, cz, s, s * ys, s, c[0], yaw, tx, tz, mk);
-      if (lod < 2) put(P.gills(lod), cx, cy, cz, s, s * ys, s, T.gill, yaw, tx, tz, mk);
-      put(P.capSpots(kind, lod, false), cx, cy, cz, s, s * ys, s, c[1], yaw, tx, tz, mk);
-      put(P.capSpots(kind, lod, true), cx, cy, cz, s, s * ys, s, gc, yaw, tx, tz, 'glow');
-      if (lod < 2) put(P.rim(lod), cx, cy, cz, s, s * ys, s, gc, yaw, tx, tz, 'glow');
-      if (o.vines !== false && s > 1.6 && rnd() < 0.7) {   // şapka kenarından sarkan sarmaşık + ışıklı damlalar
-        const nv = 3 + ((rnd() * 4) | 0);
+      if (lod < 2 && s > 1.1) put(P.gills(Math.max(1, lod)), cx, cy, cz, s, s * ys, s, T.gill, yaw, tx, tz, mk);
+      put(P.capSpots(kind, Math.max(1, lod), false), cx, cy, cz, s, s * ys, s, c[1], yaw, tx, tz, mk);
+      put(P.capSpots(kind, Math.max(1, lod), true), cx, cy, cz, s, s * ys, s, gc, yaw, tx, tz, 'glow');
+      if (lod < 2 && s > 1.0) put(P.rim(Math.max(1, lod)), cx, cy, cz, s, s * ys, s, gc, yaw, tx, tz, 'glow');
+      if (o.vines !== false && s > 1.9 && rnd() < 0.55) {   // şapka kenarından sarkan sarmaşık + ışıklı damlalar
+        const nv = 2 + ((rnd() * 2) | 0);
         for (let i = 0; i < nv; i++) {
           const a = rnd() * TAU2, px = cx + Math.sin(a) * s * 0.93, pz = cz + Math.cos(a) * s * 0.93, len = Math.min(cy - 0.6, 0.7 + rnd() * 1.4);
           put(P.vine(i), px, cy - 0.02, pz, 1, len, 1, 0xffffff, a, 0, 0, 'shinyNS');
@@ -51,7 +52,7 @@ const MANTAR_DEKOR = (() => {
     }
     function stone(x, z, s, mossy = true) {
       const k = (rnd() * 5) | 0; void mossy;
-      put(P.rock(k, T.rock, s > 0.8 ? 0 : 1), x, 0, z, s * 1.1, s * 0.95, s * 1.1, 0xffffff, rnd() * TAU2, 0, 0, s > 1 ? 'shiny' : 'shinyNS');
+      put(P.rock(k, T.rock, s > 1.2 ? 0 : 1), x, 0, z, s * 1.1, s * 0.95, s * 1.1, 0xffffff, rnd() * TAU2, 0, 0, s > 1 ? 'shiny' : 'shinyNS');
     }
     function bush(x, z, s) {
       const b = P.bush((rnd() * 4) | 0), yaw = rnd() * TAU2, tint = pick(T.leaf);
@@ -67,7 +68,7 @@ const MANTAR_DEKOR = (() => {
     }
     function flowerAt(x, z, sc = 1) { put(P.flower((rnd() * 5) | 0), x, 0, z, sc, sc, sc, 0xffffff, rnd() * TAU2, 0, 0, 'decor'); }
     function fern(x, z, s) {
-      const n = 4 + ((rnd() * 3) | 0), c = pick([0x3f9a6a, 0x4aa878, 0x58b888]), k0 = (rnd() * 3) | 0;
+      const n = 3 + ((rnd() * 2) | 0), c = pick([0x3f9a6a, 0x4aa878, 0x58b888]), k0 = (rnd() * 3) | 0;
       for (let i = 0; i < n; i++) put(P.frond(k0 + (i % 2)), x, 0.02, z, s * 0.9, s * 0.9, s * 0.9, c, i / n * TAU2 + rnd() * 0.3, 0.12 * i % 0.3, 0, 'decor');
     }
     // mini çiçekli, ışıklı yosun yaması (kenar zemin örtüsü): çim + çiçek + minik mantar
@@ -75,18 +76,18 @@ const MANTAR_DEKOR = (() => {
       if (rnd() < 0.45) return;
       const n = 2 + ((rnd() * 2) | 0);
       for (let i = 0; i < n; i++) { const a = rnd() * TAU2, d = Math.sqrt(rnd()) * r; tuftAt(x + Math.sin(a) * d, z + Math.cos(a) * d, 0.9 + rnd() * 0.5); }
-      for (let i = 0, m = 1 + ((rnd() * 3) | 0); i < m; i++) { const a = rnd() * TAU2, d = rnd() * r; flowerAt(x + Math.sin(a) * d, z + Math.cos(a) * d, 0.9 + rnd() * 0.5); }
-      if (rnd() < 0.35) glowCluster(x + (rnd() - 0.5) * r, z + (rnd() - 0.5) * r, 2 + ((rnd() * 2) | 0), 0.9);
+      for (let i = 0, m = 1 + ((rnd() * 2) | 0); i < m; i++) { const a = rnd() * TAU2, d = rnd() * r; flowerAt(x + Math.sin(a) * d, z + Math.cos(a) * d, 0.9 + rnd() * 0.5); }
+      if (rnd() < 0.35) glowCluster(x + (rnd() - 0.5) * r, z + (rnd() - 0.5) * r, 2, 0.9);
     }
     function rockGroup(x, z, s) {
       stone(x, z, s);
-      for (let i = 0, n = 1 + ((rnd() * 3) | 0); i < n; i++) { const a = rnd() * TAU2, d = s * (0.9 + rnd() * 0.5); stone(x + Math.sin(a) * d, z + Math.cos(a) * d, s * (0.3 + rnd() * 0.4)); }
+      for (let i = 0, n = 1 + ((rnd() * 2) | 0); i < n; i++) { const a = rnd() * TAU2, d = s * (0.9 + rnd() * 0.5); stone(x + Math.sin(a) * d, z + Math.cos(a) * d, s * (0.3 + rnd() * 0.4)); }
       patch2(x + (rnd() - 0.5) * s, z + (rnd() - 0.5) * s, s * 0.9);
     }
     function crystals(x, z, s) {
       const gc = pick(T.crystal);
       put(P.crystal((rnd() * 4) | 0, 6), x, 0, z, s, s, s, gc, rnd() * TAU2, 0, 0, 'glow');
-      put(P.rock((rnd() * 5) | 0, T.rock), x, 0, z, s * 0.5, s * 0.4, s * 0.5, 0xffffff, rnd() * TAU2, 0, 0, 'shinyNS');
+      put(P.rock((rnd() * 5) | 0, T.rock, 1), x, 0, z, s * 0.5, s * 0.4, s * 0.5, 0xffffff, rnd() * TAU2, 0, 0, 'shinyNS');
       api.glow(x, z, s * 1.8 + 0.6, gc, 0.12);
     }
     function logAt(x, z, s) {
@@ -97,7 +98,7 @@ const MANTAR_DEKOR = (() => {
       glowCluster(x + a[0] * s * 0.5, z + a[1] * s * 0.5, 2, 0.9); tuftAt(x - a[0] * s * 0.55, z - a[1] * s * 0.55, 1.1);
     }
     function rootArc(x, z, s, yaw) { put(P.rootArc((rnd() * 3) | 0), x, 0, z, s, s, s, 0xffffff, yaw ?? rnd() * TAU2, 0, 0, 'shinyNS'); }
-    function tree(x, z, h, o = {}) { return P.placeTree(api, o.kind || 'shelf', o.k ?? ((rnd() * 4) | 0), x, z, h, Object.assign({ yaw: rnd() * TAU2, mat: h > 6.5 ? 'shiny' : 'shinyNS', leaf: 0xffffff }, o)); }
+    function tree(x, z, h, o = {}) { return P.placeTree(api, o.kind || 'shelf', o.k ?? ((rnd() * 4) | 0), x, z, h, Object.assign({ yaw: rnd() * TAU2, mat: h > 6.5 ? 'shiny' : 'shinyNS', leaf: 0xffffff, lod: h > 7.5 ? 0 : 1 }, o)); }
     function leafUmbrella(x, z, h, s, yaw) {   // dev yaprak: kıvrık saplı, damarlı yaprak; ucunda ışık damlası
       put(P.stem('plain', 2), x, 0, z, 0.06, h, 0.06, 0x3f8a4a, 0, 0, 0, 'shinyNS');
       const tint = pick(T.leaf);
@@ -126,20 +127,25 @@ const MANTAR_DEKOR = (() => {
         const dp = nearPath(x, z), fd = fD(x, z, 4);
         const w = Math.min(1, Math.max(0, (dp - 1.7) / 3)), edge = 1 - Math.min(1, fd / 3);   // yoldan uzak + kenara yakın = sık
         const dens = 0.1 + 0.9 * Math.max(w * 0.55, edge * 0.9 * (dp > 1.5 ? 1 : 0.2));
-        if (rnd() > dens * 0.8) continue;
+        if (rnd() > dens * 0.55) continue;
         const r = rnd();
         if (r < 0.62) tuftAt(x, z, 0.8 + rnd() * 0.5);
         else if (r < 0.8) flowerAt(x, z, 0.9 + rnd() * 0.6);
         else if (r < 0.9) glowCluster(x, z, 2 + ((rnd() * 2) | 0), 0.55);
-        else if (r < 0.96) put(P.rock((rnd() * 5) | 0, T.rock), x, 0, z, 0.12 + rnd() * 0.1, 0.1 + rnd() * 0.07, 0.12 + rnd() * 0.1, 0xffffff, rnd() * TAU2, 0, 0, 'shinyNS');
+        else if (r < 0.96) put(P.rock((rnd() * 5) | 0, T.rock, 1), x, 0, z, 0.12 + rnd() * 0.1, 0.1 + rnd() * 0.07, 0.12 + rnd() * 0.1, 0xffffff, rnd() * TAU2, 0, 0, 'shinyNS');
         else fern(x, z, 0.35 + rnd() * 0.25);
         n++;
       }
       return n;
     }
+    if (typeof DEKOR_BOL === 'function') DEKOR_BOL(L, api, 24, 18000);
     return { mushroom, glowCluster, mossMound, stone, fern, bush, tuftAt, flowerAt, patch2, rockGroup, crystals, logAt, rootArc, tree, leafUmbrella, signpost, fenceRun, bridge, groundCover, st, T, pick };
   }
   return { olustur };
 })();
-// PERF: mantar bölümünde çim öbeği sayısı yarıya iner, öbekler biraz iri olur (üçgen bütçesi ≤400k)
-if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.mantar) { const c = ZEMIN.TEMA.mantar.cover[0]; if (c && c.k === 'tuft' && c.n > 4500) { c.n = 4500; c.s = [1.3, 2.2]; } }
+// PERF: mantar bölümünde çim öbeği sayısı optimize edilir, çakıl/eğrelti groundCover ile zaten konduğu için instanced çağrı azaltılır
+if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.mantar) {
+  ZEMIN.TEMA.mantar.cover = ZEMIN.TEMA.mantar.cover.filter(c => c.k !== 'pebble' && c.k !== 'fern');
+  const c = ZEMIN.TEMA.mantar.cover[0];
+  if (c && c.k === 'tuft' && c.n > 2800) { c.n = 2800; c.s = [1.35, 2.25]; }
+}

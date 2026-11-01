@@ -1,15 +1,17 @@
 /* PERF1 — motor düzeyinde performans yardımcıları (tüm bölümler için ortak). Görüntüyü DEĞİŞTİRMEZ.
    1) Gizli (visible=false) alt ağaçların dünya matrisleri her karede hesaplanmaz (sahnenin ~%35'i gizli havuzlar).
       Görünür olduğu karede zaten güncellenir. `?perf=0` ile kapatılır.
-   2) Gölge haritası uyarlamalı yarım hız: kare süresi bütçeyi aşarsa gölge haritası iki karede bir çizilir
+   2) Durağan bölüm meshlerinde (decor-*, zemin-*, ağaç/kaya instanced) gereksiz yerel matris hesabı (updateMatrix) dondurulur
+      ve kamera hedefinden (CAM.target) tamamen ekran dışında kalan uzak zemin/dekor parçaları (boundingSphere mesafesiyle) elenir.
+   3) Gölge haritası uyarlamalı yarım hız: kare süresi bütçeyi aşarsa gölge haritası iki karede bir çizilir
       (gölge matrisi + harita birlikte eski kalır → duran nesnelerin gölgesi doğru; yalnız hareket edenin gölgesi 1 kare gecikir).
       Hızlı cihazda hiç devreye girmez. `?golge=yari` zorla açar, `?golge=tam` hiç açmaz.
-   3) PRF.rapor() → {calls, tris, meshes, gorunen, progs}; PRF.butce = hedefler; PRF.kontrol(ad) bütçeyi aşanı konsola yazar.
+   4) PRF.rapor() → {calls, tris, meshes, gorunen, progs}; PRF.butce = hedefler; PRF.kontrol(ad) bütçeyi aşanı konsola yazar.
       `?perfrapor` → bölüm yüklendikten ~3 sn sonra konsola otomatik yazar. */
 const PRF = (() => {
   const off = Q.get('perf') === '0';
   const S = { gHalf: Q.get('golge') === 'yari', gMode: Q.get('golge'), n: 0, ema: 0, emaDt: 16.7, bad: 0, last: 0, tablet: QUALITY.tablet,
-    butce: { calls: 150, tris: 400000 }, matSkip: !off, enabled: !off };
+    butce: { calls: 150, tris: 400000 }, matSkip: !off, enabled: !off, _cullGrp: null, _cullList: [], _cullCnt: 0 };
 
   // ── 1) Gizli alt ağaçları atlayan matris güncelleyici (Object3D.updateMatrixWorld ile aynı mantık) ──
   const PROTO = THREE.Object3D.prototype.updateMatrixWorld;
@@ -28,10 +30,46 @@ const PRF = (() => {
   }
   if (S.matSkip) scene.updateMatrixWorld = function (force) { walk(this, force); };
 
+  // ── 1b) Durağan bölüm parçalarında matris dondurma + ekran dışı mesafe budaması (frustum/distance culling) ──
+  const RE_STATIC = /^(decor-|zemin-|oak$|pine$|blossom$|lolli$|bush$|rock$|sus610-)|-zemin$/;
+  const RE_CULL = /^(decor-(glow|decor|shinyNS|shiny)|zemin-)/;
+  function syncLevelCull() {
+    if (off || typeof GAME === 'undefined' || !GAME || !GAME.L || !GAME.L.group || typeof CAM === 'undefined' || !CAM.target) return;
+    const grp = GAME.L.group;
+    // DEKOR_BOL ilk karelerde parça ekleyebildiği için çocuk sayısı değiştiğinde listeyi yenile
+    if (S._cullGrp !== grp || S._cullCnt !== grp.children.length) {
+      S._cullGrp = grp; S._cullCnt = grp.children.length; S._cullList.length = 0;
+      grp.traverse(o => {
+        if (!o.isMesh) return;
+        const nm = o.name || '';
+        if (RE_STATIC.test(nm) && !o.isInstancedMesh && o.matrixAutoUpdate) {
+          o.updateMatrix(); o.matrixWorldNeedsUpdate = true; o.matrixAutoUpdate = false;
+        }
+        if (RE_CULL.test(nm) && o.geometry) {
+          if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+          const bs = o.geometry.boundingSphere;
+          if (bs && Number.isFinite(bs.radius) && bs.radius < 65) {
+            const isZ = nm.startsWith('zemin-') || nm === 'decor-decor';
+            S._cullList.push({ o, cx: bs.center.x + o.position.x, cz: bs.center.z + o.position.z, r: bs.radius, maxD: isZ ? 22 : 30 });
+          }
+        }
+      });
+    }
+    const warm = !!(GAME.loading || scene.getObjectByName('gameWarm'));
+    const tx = CAM.target.x, tz = CAM.target.z, list = S._cullList;
+    for (let i = 0, n = list.length; i < n; i++) {
+      const it = list[i];
+      if (warm) { it.o.visible = true; continue; }
+      const d = Math.hypot(it.cx - tx, it.cz - tz) - it.r;
+      it.o.visible = d <= it.maxD;
+    }
+  }
+
   // ── 2) Gölge haritası uyarlamalı yarım hız ──
   const sm = renderer.shadowMap, rf0 = renderFrame;
   renderFrame = function () {
     const t0 = performance.now();
+    syncLevelCull();
     let skip = false;
     if (S.gHalf && S.gMode !== 'tam' && !(typeof GAME !== 'undefined' && GAME && GAME.loading)) { sm.autoUpdate = false; sm.needsUpdate = ((S.n++) & 1) === 0; skip = true; }
     try { rf0(); } finally { if (skip) sm.autoUpdate = true; }
@@ -49,6 +87,7 @@ const PRF = (() => {
 
   // ── 3) Bütçe raporu ──
   function rapor() {
+    syncLevelCull();
     const info = renderer.info, ar = info.autoReset, rt = renderer.getRenderTarget();
     info.autoReset = false; info.reset();
     renderer.setRenderTarget(typeof POST !== 'undefined' && POST.on && rtMain ? rtMain : null);

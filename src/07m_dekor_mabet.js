@@ -5,6 +5,68 @@
 const MABET_DEKOR = (() => {
   'use strict';
   const P = PROPKIT, PI = Math.PI, TAU = PI * 2, hyp = Math.hypot;
+  const MCACHE = {};
+  const mmemo = (k, f) => MCACHE[k] || (MCACHE[k] = (() => { const g = f(); if (g && g.isBufferGeometry) g.name = k.replace(/[0-9_]+$/, ''); return g; })());
+  function mergeG(a, b) {
+    const pa = a.attributes, pb = b.attributes, na = pa.position.count, nb = pb.position.count, out = new THREE.BufferGeometry();
+    for (const key of ['position', 'normal', 'color']) { const arr = new Float32Array((na + nb) * 3); arr.set(pa[key].array, 0); arr.set(pb[key].array, na * 3); out.setAttribute(key, new THREE.BufferAttribute(arr, 3)); }
+    const idx = new Uint16Array(a.index.count + b.index.count); idx.set(a.index.array, 0); for (let i = 0; i < b.index.count; i++) idx[a.index.count + i] = b.index.array[i] + na;
+    out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere(); out.computeBoundingBox(); out.userData.keep = true; return out;
+  }
+  // PERF: sütun ve ay diski segmentleri görsel silüeti bozmadan M1 iPad bütçesine göre optimize edildi (16→10, 28x7→14x4)
+  if (P && P.GB) {
+    const { GB, rng, vn, fbm, sstep, clamp } = P, sin = Math.sin, cos = Math.cos;
+    const lathe = (gb, prof, nu, o = {}) => {
+      gb.grid(nu, prof.length - 1, true, (u, v) => {
+        const j = Math.min(prof.length - 1, Math.round(v * (prof.length - 1))), p = prof[j], a = u * TAU;
+        let R = p[1]; if (o.flutes && p[3]) R *= 1 + p[3] * (Math.abs(cos(a * o.flutes / 2)) - 0.85);
+        const L = p[2] ?? 1;
+        return [sin(a) * R, p[0], cos(a) * R, L, L, L];
+      }, { pt: !!o.pt, pb: !!o.pb });
+    };
+    const boxCap = (gb, cy, w, h, d, yaw, base, k) => {
+      const cy_ = cos(yaw), sy = sin(yaw), r = rng(k * 17 + 5);
+      const V = (x, y, z) => { x = x * w / 2 + (r() - 0.5) * 0.004; y = y * h / 2 + (r() - 0.5) * 0.004; z = z * d / 2 + (r() - 0.5) * 0.004; return [x * cy_ + z * sy, cy + y, -x * sy + z * cy_]; };
+      const N = (x, y, z) => [x * cy_ + z * sy, y, -x * sy + z * cy_];
+      const F = [[[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1], [0, 0, 1], 0.84], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1], [0, 0, -1], 0.68], [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1], [1, 0, 0], 0.76],
+        [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1], [-1, 0, 0], 0.72], [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1], [0, 1, 0], 1.0], [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1], [0, -1, 0], 0.5]];
+      F.forEach((f, i) => { const hnt = N(f[4][0], f[4][1], f[4][2]), L = Math.min(1.1, f[5] * (0.5 + 0.5 * clamp(0.7 + hnt[1] * 0.5)) + 0.12), g = 0.9 + 0.12 * vn(k * 3.1 + i, L * 5, 2), col = [base[0] * L * g, base[1] * L * g, base[2] * L * g]; gb.quad(V(...f[0]), V(...f[1]), V(...f[2]), V(...f[3]), col, col, col, col); gb._orient(gb.I.length / 3 - 2, hnt, null); });
+    };
+    P.column = (kind = 0, k = 0) => mmemo('col' + kind + '_' + k, () => {
+      const gb = new GB(), Rs = 0.075, ln = (y, rr, L, fl) => [y, rr, L, fl];
+      if (kind === 2) {
+        const g2 = new GB(); lathe(g2, [[0, Rs, 0.8, 0.12], [0.02, Rs, 0.9, 0.12], [0.5, Rs * 0.97, 1.0, 0.12], [0.55, Rs * 0.95, 0.9, 0.12], [0.55, 0, 0.9]], 10, { flutes: 8, pt: true, pb: true });
+        const g = g2.build((i, nx, ny, nz, c, x, y, z) => { const L = 0.88 + 0.16 * fbm(x * 9, y * 5, z * 9); c[0] *= L; c[1] *= L; c[2] *= L * 0.97; });
+        g.rotateZ(PI / 2); g.translate(-0.275, Rs, 0); return g;
+      }
+      const top = kind === 1 ? 0.64 : 0.82;
+      const prof = [ln(0, 0.1, 0.62), ln(0.02, 0.104, 0.88), ln(0.07, 0.092, 0.95), ln(0.1, Rs * 1.06, 0.9, 0.12), ln(top * 0.55, Rs, 1.0, 0.12), ln(top, Rs * 0.93, 0.9, 0.12)];
+      if (kind === 0) prof.push(ln(top + 0.02, Rs * 1.2, 0.85), ln(top + 0.065, Rs * 1.6, 0.95));
+      else prof.push(ln(top, 0, 0.9));
+      lathe(gb, prof, 10, { flutes: 8, pt: kind === 0 });
+      if (kind === 0) boxCap(gb, 0.935, 0.27, 0.05, 0.27, 0.3, [0.92, 0.9, 0.84], k);
+      const g = gb.build((i, nx, ny, nz, c, x, y, z) => {
+        let L = (0.88 + 0.16 * fbm(x * 9, y * 5, z * 9)) * (0.78 + 0.22 * sstep(0, 0.25, y));
+        if (kind === 1 && y > top - 0.1) L *= 0.85 + 0.3 * vn(x * 30, y * 30, z * 30);
+        c[0] *= L; c[1] *= L; c[2] *= L * 0.97;
+      });
+      if (kind === 1) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y > top - 0.02) p.setY(i, top + 0.05 * (vn(p.getX(i) * 40, 1, p.getZ(i) * 40) - 0.3) + (p.getX(i) > 0 ? 0.05 : -0.015)); } g.computeVertexNormals(); }
+      return g;
+    });
+    P.moonDisc = (phase = 0) => mmemo('mdisc' + phase, () => {
+      const gb = new GB(), R = 0.5, th = 0.07, ph = phase / 8 * TAU, kk = (1 - cos(ph)) / 2, Rm = 0.34, lit = (x, y) => {
+        if (hyp(x, y) > Rm) return 0; const w = Math.sqrt(Math.max(0, Rm * Rm - y * y)), xt = w * cos(PI * kk);
+        return sin(ph) >= 0 ? (x > xt ? 1 : 0) : (x < -xt ? 1 : 0);
+      };
+      gb.grid(14, 4, true, (u, v) => { const a = u * TAU, rr = R * v; return [sin(a) * rr, cos(a) * rr, th, 1, 1, 1]; }, { hint: [0, 0, 1] });
+      const g = gb.build((i, nx, ny, nz, c, x, y) => {
+        const m = lit(x, y), rim = sstep(0.4, 0.5, hyp(x, y)), L = 0.82 + 0.1 * fbm(x * 6, y * 6, 1), d = hyp(x, y), ring = (d > 0.36 && d < 0.4) ? 0.72 : 1;
+        c[0] = L * (m ? 1.15 : 0.62 * ring) * (1 - rim * 0.25); c[1] = L * (m ? 1.1 : 0.64 * ring) * (1 - rim * 0.25); c[2] = L * (m ? 0.95 : 0.7 * ring) * (1 - rim * 0.25);
+      });
+      const b = new GB(); b.grid(14, 1, true, (u, v) => { const a = u * TAU; return [sin(a) * R, cos(a) * R, v ? th : -th, 0.62, 0.6, 0.55]; });
+      return mergeG(g, b.build());
+    });
+  }
   function olustur(L, api, ctx) {
     const K = ctx.K;
     if (!K || typeof MANTAR_DEKOR === 'undefined' || !P.column || !P.TEMA.mabet) return false;
@@ -20,15 +82,15 @@ const MABET_DEKOR = (() => {
     const spaced = (x, z, r) => { for (const q of placed) if (hyp(q.x - x, q.z - z) < r + q.r) return false; placed.push({ x, z, r }); return true; };
     const pools = [];
     let shafts = 0;
-    const shaftG = api.dispose(new THREE.CylinderGeometry(0.7, 1.7, 6.5, 14, 1, true));
+    const shaftG = api.dispose(new THREE.CylinderGeometry(0.7, 1.7, 6.5, 10, 1, true));
     const shaftM = api.dispose(new THREE.MeshBasicMaterial({ color: 0xdfeaff, transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
     const shaft = (x, z) => { if (shafts >= 10) return; shafts++; const m = new THREE.Mesh(shaftG, shaftM); m.position.set(x + 1.2, 3.1, z + 0.6); m.rotation.z = 0.2; m.renderOrder = 3; api.add(m); };
 
     // ── bileşenler ──
     const vines = (x, y, z, w, n) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, hh = 0.6 + rnd() * 1.1; put(P.vine((rnd() * 4) | 0), x + Math.sin(a) * w, y, z + Math.cos(a) * w, 1, Math.min(hh, y - 0.3), 1, pick(T.ivy), a, 0, 0, 'shinyNS'); } };
     const flowers = (x, z, n, sc = 1) => {
-      for (let i = 0, nn = Math.max(1, Math.round(n * 0.4)); i < nn; i++) {   // PERF: çiçek sayısı azaltıldı, çiçekler biraz iri
-        const a = rnd() * TAU, d = Math.sqrt(rnd()) * 0.7 * sc, k = (rnd() * 3) | 0, s = (0.7 + rnd() * 0.6) * sc, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d, yw = rnd() * TAU;
+      for (let i = 0, nn = Math.max(1, Math.round(n * 0.35)); i < nn; i++) {   // PERF: çiçek sayısı azaltıldı, çiçekler biraz iri
+        const a = rnd() * TAU, d = Math.sqrt(rnd()) * 0.7 * sc, k = (rnd() * 3) | 0, s = (0.75 + rnd() * 0.6) * sc, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d, yw = rnd() * TAU;
         put(P.moonflower(k), px, 0, pz, s, s, s, 0xffffff, yw, 0, 0, 'decor'); put(P.moonflowerBloom(k), px, 0, pz, s, s, s, 0xe6efff, yw, 0, 0, 'glow');
       }
       api.glow(x, z, 1.4 * sc + 0.8, 0xcfe0ff, 0.1);
@@ -36,45 +98,44 @@ const MABET_DEKOR = (() => {
     const column = (x, z, s, kind, o = {}) => {
       const k = (rnd() * 4) | 0, yw = rnd() * TAU;
       put(P.column(kind, k), x, 0, z, s, s, s, stone(), yw, 0, 0, s > 2.6 ? 'shiny' : 'shinyNS');
-      if (kind === 0 && o.ivy !== false && rnd() < 0.55) vines(x, s * 0.78, z, 0.12 * s, 2);
-      if (rnd() < 0.5) put(P.broadLeaf((rnd() * 3) | 0), x + 0.3, 0.05, z + 0.2, 0.6, 0.6, 0.6, pick(T.ivy), rnd() * TAU, 0.3, 0, 'decor');
+      if (kind === 0 && o.ivy !== false && rnd() < 0.45) vines(x, s * 0.78, z, 0.12 * s, 2);
+      if (rnd() < 0.4) put(P.broadLeaf((rnd() * 3) | 0), x + 0.3, 0.05, z + 0.2, 0.6, 0.6, 0.6, pick(T.ivy), rnd() * TAU, 0.3, 0, 'decor');
       if (kind === 0 && rnd() < 0.4) shaft(x, z);
-      if (rnd() < 0.5) flowers(x + 0.7, z + 0.5, 3, 0.8);
+      if (rnd() < 0.4) flowers(x + 0.7, z + 0.5, 3, 0.8);
     };
-    const archS = (x, z, s, yaw, kind) => {
-      put(P.archStone(kind, (rnd() * 3) | 0), x, 0, z, s, s, s, stone(), yaw, 0, 0, 'shiny');
-      if (!kind) vines(x, 1.12 * s, z, 0.3 * s, 3);
-      flowers(x + 0.6 * s, z + 0.4, 4, 0.9);
+    const archS = (x, z, s, yaw, kind, far = false) => {
+      put(P.archStone(kind, (rnd() * 3) | 0), x, 0, z, s, s, s, stone(), yaw, 0, 0, far ? 'shinyNS' : 'shiny');
+      if (!far && !kind) vines(x, 1.12 * s, z, 0.3 * s, 2);
+      if (!far) flowers(x + 0.6 * s, z + 0.4, 3, 0.9);
     };
-    const obelisk = (x, z, s) => {
-      put(P.obelisk((rnd() * 3) | 0), x, 0, z, s, s, s, stone(), rnd() * TAU, 0, 0, 'shiny');
+    const obelisk = (x, z, s, far = false) => {
+      put(P.obelisk((rnd() * 3) | 0), x, 0, z, s, s, s, stone(), rnd() * TAU, 0, 0, far ? 'shinyNS' : 'shiny');
       const k = (rnd() * 3) | 0; const yaw = rnd() * TAU; put(P.obeliskRunes(k), x, 0, z, s, s, s, pick([0x9fd8ff, 0xffe9a8]), yaw, 0, 0, 'glow');
-      api.glow(x, z, s * 1.5 + 1, 0xaadcff, 0.1); shaft(x, z);
+      api.glow(x, z, s * 1.5 + 1, 0xaadcff, 0.1); if (!far) shaft(x, z);
     };
     const frieze = (x, z, n, s) => {   // alçak taş duvar + ay evresi plaketleri (güneye bakar)
-      const w = n * 0.95 * s, hW = 0.9 * s;
+      const nn = Math.min(n, 3), w = nn * 0.95 * s, hW = 0.9 * s;
       put(P.steps(1, 2), x, 0, z, w, hW / 0.1, 1.4 * s / 0.24, stone(), 0, 0, 0, 'shinyNS');
       put(P.steps(1, 3), x, hW, z, w * 1.04, 0.5, 1.7 * s / 0.24, stone(), 0, 0, 0, 'shinyNS');
       const ph0 = (rnd() * 8) | 0;
-      for (let i = 0; i < n; i++) put(P.moonDisc((ph0 + i) % 8), x + (i - (n - 1) / 2) * 0.95 * s, hW * 0.5, z + 0.7 * s + 0.01, 0.8 * s, 0.8 * s, 1, pick([0xfff2dc, 0xf6ead4]), 0, 0, 0, 'shinyNS');
+      for (let i = 0; i < nn; i++) put(P.moonDisc((ph0 + i) % 8), x + (i - (nn - 1) / 2) * 0.95 * s, hW * 0.5, z + 0.7 * s + 0.01, 0.8 * s, 0.8 * s, 1, pick([0xfff2dc, 0xf6ead4]), 0, 0, 0, 'shinyNS');
     };
     const stairsRuin = (x, z, s) => {   // kuzeye yükselen basamaklar + taş taban + sütunlar
       const S1 = s * 1.1, zTop = z + 0.4 * s - 4 * 0.22 * S1, topY = 0.5 * S1, pz = zTop - 1.8 * s;
-      put(P.steps(5, (rnd() * 3) | 0), x, 0, z + 0.4 * s, 3.2 * s, S1, S1, stone(), 0, 0, 0, 'shiny');
-      put(P.steps(1, 4), x, 0, pz, 3.6 * s, topY / 0.1, 3.4 * s / 0.24, stone(), 0, 0, 0, 'shiny');
-      for (const sd of [-1, 1]) put(P.column(rnd() < 0.6 ? 0 : 1, (rnd() * 4) | 0), x + sd * 1.3 * s, topY, pz, 2.4 * s, 2.4 * s, 2.4 * s, stone(), rnd() * 6, 0, 0, 'shiny');
-      flowers(x - 1.4 * s, z + 0.8 * s, 4, 0.9);
+      put(P.steps(4, (rnd() * 3) | 0), x, 0, z + 0.4 * s, 3.2 * s, S1, S1, stone(), 0, 0, 0, 'shinyNS');
+      put(P.steps(1, 4), x, 0, pz, 3.6 * s, topY / 0.1, 3.4 * s / 0.24, stone(), 0, 0, 0, 'shinyNS');
+      for (const sd of [-1, 1]) put(P.column(rnd() < 0.6 ? 0 : 1, (rnd() * 4) | 0), x + sd * 1.3 * s, topY, pz, 2.4 * s, 2.4 * s, 2.4 * s, stone(), rnd() * 6, 0, 0, 'shinyNS');
     };
-    const pool = (x, z, r) => { pools.push({ x, z, r: r * 0.9 }); put(P.poolRim((rnd() * 3) | 0), x, 0, z, r, r * 1.1, r, stone(), rnd() * TAU, 0, 0, 'shinyNS'); api.glow(x, z, r * 2.6, 0xbcd8ff, 0.14); if (rnd() < 0.7) flowers(x + r * 1.1, z + 0.3, 4, 0.9); };
+    const pool = (x, z, r) => { pools.push({ x, z, r: r * 0.9 }); put(P.poolRim((rnd() * 3) | 0), x, 0, z, r, r * 1.1, r, stone(), rnd() * TAU, 0, 0, 'shinyNS'); api.glow(x, z, r * 2.6, 0xbcd8ff, 0.14); if (rnd() < 0.6) flowers(x + r * 1.1, z + 0.3, 3, 0.9); };
     const cypress = (x, z, h) => {
-      const t = P.tree('pine', (rnd() * 3) | 0, h > 6 ? 0 : 1), w = h * 0.2;
+      const t = P.tree('pine', (rnd() * 3) | 0, h > 6.5 ? 0 : 1), w = h * 0.2;
       put(t.wood, x, 0, z, w, h, w, 0x8a7a68, rnd() * TAU, 0, 0, 'shinyNS'); if (t.leaf) put(t.leaf, x, 0, z, w, h, w, pick([0x3f6a5a, 0x4a7a64, 0x35604f]), rnd() * TAU, 0, 0, 'shinyNS');
     };
-    const rubble = (x, z, s) => { put(P.fallenBlock((rnd() * 3) | 0), x, 0, z, s, s, s, stone(), rnd() * TAU, 0, 0, 'shinyNS'); if (rnd() < 0.6) put(P.column(2, (rnd() * 4) | 0), x + 0.9 * s, 0, z + 0.4 * s, 1.2 * s, 1.2 * s, 1.2 * s, stone(), rnd() * 6, 0, 0, 'shinyNS'); D.tuftAt(x + 0.5, z - 0.4, 1.2); };
+    const rubble = (x, z, s) => { put(P.fallenBlock((rnd() * 3) | 0), x, 0, z, s, s, s, stone(), rnd() * TAU, 0, 0, 'shinyNS'); if (rnd() < 0.5) put(P.column(2, (rnd() * 4) | 0), x + 0.9 * s, 0, z + 0.4 * s, 1.2 * s, 1.2 * s, 1.2 * s, stone(), rnd() * 6, 0, 0, 'shinyNS'); D.tuftAt(x + 0.5, z - 0.4, 1.2); };
 
     // ── sütun sıraları: her odanın kenarında dairesel revak (kuzey yarı yüksek, güney alçak/kırık) ──
     ids.forEach((ri, k) => {
-      const rm = L.rooms[ri], spots = K.rimSpots(L, rm, 1.0, rm.kind === 'boss' ? 22 : 16);
+      const rm = L.rooms[ri], spots = K.rimSpots(L, rm, 1.0, rm.kind === 'boss' ? 20 : 14);
       spots.forEach((p, j) => {
         if (k % 2 === 1 && j % 3 === 0) return;   // aralık: bazı odalarda sıra kopuk
         const x = p.x + Math.sin(p.a) * 0.9, z = p.z + Math.cos(p.a) * 0.9; if (isF(x, z)) return;
@@ -83,7 +144,7 @@ const MABET_DEKOR = (() => {
         if (north && mh >= 3.4 && r < 0.78) column(x, z, Math.min(mh * 0.95, 3.5 + rnd() * 0.9), 0);
         else if (mh >= 2.2 && r < 0.6) column(x, z, Math.min(mh * 0.9, 2.6), 1);
         else if (r < 0.8) rubble(x, z, 0.5 + rnd() * 0.4);
-        else flowers(x, z, 5, 1);
+        else flowers(x, z, 4, 1);
       });
     });
 
@@ -92,26 +153,26 @@ const MABET_DEKOR = (() => {
       const mh = Math.min(maxH0, coneH(x, z)), r = rnd();
       if (mh >= 6.5 && fd > 2.6 && r < 0.12 && spaced(x, z, 1.4)) obelisk(x, z, Math.min(mh / 1.15, 4 + rnd() * 2));
       else if (mh >= 7 && fd > 3 && r < 0.2 && spaced(x, z, 3)) archS(x, z, Math.min(mh / 1.2, 4.2 + rnd() * 1.6), pick([0, 0.4, -0.4]), rnd() < 0.35 ? 1 : 0);
-      else if (mh >= 2.8 && fd > 2 && r < 0.3 && spaced(x, z, 2.4)) frieze(x, z, 3 + ((rnd() * 3) | 0), 0.8 + rnd() * 0.3);
+      else if (mh >= 2.8 && fd > 2 && r < 0.3 && spaced(x, z, 2.4)) frieze(x, z, 2 + ((rnd() * 2) | 0), 0.8 + rnd() * 0.3);
       else if (mh >= 4.2 && fd > 2.2 && r < 0.38 && spaced(x, z, 1.4)) cypress(x, z, Math.min(mh, 4.6 + rnd() * 3));
       else if (fd > 1.8 && fd < 6 && r < 0.46 && pools.length < 16 && spaced(x, z, 2)) pool(x, z, 0.9 + rnd() * 0.9);
-      else if (r < 0.62) flowers(x, z, 6 + ((rnd() * 5) | 0), 1.0 + rnd() * 0.5);
+      else if (r < 0.62) flowers(x, z, 5 + ((rnd() * 4) | 0), 1.0 + rnd() * 0.5);
       else if (r < 0.72) rubble(x, z, 0.5 + rnd() * 0.5);
       else if (r < 0.82) D.rockGroup(x, z, 0.4 + rnd() * 0.5);
       else if (r < 0.92) { D.bush(x, z, 0.7 + rnd() * 0.5); D.patch2(x + 0.5, z + 0.4, 0.9); }
       else D.fern(x, z, 0.7 + rnd() * 0.5);
-    }, { step: 2.2, d0: 0.9, d1: 8, margin: 10 });
+    }, { step: 2.65, d0: 0.9, d1: 8, margin: 10 });
 
     // ── uzak kuşak: büyük kalıntılar, dağ zirveleri, bulut denizi ──
     K.fill(L, rnd, ids, (x, z, maxH0, fd) => {
       const mh = Math.min(maxH0, coneH(x, z)), r = rnd();
-      if (mh >= 10 && r < 0.18 && spaced(x, z, 3.5)) archS(x, z, 6 + rnd() * 3, rnd() * 0.6 - 0.3, rnd() < 0.5 ? 1 : 0);
+      if (mh >= 10 && r < 0.18 && spaced(x, z, 3.5)) archS(x, z, 6 + rnd() * 3, rnd() * 0.6 - 0.3, rnd() < 0.5 ? 1 : 0, true);
       else if (mh >= 9 && r < 0.34 && spaced(x, z, 3)) stairsRuin(x, z, 1.8 + rnd() * 0.9);
-      else if (mh >= 8 && r < 0.48 && spaced(x, z, 2)) obelisk(x, z, 4.5 + rnd() * 2.5);
+      else if (mh >= 8 && r < 0.48 && spaced(x, z, 2)) obelisk(x, z, 4.5 + rnd() * 2.5, true);
       else if (mh >= 8 && r < 0.62 && spaced(x, z, 1.6)) cypress(x, z, 6 + rnd() * 4);
       else if (mh >= 12 && r < 0.78) { const h = 9 + rnd() * 9; put(P.rock((rnd() * 5) | 0, 'mabet', 1), x, 0, z, h * 0.55, h, h * 0.5, pick([0xb4bed4, 0xa6b2cc, 0xc2c8da]), rnd() * TAU, 0, 0, 'shinyNS'); }
-      else { const s = 3 + rnd() * 4; put(P.puff(), x, -0.1, z, s * 1.3, s * 0.42, s, pick([0xd4def0, 0xc8d4ec, 0xe2e8f6]), rnd() * TAU, 0, 0, 'shinyNS'); }
-    }, { step: 6.0, d0: 8, d1: 26, margin: 26 });
+      else { const s = 3.2 + rnd() * 4.2; put(P.puff(), x, -0.1, z, s * 1.3, s * 0.42, s, pick([0xd4def0, 0xc8d4ec, 0xe2e8f6]), rnd() * TAU, 0, 0, 'shinyNS'); }
+    }, { step: 7.2, d0: 8, d1: 26, margin: 26 });
 
     // ── yürünür alanın içi: yoldan ve oyun nesnelerinden uzak ALÇAK süs ──
     const pts = [];
@@ -122,12 +183,12 @@ const MABET_DEKOR = (() => {
     const nearPath = (x, z) => { let b = 1e9; for (let i = 0; i < Pth.length; i++) { const d = Math.abs(Pth[i].x - x) + Math.abs(Pth[i].z - z); if (d < b) b = d; } return b; };
     const busy = (x, z) => { for (const q of pts) if (q && hyp(q.x - x, q.z - z) < 2.6) return true; return false; };
     for (const rm of L.rooms) {
-      const R0 = rm.r || 7, n = Math.round(R0 * 2.2);
+      const R0 = rm.r || 7, n = Math.round(R0 * 1.45);
       for (let t = 0; t < n; t++) {
         const a = rnd() * TAU, d = Math.sqrt(rnd()) * R0 * 1.05, x = rm.x + Math.sin(a) * d, z = rm.z + Math.cos(a) * d;
         if (!isF(x, z) || nearPath(x, z) < 3.0 || busy(x, z)) continue;
         const r = rnd();
-        if (r < 0.4) flowers(x, z, 4 + ((rnd() * 4) | 0), 0.9);
+        if (r < 0.4) flowers(x, z, 4 + ((rnd() * 3) | 0), 0.9);
         else if (r < 0.58) rubble(x, z, 0.35 + rnd() * 0.25);
         else if (r < 0.72) D.stone(x, z, 0.25 + rnd() * 0.2);
         else if (r < 0.88) D.tuftAt(x, z, 1.3);
@@ -140,6 +201,12 @@ const MABET_DEKOR = (() => {
   }
   return { olustur };
 })();
+// PERF: mabet bölümünde zemin örtüsü üçgen ve instanced parça sayısını düşürür (MABET_DEKOR zaten taş/eğrelti/ot koyuyor)
+if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.mabet) {
+  ZEMIN.TEMA.mabet.cover = ZEMIN.TEMA.mabet.cover.filter(c => c.k !== 'pebble' && c.k !== 'leaf' && c.k !== 'fern');
+  const c = ZEMIN.TEMA.mabet.cover[0];
+  if (c && c.k === 'tuft' && c.n > 1800) { c.n = 1800; c.s = [0.85, 1.45]; }
+}
 
 /* ── SUS610: bölüm 6–10 ortak ek (dev dekor + yüzen ışık topları). 06z_*.js kur() başında: SUS610.ekle(L, api, 'bolumId') ── */
 const SUS610 = (() => {
@@ -174,7 +241,7 @@ const SUS610 = (() => {
   function orbs(L, api, id, col) {
     const T = THREE, N = 16, fl = [];
     for (let k = 0; k < 400 && fl.length < N; k++) { const x = api.rnd() * (L.W || 160), z = api.rnd() * (L.H || 160); if (api.isFloor(x, z)) fl.push([x, z]); }
-    const g = new T.SphereGeometry(0.16, 8, 6), m = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: T.AdditiveBlending, depthWrite: false, fog: false });
+    const g = new T.SphereGeometry(0.16, 7, 5), m = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: T.AdditiveBlending, depthWrite: false, fog: false });
     const im = new T.InstancedMesh(g, m, fl.length); im.frustumCulled = false; im.renderOrder = 8; im.name = 'sus610-toplar';
     api.add(im); api.dispose(g); api.dispose(m);
     const o = new T.Object3D(), ph = fl.map(() => api.rnd() * TAU); let t = 0;
@@ -184,9 +251,9 @@ const SUS610 = (() => {
   const LM = {
     mabet(api, x, z, s, p, yaw) {   // dev ay kapısı: iki taş sütun + taş halka + parlak ay
       const put = api.put, c = Math.cos(yaw), si = Math.sin(yaw);
-      for (const sd of [-1, 1]) { const px = x + c * sd * 4.2 * s, pz = z - si * sd * 4.2 * s; put(tg(api, new THREE.CylinderGeometry(0.9, 1.1, 9, 14)), px, 4.5 * s, pz, s, s, s, p.st, 0, 0, 0, 'shinyNS'); api.box(px, 0.5 * s, pz, 3 * s, 1 * s, 3 * s, p.st2, yaw, 'shinyNS'); api.ball(px, 9.3 * s, pz, 1.1 * s, 1.1 * s, 1.1 * s, p.gl, 'glow'); }
-      put(tg(api, new THREE.TorusGeometry(4.6, 0.55, 6, 20)), x, 8.6 * s, z, s, s, s, p.st, yaw, 0, 0, 'shinyNS');
-      put(tg(api, new THREE.CircleGeometry(3.7, 20)), x, 8.6 * s, z, s, s, s, p.gl2, yaw, 0, 0, 'glow');
+      for (const sd of [-1, 1]) { const px = x + c * sd * 4.2 * s, pz = z - si * sd * 4.2 * s; put(tg(api, new THREE.CylinderGeometry(0.9, 1.1, 9, 10)), px, 4.5 * s, pz, s, s, s, p.st, 0, 0, 0, 'shinyNS'); api.box(px, 0.5 * s, pz, 3 * s, 1 * s, 3 * s, p.st2, yaw, 'shinyNS'); api.ball(px, 9.3 * s, pz, 1.1 * s, 1.1 * s, 1.1 * s, p.gl, 'glow'); }
+      put(tg(api, new THREE.TorusGeometry(4.6, 0.55, 5, 16)), x, 8.6 * s, z, s, s, s, p.st, yaw, 0, 0, 'shinyNS');
+      put(tg(api, new THREE.CircleGeometry(3.7, 16)), x, 8.6 * s, z, s, s, s, p.gl2, yaw, 0, 0, 'glow');
       for (let i = 0; i < 5; i++) api.box(x + c * (i - 2) * 1.1 * s, 0.15 * s, z - si * (i - 2) * 1.1 * s, 0.9 * s, 0.3 * s, 6 * s, p.st2, yaw, 'shinyNS');
       api.glow(x, z, 9 * s, p.gl, 0.2);
     },
@@ -205,19 +272,19 @@ const SUS610 = (() => {
     },
     kale(api, x, z, s, p) {   // dev sancak kulesi
       const put = api.put;
-      put(tg(api, new THREE.CylinderGeometry(2.4, 3, 1, 14)), x, 7 * s, z, s, 14 * s, s, p.st, 0, 0, 0, 'shinyNS');
+      put(tg(api, new THREE.CylinderGeometry(2.4, 3, 1, 10)), x, 7 * s, z, s, 14 * s, s, p.st, 0, 0, 0, 'shinyNS');
       for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; api.box(x + Math.sin(a) * 2.5 * s, 14.4 * s, z + Math.cos(a) * 2.5 * s, 1 * s, 1.2 * s, 1 * s, p.st2, a, 'shinyNS'); }
-      put(tg(api, new THREE.ConeGeometry(1, 1, 14)), x, 17.5 * s, z, 3.4 * s, 6 * s, 3.4 * s, 0xd0584a, 0, 0, 0, 'shinyNS');
+      put(tg(api, new THREE.ConeGeometry(1, 1, 10)), x, 17.5 * s, z, 3.4 * s, 6 * s, 3.4 * s, 0xd0584a, 0, 0, 0, 'shinyNS');
       api.cyl(x, 23 * s, z, 0.12 * s, 6 * s, p.st2, 'shinyNS'); api.box(x + 1.7 * s, 23.2 * s, z, 3.4 * s, 1.8 * s, 0.1 * s, 0xffc94a, 0, 'decor');
       for (let i = 0; i < 3; i++) api.box(x, (5 + i * 3) * s, z + 2.6 * s, 0.5 * s, 1.1 * s, 0.2 * s, p.gl, 0, 'glow');
       api.glow(x, z, 9 * s, p.gl, 0.16);
     },
     fener(api, x, z, s, p) {   // dev yıldız kulesi + dönen ışık hüzmesi
       const put = api.put;
-      put(tg(api, new THREE.CylinderGeometry(1.3, 2.4, 1, 14)), x, 5 * s, z, s, 10 * s, s, p.st, 0, 0, 0, 'shinyNS');
-      for (let i = 0; i < 3; i++) put(tg(api, new THREE.CylinderGeometry(1.34, 1.34, 1, 14)), x, (2.5 + i * 3.2) * s, z, s, 1 * s, s, p.st2, 0, 0, 0, 'shinyNS');
+      put(tg(api, new THREE.CylinderGeometry(1.3, 2.4, 1, 10)), x, 5 * s, z, s, 10 * s, s, p.st, 0, 0, 0, 'shinyNS');
+      for (let i = 0; i < 3; i++) put(tg(api, new THREE.CylinderGeometry(1.34, 1.34, 1, 10)), x, (2.5 + i * 3.2) * s, z, s, 1 * s, s, p.st2, 0, 0, 0, 'shinyNS');
       api.ball(x, 11.4 * s, z, 2.2 * s, 2.2 * s, 2.2 * s, p.gl, 'glow');
-      const T = THREE, cg = new T.ConeGeometry(2.6, 14, 14, 1, true); cg.translate(0, -7, 0).rotateZ(PI / 2);
+      const T = THREE, cg = new T.ConeGeometry(2.6, 14, 10, 1, true); cg.translate(0, -7, 0).rotateZ(PI / 2);
       const cm = new T.MeshBasicMaterial({ color: p.gl, transparent: true, opacity: 0.16, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false });
       const beam = new T.Mesh(cg, cm); beam.position.set(x, 11.4 * s, z); beam.scale.setScalar(s); beam.renderOrder = 4; beam.frustumCulled = false; api.add(beam); api.dispose(cg); api.dispose(cm);
       api.anim(dt => { beam.rotation.y += Math.min(dt, 0.05) * 0.5; });

@@ -178,7 +178,7 @@ const HZ_KALE = (() => {
     // kabarcıklar
     for (let i = W.shots.length - 1; i >= 0; i--) {
       const s = W.shots[i]; s.t += dt; s.x += s.vx * dt; s.z += s.vz * dt; s.m.position.set(s.x, 0.9 + 0.1 * Math.sin(s.t * 4), s.z);
-      if (!P.dead && hyp(P.pos.x - s.x, P.pos.z - s.z) < 0.75 && heroUp() < 1.2) { try { A.hurtPlayer(dmgOf(b, 1.0), s.x, s.z, 0.3); } catch (e) { /* yok */ } s.t = 99; }
+      if (!P.dead && hyp(P.pos.x - s.x, P.pos.z - s.z) < 0.95 && heroUp() < 1.2) { try { A.hurtPlayer(dmgOf(b, 0.95), s.x, s.z, 0.3); } catch (e) { /* yok */ } s.t = 99; }
       if (s.t > 4.2 || !A.isFloor(s.x, s.z)) { A.burst('sparkle', s.x, 0.9, s.z, { color: '#ffd6ea', count: 4 }); if (s.m.parent) s.m.parent.remove(s.m); W.shots.splice(i, 1); }
     }
     // mavi çizgiler / yeşil şerit: işaret 2 sn, sonra yavaş tarama (≤2 vuruş)
@@ -189,7 +189,7 @@ const HZ_KALE = (() => {
         if (s.mk) { s.mk.g.position.x = s.x + Math.cos(s.yaw) * off; s.mk.g.position.z = s.z - Math.sin(s.yaw) * off; s.mk.d = Math.max(s.mk.d, s.mk.t + 0.5); }
         const cx = s.x + Math.cos(s.yaw) * off, cz = s.z - Math.sin(s.yaw) * off;
         if (!s.hit && !P.dead && heroUp() < (s.over || 0.9) && rectHit(P.pos.x, P.pos.z, cx, cz, s.yaw, s.hw, s.hl)) {
-          s.hit = true; try { A.hurtPlayer(dmgOf(b, 1.0), cx, cz, 0.4); } catch (e) { /* yok */ }
+          s.hit = true; try { A.hurtPlayer(dmgOf(b, 0.95), cx, cz, 0.4); } catch (e) { /* yok */ }
         }
         if (u >= 1) { markOff(s.mk); W.strips.splice(i, 1); }
       }
@@ -221,51 +221,51 @@ const HZ_KALE = (() => {
     pati(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
-        b.did = 1; const pp = A.P.pos, sp = hyp(pp.x - b.x, pp.z - b.z) < 9 && A.isFloor(pp.x, pp.z) ? { x: pp.x, z: pp.z } : A.approachSpot(b, 6.5); S.sp = sp;   // TELEG/B9: daire Feza'nın durduğu yere (2,8 sn uyarı, çıkıp kurtulur)
-        S.mk = mark('ring', sp.x, sp.z, 2.5, '#ffd23a', 2.8); warn(S, 'b09_uyari_sari');
+        b.did = 1; const pp = A.P.pos, sp = hyp(pp.x - b.x, pp.z - b.z) < 9.5 && A.isFloor(pp.x, pp.z) ? { x: pp.x, z: pp.z } : A.approachSpot(b, 6.5); S.sp = sp;   // TELEG/B9: daire Feza'nın yakın durduğu yeri de kapsar (2,2 sn uyarı)
+        S.mk = mark('ring', sp.x, sp.z, 2.6, '#ffd23a', 2.8); warn(S, 'b09_uyari_sari');
       }
       if (t < 2.0) faceTo(b, S.sp.x, S.sp.z, 4, dt);
       if (b.did === 1 && t >= 2.2) {
-        b.did = 2; markOff(S.mk); A.bossRing(b, S.sp.x, S.sp.z, 2.5, 1.0, 1.4, '#ffe08a', { r1: 2.3, dur: 0.3, width: 0.35 });
+        b.did = 2; markOff(S.mk); A.bossRing(b, S.sp.x, S.sp.z, 2.6, 0.95, 1.4, '#ffe08a', { r1: 2.4, dur: 0.3, width: 0.35 });
         A.burst('dust', S.sp.x, 0.2, S.sp.z, { count: 8, scale: 1.4 }); A.sfx('slam', { x: S.sp.x, z: S.sp.z, vol: 0.45, pitch: 0.8 }); A.shake(0.14);
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.8, 1.4); }
     },
-    // Pembe Kabarcıklar: yerde pembe koni, sonra 3 yavaş kabarcık
+    // Pembe Kabarcıklar: yerde pembe koni, sonra 3 yavaş kabarcık (yakın mesafeyi de kapsar)
     pembe(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) { b.did = 1; S.yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = S.yaw; S.mk = mark('cone', b.x, b.z, 8, '#ff7fb4', 2.4, S.yaw); warn(S, 'b09_uyari_pembe'); }
       if (b.did === 1 && t >= 2.1) {
-        b.did = 2; markOff(S.mk); const m0 = A.muzzle(b), G = gm();
-        for (const da of [-0.4, 0, 0.4]) {
+        b.did = 2; markOff(S.mk); const G = gm(), sx = b.x + Math.sin(S.yaw) * 1.1, sz = b.z + Math.cos(S.yaw) * 1.1;
+        for (const da of [-0.38, 0, 0.38]) {
           const a = S.yaw + da, mesh = new THREE.Mesh(G.sph, G.bub); mesh.scale.setScalar(0.4); scene.add(mesh);
-          W.shots.push({ x: m0.x, z: m0.z, vx: Math.sin(a) * 2.8, vz: Math.cos(a) * 2.8, t: 0, m: mesh });
+          W.shots.push({ x: sx, z: sz, vx: Math.sin(a) * 2.8, vz: Math.cos(a) * 2.8, t: 0, m: mesh });
         }
         A.sfx('pop', { x: b.x, z: b.z });
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.8, 1.4); }
     },
-    // Arama Işığı: iki ince mavi çizgi (işaret ≥2 sn), sonra yavaş tarar
+    // Arama Işığı: iki ince mavi çizgi (işaret ≥2 sn), sonra yavaş tarar (yakın duran Feza'nın üstünden de geçer)
     mavi(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
         b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = yaw; S.yaw = yaw;
         const slow = S.stage >= 3 ? 1.35 : 1;
-        for (const sd of [-1.6, 1.6]) {
-          const x = b.x + Math.cos(yaw) * sd + Math.sin(yaw) * 6, z = b.z - Math.sin(yaw) * sd + Math.cos(yaw) * 6;
-          const mk = mark('sq', x, z, 0.35, '#4fa8ff', 5.4, yaw, 6.4);
-          W.strips.push({ x, z, yaw, hw: 0.45, hl: 6.4, warn: 2.2, sweep: 2.6 * slow, off: sd * 1.4, t: 0, mk, hit: false });
+        for (const sd of [-1.1, 1.1]) {
+          const x = b.x + Math.cos(yaw) * sd + Math.sin(yaw) * 4.4, z = b.z - Math.sin(yaw) * sd + Math.cos(yaw) * 4.4;
+          const mk = mark('sq', x, z, 0.42, '#4fa8ff', 5.4, yaw, 4.8);
+          W.strips.push({ x, z, yaw, hw: 0.55, hl: 4.8, warn: 2.2, sweep: 2.6 * slow, off: -sd * 2.4, t: 0, mk, hit: false });
         }
         warn(S, 'b09_uyari_mavi');
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.8, 1.4); }
     },
-    // Yorgun Kuyruk: yeşil şerit (≥2 sn), sonra kuyruk yavaş süpürür
+    // Yorgun Kuyruk: yeşil şerit (≥2 sn), sonra kuyruk yavaş süpürür (yakın mesafeyi de kapsar)
     kuyruk(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
         b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = yaw;
-        const x = b.x + Math.sin(yaw) * 4.2, z = b.z + Math.cos(yaw) * 4.2, mk = mark('sq', x, z, 0.95, '#5cd06a', 5.0, yaw, 4.6);
+        const x = b.x + Math.sin(yaw) * 3.8, z = b.z + Math.cos(yaw) * 3.8, mk = mark('sq', x, z, 0.95, '#5cd06a', 5.0, yaw, 4.6);
         W.strips.push({ x, z, yaw, hw: 1.05, hl: 4.6, warn: 2.3, sweep: 2.2, off: 3.2, t: 0, mk, hit: false, over: 0.8 }); warn(S, 'b09_uyari_yesil');
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 2.0, 1.4); }

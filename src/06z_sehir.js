@@ -152,7 +152,7 @@ const SEHIR = (() => {
     x.strokeStyle = '#4a3c30'; x.lineCap = 'round'; x.lineWidth = 10; x.beginPath(); x.moveTo(128, 128); x.lineTo(128, 52); x.stroke(); x.lineWidth = 7; x.beginPath(); x.moveTo(128, 128); x.lineTo(176, 148); x.stroke();
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
-  // kule kapısı: taş kemer + saat kadranı; kapalıyken sis perdesi
+  // kule kapısı: alçak taş babalar (<0.8 m) + yerde saat kadranı; kapalıyken alçak sis perdesi (kamerayı asla kapatmaz)
   function kapi(api, L, gate, id) {
     let dx = 0, dz = -1;
     if (typeof ODAKIT !== 'undefined' && ODAKIT && ODAKIT.gateDir) { try { [dx, dz] = ODAKIT.gateDir(L, gate); } catch (e) { /* yok */ } }
@@ -162,24 +162,60 @@ const SEHIR = (() => {
     for (let o = 0; o <= 7; o += 0.5) { if (api.isFloor(gate.x - nx * o, gate.z - nz * o)) lo = o; else break; }
     const w0 = -lo - 0.6, w1 = hi + 0.6, wd = w1 - w0, cx = (w0 + w1) / 2;
     const grp = new THREE.Group(); grp.position.set(gate.x, 0, gate.z); grp.rotation.y = Math.atan2(nx, nz) - PI / 2; api.add(grp);
-    const k = new Kit(), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1))), cyl = geo('kCyl', () => kp(new THREE.CylinderGeometry(1, 1, 1, 12)));
-    for (const sx of [w0 - 0.3, w1 + 0.3]) { k.add(box, 0xe9dcc2, [sx, 0.35, 0], null, [1.2, 0.7, 1.2]); k.add(box, 0xf3e8d0, [sx, 3.0, 0], null, [0.9, 5.2, 0.9]); k.add(box, 0xd8826a, [sx, 5.8, 0], null, [1.3, 0.5, 1.3]); }
-    k.add(box, 0xf3e8d0, [cx, 5.5, 0], null, [wd + 2.4, 0.9, 1.0]);
+    const k = new Kit(), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
+    for (const sx of [w0 - 0.3, w1 + 0.3]) { k.add(box, 0xe9dcc2, [sx, 0.14, 0], null, [1.15, 0.28, 1.15]); k.add(box, 0xf3e8d0, [sx, 0.44, 0], null, [0.86, 0.42, 0.86]); k.add(box, 0xd8826a, [sx, 0.70, 0], null, [1.02, 0.12, 1.02]); }
     const frame = new THREE.Mesh(k.build(), stoneMat()); frame.castShadow = true; grp.add(frame); api.dispose(frame.geometry);
-    const cm = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true }); api.dispose(cm);
-    const clk = new THREE.Mesh(geo('kClk', () => kp(new THREE.PlaneGeometry(1, 1))), cm); clk.scale.set(1.5, 1.5, 1); clk.position.set(cx, 5.5, 0.52); grp.add(clk);
-    const pm = new THREE.MeshBasicMaterial({ color: 0xf2e8ec, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 4.4, 1); panel.position.set(cx, 2.4, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
+    const cm = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false }); api.dispose(cm);
+    const clk = new THREE.Mesh(geo('kClk', () => kp(new THREE.PlaneGeometry(1, 1))), cm); clk.rotation.x = -PI / 2; clk.scale.set(1.45, 1.45, 1); clk.position.set(cx, 0.04, 0.9); clk.renderOrder = 2; grp.add(clk);
+    const pm = new THREE.MeshBasicMaterial({ color: 0xf2e8ec, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 0.72, 1); panel.position.set(cx, 0.40, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
     const solids = [];
     for (let o = w0 + 0.2; o <= w1 - 0.2 + 0.01; o += 0.8) { const so = { x: gate.x + nx * o, z: gate.z + nz * o, r: 0.7, alive: true, tag: 'sehirKapi' }; L.solids.push(so); solids.push(so); }
     L._sh = null;
     return { id, x: gate.x, z: gate.z, grp, panel, pm, solids, open: false, anim: 0, near: 0 };
   }
 
+  // Kamera güneyden (+z) kuzeye (-z) bakar: yürünür zeminin güneyinde (kamera konisinde) kalan yüksek (>0.78 m) yapıları/surları ele
+  function makeSouthHides(L, api) {
+    const W = L.W | 0, H = L.H | 0, G = L.grid;
+    const fl = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < W && j < H && G[j * W + i] > 0; };
+    return (x, z, h = 2) => {
+      if (h <= 0.78) return false;
+      const dMax = Math.min(28, Math.max(16, h * 2.5));
+      for (let dz = 1.0; dz <= dMax; dz += 1.4) {
+        const xm = 4.2 + dz * 0.52;
+        for (let dx = -xm; dx <= xm; dx += 1.8) if (fl(x + dx, z - dz)) return true;
+      }
+      return false;
+    };
+  }
+
   // ════════════════ Dekor (kur) ════════════════
   function kur(L, api) {
-    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'sehir'); } catch (e) { console.warn('SUS610', e); }
     const rnd = api.rnd, Z = L.sh || {};
+    const southHides = makeSouthHides(L, api); Z.southHides = southHides;
+    const origPut = api.put;
+    const lowFill = new Set();
+    api.put = function (geo, x, y = 0, z = 0, sx = 1, sy = sx, sz = sx, color = 0xffffff, yaw = 0, rx = 0, rz = 0, matKey = 'shiny') {
+      if (geo) {
+        if (!geo.boundingBox) { try { geo.computeBoundingBox(); } catch (e) { /* yok */ } }
+        const bb = geo.boundingBox;
+        const my = bb ? (Math.abs(rx) > 0.1 || Math.abs(rz) > 0.1 ? Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) * 0.5 : bb.max.y) : 1;
+        const topY = y + my * Math.abs(sy ?? sx ?? 1);
+        const isFnt = Z.fountain && hyp(x - Z.fountain.x, z - Z.fountain.z) < 2.2;
+        if (!isFnt && topY > 0.78 && southHides(x, z, topY)) {
+          const hk = ((Math.round(x * 0.5) + 500) * 1000) + Math.round(z * 0.5) + 500;
+          if (!lowFill.has(hk) && !api.isFloor(x, z) && typeof PROPKIT !== 'undefined' && PROPKIT.bush) {
+            lowFill.add(hk);
+            const b = PROPKIT.bush((rnd() * 4) | 0), s0 = 0.65 + rnd() * 0.35;
+            origPut.call(api, b.leaf, x, 0, z, s0, s0 * 0.75, s0, 0x6cb85a, rnd() * TAU, 0, 0, 'shinyNS');
+          }
+          return null;
+        }
+      }
+      return origPut.call(api, geo, x, y, z, sx, sy, sz, color, yaw, rx, rz, matKey);
+    };
+    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'sehir'); } catch (e) { console.warn('SUS610', e); }
     const box = api.tmp(new THREE.BoxGeometry(1, 1, 1)), cyl = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 12)), cone4 = api.tmp(new THREE.ConeGeometry(1, 1, 4)),
       sph = api.tmp(new THREE.SphereGeometry(1, 10, 7)), cone = api.tmp(new THREE.ConeGeometry(1, 1, 9)), hemi = api.tmp(new THREE.SphereGeometry(1, 12, 6, 0, TAU, 0, PI / 2));
     const P = (g, x, y, z, sx, sy, sz, c, yaw, rx, rz) => api.put(g, x, y, z, sx, sy, sz, c, yaw || 0, rx || 0, rz || 0);
@@ -198,7 +234,22 @@ const SEHIR = (() => {
     const lampGeo = api.tmp(new THREE.SphereGeometry(0.2, 8, 6)); const lamps = [];
     const lamp = (x, z) => { P(cyl, x, 1.3, z, 0.06, 2.6, 0.06, 0x5a4a3a); const m = new THREE.Mesh(lampGeo, lampM); m.position.set(x, 2.7, z); api.add(m); lamps.push({ x, z }); };
     let yeni = false;   // E8910: yeni çevre takımı (src/07m_dekor_sehir.js); yüklenemezse eski basit süsler
-    try { if (typeof SEHIR_DEKOR !== 'undefined' && typeof YAPI !== 'undefined') { Z.dekor = SEHIR_DEKOR.olustur(L, api, Z); yeni = true; } } catch (e) { console.warn('SEHIR_DEKOR', e); }
+    try {
+      if (typeof SEHIR_DEKOR !== 'undefined' && typeof YAPI !== 'undefined') {
+        const origBake = typeof PROPKIT !== 'undefined' && PROPKIT.bake;
+        if (origBake) PROPKIT.bake = list => {
+          const flt = Array.isArray(list) ? list.filter(it => !it || !southHides(it.x || 0, it.z || 0, (it.y || 0) + 2.2)) : list;
+          PROPKIT.sonSecilen = Array.isArray(flt) ? flt : null;   // bakeAwake: rüzgâr değerleri (aFl) sağ kalan parçalarla hizalansın
+          if (Array.isArray(flt) && !flt.length) {   // hepsi elendiyse: boş ama geçerli geometri (renk özniteliği de olsun)
+            const bos = new THREE.BufferGeometry();
+            bos.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3)); bos.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(0), 3)); bos.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
+            return bos;
+          }
+          return origBake.call(PROPKIT, flt);
+        };
+        try { Z.dekor = SEHIR_DEKOR.olustur(L, api, Z); yeni = true; } finally { if (origBake) PROPKIT.bake = origBake; }
+      }
+    } catch (e) { console.warn('SEHIR_DEKOR', e); }
     const kinds = ['house', 'tree', 'stall', 'house', 'bush', 'lamp', 'house', 'tree'];
     const free = (x, z, r) => { for (let a = 0; a < 8; a++) if (api.isFloor(x + Math.cos(a * PI / 4) * r, z + Math.sin(a * PI / 4) * r)) return false; return !api.isFloor(x, z); };
     const places = [];
@@ -323,8 +374,8 @@ const SEHIR = (() => {
     // oyuncak rafı + kırık taç (kule içi; AD YOK, EFEKT YOK)
     let shelfAt = null;
     if (Z.tower) {
-      const T0 = Z.tower;
-      // kule iç duvarı: iki odanın çevresinde yüksek krem duvar (güneyde alçak); duvarda çarklar; kuzeyde kadran
+      const T0 = Z.tower, southHides = Z.southHides || makeSouthHides(L, api);
+      // kule iç duvarı: kameraya bakan / arkasında zemin olan her yerde alçak taş bordür (<0.8 m); yalnız en kuzey arkada alçak duvar + çarklar
       const cogs = [];
       const wallM = kp(new THREE.MeshStandardMaterial({ color: 0xf0e2c8, roughness: 0.95 }));
       const wbox = geo('wbox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
@@ -333,21 +384,24 @@ const SEHIR = (() => {
         for (let q = 0; q < N; q++) {
           const a = q * TAU / N, x = rm.x + Math.sin(a) * R, z = rm.z + Math.cos(a) * R;
           if (api.isFloor(x, z) || api.linkDist(x, z) < 3.2) continue;
-          const south = z > rm.z + 1.5, h = south ? 1.2 : 6.5;
-          const m = new THREE.Mesh(wbox, wallM); m.scale.set(TAU * R / N * 1.15, h, 0.9); m.position.set(x, h / 2, z); m.rotation.y = a; m.receiveShadow = true; api.add(m);
-          if (!south && q % 3 === 0) {
+          const south = z > rm.z - rm.r * 0.45 || southHides(x, z, 3.0), h = south ? 0.52 : 2.3;
+          const m = new THREE.Mesh(wbox, wallM); m.scale.set(TAU * R / N * 1.12, h, 0.82); m.position.set(x, h / 2, z); m.rotation.y = a; m.receiveShadow = true; api.add(m);
+          if (q % 3 === 0) {
             const gm = new THREE.MeshStandardMaterial({ color: q % 2 ? 0xd8a24a : 0xc08a3a, roughness: 0.4, metalness: 0.5 }); api.dispose(gm);
             const gk = new Kit(); const tb = geo('tooth', () => kp(new THREE.BoxGeometry(1, 1, 1))), disk = geo('disk', () => kp(new THREE.CylinderGeometry(1, 1, 0.4, 20)));
             gk.add(disk, 0xffffff, [0, 0, 0], [PI / 2, 0, 0], 1); for (let tI = 0; tI < 10; tI++) { const ta = tI * TAU / 10; gk.add(tb, 0xffffff, [Math.cos(ta) * 1.12, Math.sin(ta) * 1.12, 0], [0, 0, ta], [0.3, 0.38, 0.4]); }
-            const mesh = new THREE.Mesh(gk.build(), gm); api.dispose(mesh.geometry); const sz = 0.9 + (q % 4) * 0.25; mesh.scale.setScalar(sz);
-            mesh.position.set(x - Math.sin(a) * 0.55, 2.2 + (q % 3) * 1.4, z - Math.cos(a) * 0.55); mesh.rotation.y = a + PI; api.add(mesh); cogs.push({ mesh, sp: (q % 2 ? 1 : -1) * (0.5 + (q % 3) * 0.2) });
+            const mesh = new THREE.Mesh(gk.build(), gm); api.dispose(mesh.geometry);
+            const sz = south ? 0.48 : 0.68 + (q % 3) * 0.14; mesh.scale.setScalar(sz);
+            if (south) { mesh.position.set(x, h + 0.08, z); mesh.rotation.set(PI / 2, 0, 0); }
+            else { mesh.position.set(x - Math.sin(a) * 0.48, 1.25 + (q % 2) * 0.35, z - Math.cos(a) * 0.48); mesh.rotation.y = a + PI; }
+            api.add(mesh); cogs.push({ mesh, sp: (q % 2 ? 1 : -1) * (0.5 + (q % 3) * 0.2) });
           }
         }
       }
       V.cogs = cogs;
-      // büyük kadran (kuzey duvarı, 2. oda)
-      const cmat = new THREE.MeshBasicMaterial({ map: clockTex() }); api.dispose(cmat);
-      const clk = new THREE.Mesh(geo('clk2', () => kp(new THREE.PlaneGeometry(1, 1))), cmat); clk.scale.set(4.2, 4.2, 1); clk.position.set(T0.b.x, 4.4, T0.b.z - T0.b.r - 1.2 - 0.0); api.add(clk);
+      // büyük kadran (2. odanın zemininde, dev anahtarın altında: koridoru ve kamerayı asla kapatmaz)
+      const cmat = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false }); api.dispose(cmat);
+      const clk = new THREE.Mesh(geo('clk2', () => kp(new THREE.PlaneGeometry(1, 1))), cmat); clk.rotation.x = -PI / 2; clk.scale.set(3.4, 3.4, 1); clk.position.set(T0.b.x, 0.038, T0.b.z); clk.renderOrder = 2; api.add(clk);
       // raf
       const sh = T0.shelf; shelfAt = sh;
       const g = new THREE.Group(); g.position.set(sh.x, 0, sh.z); g.rotation.y = sh.yaw || 0; api.add(g);
@@ -457,8 +511,8 @@ const SEHIR = (() => {
       } catch (e) { /* yok */ }
       // kapı
       if (gate) {
-        if (gate.open) { if (gate.anim < 1) { gate.anim = Math.min(1, gate.anim + dt / 1.6); gate.pm.opacity = 0.6 * (1 - gate.anim); gate.panel.position.y = 2.4 + gate.anim * 3; if (gate.anim >= 1) { gate.panel.visible = false; for (const so of gate.solids) so.alive = false; L._sh = null; } } }
-        else { gate.pm.opacity = 0.5 + 0.1 * Math.sin(T * 2); if (playing && hyp(P.pos.x - gate.x, P.pos.z - gate.z) < 6) S.stuck += dt; if (S.stuck > 80) { gate.open = true; } }
+        if (gate.open) { if (gate.anim < 1) { gate.anim = Math.min(1, gate.anim + dt / 1.6); gate.pm.opacity = 0.55 * (1 - gate.anim); gate.panel.position.y = 0.40 + gate.anim * 0.6; if (gate.anim >= 1) { gate.panel.visible = false; for (const so of gate.solids) so.alive = false; L._sh = null; } } }
+        else { gate.pm.opacity = 0.48 + 0.1 * Math.sin(T * 2); if (playing && hyp(P.pos.x - gate.x, P.pos.z - gate.z) < 6) S.stuck += dt; if (S.stuck > 80) { gate.open = true; } }
       }
       if (S.towerAt && T >= S.towerAt && gate && !gate.open) { S.towerAt = 0; gate.open = true; sfx('unlock', { x: gate.x, z: gate.z }); say('b08_kulegir', { force: true, once: false }); }
       // tek sis dalgası
@@ -665,6 +719,8 @@ const SEHIR = (() => {
     areas: [{ id: 'a1', ad: 'Sisli Kapı ve Pazar Meydanı', rooms: 2 }, { id: 'a2', ad: 'Nehir ve Taş Köprüler', rooms: 2 }, { id: 'a3', ad: 'Tabela Sokağı', rooms: 2 },
       { id: 'a4', ad: 'Sur Yolu ve Nöbetçi Kuleleri', rooms: 2 }, { id: 'a5', ad: 'Saat Kulesi', rooms: 2 }],
     muzik: 'sehir', malzeme: 'isik8', kayipEsya: null, final: false, yoldas: ['bilbo'],
+    isik: { fezaLight: 1.68, fezaLightColor: 0xfff4dc },
+    zemin: { soluk: 0.24 },
     harita: { ad: 'Surlu Şehir', detay: 'Sisli şehirliler, saat kulesi ve Huysuz Şövalye', renk: '#e8a07a', simge: '🏙️' },
     yolculuk: { arac: 'kanat', cumle: 'Beni taşıdın. Şimdi ben seninle yürürüm.' },
     yerlesim, kur, kurSon,

@@ -133,9 +133,9 @@ const KALE = (() => {
     const ring = new THREE.Mesh(geo('nr', () => kp(new THREE.RingGeometry(1.35, 1.55, 40).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd470, transparent: true, opacity: 0.75, depthWrite: false })); ring.position.y = 0.06; g.add(ring);
     api.dispose(pm); api.dispose(ring.material); api.add(g); return { g, ring };
   }
-  function bridgeFlags(api, K) {   // köprü odasının kenarında gökkuşağı bayrakları
+  function bridgeFlags(api, K) {   // köprü odasının kenarında gökkuşağı bayrakları (mor yok)
     if (!K.bridge) return;
-    const cols = [0xff6b6b, 0xffa94d, 0xffe066, 0x69db7c, 0x4dabf7, 0xf783ac];
+    const cols = [0xff6b6b, 0xffa94d, 0xffe066, 0x69db7c, 0x4dabf7, 0xff928b];
     const pole = geo('pole', () => kp(new THREE.CylinderGeometry(0.05, 0.06, 3.4, 8))), fl = geo('flag', () => kp(new THREE.PlaneGeometry(1.2, 0.7)));
     let n = 0;
     for (let k = 0; k < 14; k++) {
@@ -177,11 +177,35 @@ const KALE = (() => {
   function kur(L, api) {
     try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'kale'); } catch (e) { console.warn('SUS610', e); }
     const K = L.kl || {}, rnd = api.rnd;
+    const flGrid = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && L.grid[j * L.W + i] === 1; };
+    const southHides = (x, z, topY) => {
+      if (topY <= 0.82) return false;
+      const dMax = Math.min(24, Math.max(10, Math.ceil(topY * 2.5)));
+      for (let dz = 1; dz <= dMax; dz += 1.5) {
+        const halfW = 3.8 + dz * 0.46;
+        for (const dx of [-halfW, -halfW * 0.5, 0, halfW * 0.5, halfW]) {
+          if (flGrid(x + dx, z - dz)) return true;
+        }
+      }
+      return false;
+    };
+    const rawPut = api.put.bind(api);
+    const sphLow = api.tmp(new THREE.SphereGeometry(1, 9, 6));
+    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0) => {
+      const h = Math.abs(sy || 1), topY = (y || 0) + h * 0.5;
+      if (southHides(x, z, topY)) {
+        if (!flGrid(x, z) && ((Math.abs(Math.round(x * 3 + z * 5))) % 6 === 0)) {
+          rawPut(sphLow, x, 0.16, z, 0.58, 0.25, 0.58, 0x709850, 0, 0, 0);
+        }
+        return;
+      }
+      rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz);
+    };
     try { if (typeof KALE_DEKOR !== 'undefined' && typeof YAPI !== 'undefined' && typeof SEHIR_DEKOR !== 'undefined') K.dekor = KALE_DEKOR.olustur(L, api, K); } catch (e) { console.warn('KALE_DEKOR', e); }   // E8910: yeni çevre takımı (src/07m_dekor_kale.js)
-    // yumuşak gül-kum sis ışığı (kale ışığı isik tanımında); odalara sıcak parıltı
-    for (const rm of L.rooms) api.glow(rm.x, rm.z, (rm.r || 7) * 0.9, 0xffd9c0, 0.07);
+    // yumuşak altın-kum sis ışığı (kale ışığı isik tanımında); odalara sıcak parıltı
+    for (const rm of L.rooms) api.glow(rm.x, rm.z, (rm.r || 7) * 0.9, 0xffe0b8, 0.07);
     if (K.salon) api.glow(K.salon.x, K.salon.z, K.salon.r, 0xffa860, 0.12);
-    if (K.arena) api.glow(K.arena.x, K.arena.z, K.arena.r * 0.9, 0xffc8d8, 0.12);
+    if (K.arena) api.glow(K.arena.x, K.arena.z, K.arena.r * 0.9, 0xffe0a8, 0.11);
     bridgeFlags(api, K);
     // galeri: eski resimler
     if (K.galeri) {
@@ -334,9 +358,9 @@ const KALE = (() => {
       { id: 'a4', ad: 'Sıcak Salon', rooms: 1 }, { id: 'a5', ad: 'Kule Merdiveni', rooms: 1 }],
     muzik: 'kale', malzeme: 'isik9', kayipEsya: null, final: false,
     isik: { fog: [0xf6dcc0, 44, 112], hemiSky: 0xffd9b4, hemiGround: 0x8a6a58, hemi: 0.9, sunColor: 0xffa860, sun: 1.25, sunOffset: [-20, 19, 11],   // E8910: sıcak GÜN BATIMI (düşük güneş, uzun gölgeler, şeftali sis)
-      env: [0xf0c8a0, 0xffd8b0, 0x7a6058, 0.6], bloom: 0.28, exposure: 1.04, sat: 1.18, vig: 0.22, fezaLight: 1.3, fezaLightColor: 0xfff0e0 },
-    zemin: { soluk: 0.35 },
-    minimap: { zemin: '#b89a96' },
+      env: [0xf0c8a0, 0xffd8b0, 0x7a6058, 0.6], bloom: 0.28, exposure: 1.05, sat: 1.18, vig: 0.22, fezaLight: 1.65, fezaLightColor: 0xfff4dc },
+    zemin: { soluk: 0.36 },
+    minimap: { zemin: '#c8b89a' },
     harita: { ad: 'Ejderhanın Kalesi', detay: 'Üç yumurta, eski resimler ve Huysuz Ejderha', renk: '#ec7f98', simge: '🏰' },
     yolculuk: { arac: 'kanat', cumle: 'Gökkuşağına doğru kanat çırpıyoruz!' },
     parcaIpucu: 'Büyük Fener gökkuşağı adalarının tepesinde.',

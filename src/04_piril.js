@@ -592,7 +592,7 @@ const PIRIL = (() => {
     function isik(n) { isikN = Math.max(0, Math.min(5, +n || 0)); }   // ondalık olabilir (yumuşak büyüme)
     function sneeze(cb) { if (sneezeT >= 0) return false; sneezeT = 0; sneezeCb = typeof cb === 'function' ? cb : null; return true; }
 
-    let kameraRef = null; const _lt = new THREE.Vector3();
+    let kameraRef = null, standK = 0; const _lt = new THREE.Vector3();
     const _qb = new THREE.Quaternion(), _qbi = new THREE.Quaternion(), _qr = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _M = new THREE.Matrix4();
     const _Fw = new THREE.Vector3(), _Rw = new THREE.Vector3(), _X = new THREE.Vector3(), _Xl = new THREE.Vector3(), _N = new THREE.Vector3(), _E = new THREE.Vector3(), _Z = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);   // m.kamera: binişte kanatları bu kameraya çevir (yoksa oyunun genel 'camera'sı)
     // ── Kare güncellemesi ──
@@ -603,7 +603,7 @@ const PIRIL = (() => {
       pounce = smooth(pounce, clamp01(state.pounce || 0), 14, dt);
       tired = smooth(tired, state.sit ? 1 : 0, 3, dt);
       ride = smooth(ride, state.ride ? 1 : 0, 4, dt);
-      konK = smooth(konK, state.kon || state.omuz ? 1 : 0, 6, dt);
+      konK = smooth(konK, state.kon || state.omuz ? 1 : 0, 6, dt); standK = smooth(standK, state.stand ? 1 : 0, 6, dt);
       kucakK = smooth(kucakK, state.kucak ? 1 : 0, 3, dt);   // kucakta taşınma: uykulu, ışığı sönük, yumuşak sallanır
       diziUpd(dt);
       for (const k in emo) { emo[k] = Math.max(0, emo[k] - dt); const u = emo[k] > 0 ? Math.min(1, emo[k] / .35, (emoSn[k] - emo[k]) / .3 + .02) : 0; emoK[k] = smooth(emoK[k], u, 14, dt); }
@@ -633,7 +633,7 @@ const PIRIL = (() => {
       ph += dt * Math.PI * 2 * flapHz * (1 - .85 * glide);
       const fl = Math.sin(ph);
       // havada durma: hafif inip kalkma (kanat vuruşuyla), uykuda daha alçak ve yavaş
-      lift.position.y = 1.25 - .32 * sleep - .1 * tired - .62 * ride - .5 * davet + (.045 * Math.sin(t * 2.1) * (1 - sleep) + .022 * Math.sin(ph + 1.2) * (1 - glide)) * (1 - konK) + .02 * Math.sin(t * .9) * sleep
+      lift.position.y = 1.25 - .32 * sleep - .1 * tired - .62 * ride - .5 * davet + (.045 * Math.sin(t * 2.1) * (1 - sleep) + .022 * Math.sin(ph + 1.2) * (1 - glide)) * (1 - konK) * (1 - .8 * standK) + .015 * Math.sin(t * 2.4) * standK + .02 * Math.sin(t * .9) * sleep
         + (kikirT > 0 ? .06 * Math.abs(Math.sin(t * 9)) : 0);
       lift.position.z = .05 * pounce;
       // gövde: hızla öne eğilir; dalışta daha çok; uykuda kıvrılır
@@ -714,9 +714,9 @@ const PIRIL = (() => {
       }
       // kollar: uçarken öne-aşağı sarkar, sallama/takla/nefes
       for (const A of arms) {
-        const sd = A.side;
+        const sd = A.side, stWv = standK * Math.max(0, Math.sin(t * 1.4 - .3)), wv = Math.max(wave, stWv);
         let rx = -.25 - .3 * run + .08 * Math.sin(ph + 1) * (1 - glide), rz = sd * (.42 - .1 * run);
-        if (wave > .01 && sd > 0) { rx = THREE.MathUtils.lerp(rx, -2.5, wave); rz = THREE.MathUtils.lerp(rz, .3 + .45 * Math.sin(t * 10), wave); }
+        if (wv > .01 && sd > 0) { rx = THREE.MathUtils.lerp(rx, -2.35, wv); rz = THREE.MathUtils.lerp(rz, .32 + .42 * Math.sin(t * 8.5), wv); }
         rx = THREE.MathUtils.lerp(rx, -1.2, tuck); rz = THREE.MathUtils.lerp(rz, sd * .1, tuck);
         rx = THREE.MathUtils.lerp(rx, -.9, sleep * .8); rz = THREE.MathUtils.lerp(rz, -sd * .15, sleep * .8);
         rx = THREE.MathUtils.lerp(rx, -.6, breath * .7);
@@ -725,7 +725,7 @@ const PIRIL = (() => {
       // bacaklar: havada sarkar ve hafifçe sallanır; hızlıyken geriye; taklada toplanır
       for (const L of legs) {
         const sw = .14 * Math.sin(ph * .5 + (L.side > 0 ? 0 : Math.PI)) * (1 - glide) * (1 - sleep);
-        L.b.rotation.set(.15 + .9 * run + .3 * glide + sw - 1.1 * tuck - .8 * sleep, 0, L.side * (.08 + .15 * sleep), 'YXZ');
+        L.b.rotation.set((.15 + .9 * run + .3 * glide + sw) * (1 - standK) - 1.1 * tuck - .8 * sleep, 0, L.side * (.08 + .15 * sleep), 'YXZ');
         L.foot.rotation.set(.25 * run + .2 * Math.sin(ph * .5 + 1) * (1 - glide) - .5 * sleep, 0, 0, 'YXZ');
       }
       // yüz: göz kırpma, mutlu gözler, uyku gözü, ağız
