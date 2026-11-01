@@ -38,12 +38,12 @@ Diyarlar arasında kısa bir yolculuk sahnesi vardır (atlanabilir).
 - **Yürümek:** ekranda parmağını sürükle, Feza o tarafa yürür. Parmak uzaksa koşar.
 - **Etrafı çevirmek:** kamera Feza'yı kendiliğinden izler.
 - **Saldırı:** sağ alttaki kılıç düğmesine bas. Düşmanlar canı yanmadan neşelenir.
-- **Zıplamak:** zıplama düğmesine bas; havada bir daha basarsan Pırıl yukarı iter.
+- **Zıplamak:** yalnız zıplanabilen yerlerde (örneğin Ay Tapınağı'nın yıldız basamakları) çıkan, sol alttaki yıldızlı düğme ile olur. Basamağa yaklaşınca oyun zıplamaya kendisi de yardım eder. Düşünce bulut yastığı yumuşakça bırakır, can kaybolmaz.
 - **Dokunmak:** ışıklı nesnelere, sandıklara, istasyonlara dokununca küçük oyunlar açılır. Mini oyunlar sadece diyarların içindedir.
 - **Pırıl ve dostlar:** can azalınca ya da çok düşman olunca kendileri yardıma gelir.
 - **Yıldızlar:** yeni yetenek almak için kullanılır; her yetenek 1 yıldızdır, yıldızlar yavaş toplanır.
 - **Duraklatma menüsü:** Gardırop, Pırıl'ın Köşesi ve Çıkartma Albümü buradadır.
-- Klavye (ebeveyn için): **oklar / W-A-S-D** yürür, **Boşluk** zıplar.
+- Klavye (ebeveyn için): **W-A-S-D / oklar** yürür, **Z** zıplar, **Q** iksir içer, **E** satıcıyla konuşur.
 
 ## Ebeveyn için notlar
 
