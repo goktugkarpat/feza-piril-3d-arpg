@@ -180,9 +180,9 @@ const ATMO = (() => {
     const p = P[id]; S.id = id;
     const g = POST.grade;
     if (!p || S.kalite === 0) { opts.visible = false; g.on = 0; g.rays = 0; pts.visible = false; gpl.visible = false; return; }
-    g.on = 1; g.sh.set(p.sh); g.hi.set(p.hi); g.con = p.con; g.haze.set(p.haze[0]); g.hazeAmt = p.haze[1] * 0.65; g.hazeFrom = p.haze[2];
+    g.on = 1; g.sh.set(p.sh); g.hi.set(p.hi); g.con = p.con; g.haze.set(p.haze[0]); g.hazeAmt = p.haze[1] * 0.3; g.hazeFrom = p.haze[2];
     g.rayCol.set(p.rays[0]); g.rays = S.kalite >= 2 ? p.rays[1] : 0;
-    if (scene.fog) { scene.fog.near = Math.max(8, scene.fog.near * p.fog[0] * 1.3); scene.fog.far = Math.max(scene.fog.near + 20, scene.fog.far * p.fog[1] * 1.3); }
+    if (scene.fog) { scene.fog.near = Math.max(8, scene.fog.near * p.fog[0] * 1.8); scene.fog.far = Math.max(scene.fog.near + 20, scene.fog.far * p.fog[1] * 1.8); }
     if (p.gl) { gpl.visible = true; GU.uM.value = p.gl[0]; GU.uL.value.set(p.gl[1]); GU.uS.value.set(p.gl[2]); GU.uA.value = p.gl[3] * (S.kalite >= 2 ? 1 : 0.7); GU.uSc.value = p.gl[4]; } else gpl.visible = false;
     const o = p.orb; opts.visible = !!o && S.kalite >= 1; if (o) { OU.uN.value = Math.round(o.n * (S.kalite >= 2 ? 1 : 0.6)); OU.uSize.value = o.size; OU.uH.value.set(o.h[0], o.h[1]); o.cols.forEach((c, i) => OU.uCol.value[i].set(c)); }
     const d = p.dust;
