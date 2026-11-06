@@ -87,7 +87,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101018);
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 150);
 // Diablo-like camera: looks from +z (south) toward -z (north), tilted down.
-const CAM = { dist: 16.5, pitch: 0.70, yaw: 0, zoom: 1, target: new THREE.Vector3() };
+const CAM = { dist: 14.5, pitch: 0.70, yaw: 0, zoom: 1, target: new THREE.Vector3() };
 if (Q.has('kam')) { const [d, p] = Q.get('kam').split(',').map(Number); if (d) CAM.dist = d; if (p) CAM.pitch = p; }   // tuning: ?kam=dist,pitch
 
 // ── Işıklar ──
