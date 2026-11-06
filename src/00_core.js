@@ -68,7 +68,7 @@ const QUALITY = (() => {
     (/Mac/i.test(navigator.platform) && navigator.maxTouchPoints > 1)));
   return {
     tablet,
-    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : 1.5) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
+    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : 1.25) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
     msaa: Q.has('msaa') ? clamp(parseInt(Q.get('msaa'), 10) || 0, 0, 8) : (Q.has('hd') || tablet || !(navigator.maxTouchPoints > 1) ? 4 : 2),
   };
 })();
