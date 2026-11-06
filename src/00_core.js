@@ -68,7 +68,7 @@ const QUALITY = (() => {
     (/Mac/i.test(navigator.platform) && navigator.maxTouchPoints > 1)));
   return {
     tablet,
-    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : 1.25) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
+    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : 1.75) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
     msaa: Q.has('msaa') ? clamp(parseInt(Q.get('msaa'), 10) || 0, 0, 8) : (Q.has('hd') || tablet || !(navigator.maxTouchPoints > 1) ? 4 : 2),
   };
 })();
@@ -221,7 +221,7 @@ function setEnvironment(sky, horizon, ground, intensity = 1) {
 setEnvironment(0x8fc4ff, 0xf3e6d0, 0x5a4a3a, 1);
 
 // ── Son işlem: HDR sahne → parlama (bloom) → renk tonu → ekran ──
-const POST = { on: !PLAIN, strength: 0.33, threshold: 1.45, exposure: 1.0, saturation: 1.08, vignette: 0.32, tint: new THREE.Color(1, 0.1, 0.15), tintAmt: 0,
+const POST = { on: !PLAIN, strength: 0.22, threshold: 1.45, exposure: 1.0, saturation: 1.08, vignette: 0.2, tint: new THREE.Color(1, 0.1, 0.15), tintAmt: 0,
   // ATMO (G2): bölüm renk ayarı, uzak sis perdesi, ışık huzmeleri — src/03g_atmosfer.js doldurur
   grade: { on: 0, sh: new THREE.Color(1, 1, 1), hi: new THREE.Color(1, 1, 1), con: 0, haze: new THREE.Color(), hazeAmt: 0, hazeFrom: 0.4, rayCol: new THREE.Color(), rays: 0 } };
 const FS_GEO = new THREE.BufferGeometry();
