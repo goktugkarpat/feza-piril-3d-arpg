@@ -3270,7 +3270,7 @@ const UI = (() => {
     if (CORNERS.length) cornerTick();
     if (S.mode === 'title') titleVoiceTick(dt);
     if (S.bpq && S.bpq.length && S.t >= S.bpqT) { if (S.mode === 'end') { bossPortrait(S.bpq.shift()); S.bpqT = S.t + 0.35; } else S.bpq.length = 0; }
-    if (S.portraitDirty && S.t >= S.portraitAt) { S.portraitDirty = false; refreshPortrait(); }
+    if (S.portraitDirty && S.t >= S.portraitAt && (S.hud || S.mode !== 'title')) { S.portraitDirty = false; refreshPortrait(); }
     if (M.GAME && D.shopPrompt) {
       D.shopPrompt.classList.toggle('u-hide', S.mode !== 'play' || !!S.menu || M.GAME.state !== 'play' || !M.GAME.merchantNear());
       D.wardTag.classList.toggle('u-hide', !M.GAME.merchantWard());
