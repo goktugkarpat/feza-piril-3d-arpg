@@ -7,7 +7,7 @@ const ATMO = (() => {
   // sh/hi: gölge/ışık renk çarpanı · con: kontrast · haze: [renk, miktar, başlangıç(0-1 ekran yüksekliği)] · rays: [renk, miktar] · fog: [yakın, uzak çarpanı]
   // dust: {n, col, size, mode: 'mote'|'rise'|'ember'|'fall', a: görünürlük, h: yükseklik aralığı}
   const P = {
-    mantar:   { gl: [0, 0x9ff0d8, 0x0c2a5a, 0.34, 0.11], sh: 0x7f8cff, hi: 0xfff0d0, con: 0.22, haze: [0x3f86b0, 0.42, 0.42], rays: [0x9fe8ff, 0.24], fog: [0.42, 0.55],
+    mantar:   { gl: [0, 0x9ff0d8, 0x0c2a5a, 0.34, 0.11], sh: 0x7f8cff, hi: 0xfff0d0, con: 0.22, haze: [0x3f86b0, 0.2, 0.5], rays: [0x9fe8ff, 0.24], fog: [0.7, 0.9],
                 dust: { n: 150, col: 0xbffff0, size: 0.11, mode: 'mote', a: 0.9, h: 5 }, orb: { n: 16, cols: [0x7ffff0, 0xffd27a, 0x8fd0ff], size: 0.9, h: [0.8, 3.2] } },
     mercan:   { gl: [1, 0xc8fff0, 0x000000, 0.4, 0.16], sh: 0x4a7cff, hi: 0xb8e8ff, con: 0.24, haze: [0x0e6a96, 0.6, 0.3], rays: [0x9ff4ff, 0.3], fog: [0.4, 0.5],
                 dust: { n: 170, col: 0xd8fbff, size: 0.09, mode: 'rise', a: 0.8, h: 6 }, orb: { n: 16, cols: [0xaaf8ff, 0xffb4a0, 0xfff0a0], size: 0.9, h: [1.0, 4.0] } },
