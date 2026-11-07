@@ -667,7 +667,7 @@ const HZ_DEGIRMEN = (() => {
       },
       moves: MOVES,
       hints: { adim: 'b04_boss_adim', fiskir: 'b04_boss_fiskir', dans: 'b04_boss_dans', cark: 'b04_boss_cark', balon: 'b04_balon', hapsu: 'b04_hapsu' },
-      hit(b, amount, o, S) { if (b.ph === 'hapsu') amount = Math.round(amount * 1.25); if (S && !S.ikramSaid && (b.hp - amount) / b.maxHp <= 0.14) { S.ikramSaid = true; const A = BOSSDAV.api; if (A && A.hasLine('b04_ikram')) A.say('b04_ikram', 3); } return amount; },
+      hit(b, amount, o, S) { if (b.ph === 'hapsu') amount = Math.round(amount * 1.25); if (false && S && !S.ikramSaid && (b.hp - amount) / b.maxHp <= 0.14) { S.ikramSaid = true; const A = BOSSDAV.api; if (A && A.hasLine('b04_ikram')) A.say('b04_ikram', 3); } return amount; },
       update(dt) {
         zoneTick(dt);
         if (typeof GAME === 'undefined') return;

@@ -605,6 +605,7 @@ const ODAKIT = (() => {
   }
   // Oda içi mini oyun istasyonu (yerlesim'de): tercih listesinden kayıtlı ilk mini oyun; UI içine girince başlatır
   function miniStation(L, api, rm, prefer) {
+    return null;   // (ebeveyn: bölüm içinde mini oyun yok)
     if (typeof MINIGAME === 'undefined' || !MINIGAME.list) return null;
     const ids = MINIGAME.list(), id = prefer.find(p => ids.includes(p)) || ids[0];
     if (!id) return null;

@@ -34,8 +34,10 @@ const DEGIRMEN = (() => {
   const ring = (x, z, r, c) => { try { if (typeof FX !== 'undefined' && FX.ring) FX.ring(x, z, r, c); else if (OK()) ODAKIT.ring(x, z, r, c); } catch (e) { /* yok */ } };
 
   // ── Tarif durumu (bölüme girince sıfırlanır; kayıt gerekmez: bölüm 11 dk) ──
-  const R = { un: 0, unN: 5, su: 0, kor: 0, korN: 3, durum: 'topla', yogur: 0, pisti: false, bekci: false, tutan: null };
-  const resetR = () => { R.un = 0; R.su = 0; R.kor = 0; R.durum = 'topla'; R.yogur = 0; R.pisti = false; R.bekci = false; R.tutan = null; R.yardim = false; };
+  const R = { un: 0, unN: 5, su: 0, kor: 0, korN: 3, durum: 'pisti', yogur: 0, pisti: true, bekci: false, tutan: null };
+  // Ebeveyn: tarif (başak/kova/kor toplama, yoğurma, fırın, tarif çubuğu, çuval duvarı) oyundan kalktı; bölüm düz oynanır.
+  const TARIFYOK = true;
+  const resetR = () => { R.un = 0; R.su = 0; R.kor = 0; R.durum = TARIFYOK ? 'pisti' : 'topla'; R.yogur = 0; R.pisti = TARIFYOK; R.bekci = false; R.tutan = null; R.yardim = false; };
   const hazir = () => R.un >= R.unN && R.su >= 1 && R.kor >= R.korN;
 
   // ── Tarif tahtası (alt orta; 3 simge: un, su, ateş; sonra ekmek) ──
@@ -406,6 +408,7 @@ const DEGIRMEN = (() => {
     }
     if (side[1]) { const p = spot(side[1], 0, 0, 1.2); if (p) D.well = p; }
     D.gate = A[4] && A[4].gate ? A[4].gate : null;
+    if (TARIFYOK) { D.bundles = []; D.stones = []; D.bucket = null; }
     if (OK() && ODAKIT.extraChests && L.chests) { try { ODAKIT.extraChests(L, api); } catch (e) { /* yok */ } }
   }
 
@@ -850,7 +853,7 @@ const DEGIRMEN = (() => {
       c.spinners.forEach(s => { if (s.once) s.spin = TAU; });
       sfxAt('bell', hx(), hz(), { pitch: 0.8 }); setTimeout(() => sfxAt('bell', hx(), hz(), { pitch: 1.0 }), 400);
     }
-    if (tbl) T.add({ x: tbl.x + 0.1, z: tbl.z + 1.5, r: 1.6, hint: { y: 1.8 }, near: 8, cd: 4, repeat: true, line: 'b04_tarif',
+    if (tbl && !TARIFYOK) T.add({ x: tbl.x + 0.1, z: tbl.z + 1.5, r: 1.6, hint: { y: 1.8 }, near: 8, cd: 4, repeat: true, line: 'b04_tarif',
       can: () => R.durum === 'topla' || R.durum === 'hazir',
       use: () => {
         if (hazir()) {
@@ -858,7 +861,7 @@ const DEGIRMEN = (() => {
           setTimeout(startKnead, 900);
         } else missingHint();
       } });
-    if (ov) T.add({ x: ov.x, z: ov.z + 0.5, r: 2.0, hint: { y: 1.9 }, near: 9, cd: 4, repeat: true,
+    if (ov && !TARIFYOK) T.add({ x: ov.x, z: ov.z + 0.5, r: 2.0, hint: { y: 1.9 }, near: 9, cd: 4, repeat: true,
       can: () => R.durum === 'pisir',
       use: () => startBake() });
 
@@ -873,7 +876,7 @@ const DEGIRMEN = (() => {
       hala.rotation.y = haI.yaw; hala.position.y = 0.02 * Math.sin(t * 2.2) + (haI.heart > 0 ? Math.abs(Math.sin(t * 9)) * 0.08 * haI.heart : 0); hala.rotation.z = 0.02 * Math.sin(t * 1.6);
       if (haI.st === 'don' && Math.abs(angDiff(haI.yaw, want)) < 0.35 && !haI.said) {
         haI.said = true; haI.heart = 1; burst('hearts', D.hala.x, 2.2, D.hala.z, { count: 1 }); sfxAt('bell', D.hala.x, D.hala.z, { pitch: 1.5, vol: 0.6 });
-        seq(['b04_hala', 'pp_degirmen_hala', 'b04_hala_der'], 0.2);
+        seq(TARIFYOK ? ['b04_hala', 'pp_degirmen_hala'] : ['b04_hala', 'pp_degirmen_hala', 'b04_hala_der'], 0.2);
         setTimeout(() => { haI.heart = 0; }, 1600);
       }
     };
@@ -944,7 +947,7 @@ const DEGIRMEN = (() => {
     }
     // ── Arena kapısında çuval duvarı: ekmek pişene dek ──
     let wallObj = null;
-    if (D.gate && K) {
+    if (D.gate && K && !TARIFYOK) {
       const g = D.gate, [dx, dz] = K.gateDir(L, g), nx = -dz, nz = dx, cx = g.x + dx * 2.6, cz = g.z + dz * 2.6;
       let lo = 0, hi = 0;
       for (let o = 0; o <= 7; o += 0.5) { if (api.isFloor(cx + nx * o, cz + nz * o)) hi = o; else break; }
@@ -1041,8 +1044,7 @@ const DEGIRMEN = (() => {
     api.anim((dt, hx_, hz_) => {
       tt += dt; qT += dt;
       if (!inZone()) { hudHide(); return; }
-      if (!HUD) hudMake();
-      hudUpdate();
+      if (!TARIFYOK) { if (!HUD) hudMake(); hudUpdate(); }
       const p = GAME.P;
       for (let i = Q.length - 1; i >= 0; i--) if (qT >= Q[i].at && live()) { const q = Q.splice(i, 1)[0]; say(q.k, { once: false, gap: 0, force: true }); }
       if (live()) {
@@ -1055,8 +1057,8 @@ const DEGIRMEN = (() => {
         const ai = areaIdx();
         intro += dt;
         if (ai === 0 && intro > 2.2 && !said.has('b04_tarla')) say('b04_tarla');
-        if (ai === 0 && intro > 13 && said.has('b04_tarla')) say('b04_tarif', { gap: 8 });
-                if (ai === 2 && R.kor === 0) say('b04_kemer', { gap: 8 });
+        if (!TARIFYOK && ai === 0 && intro > 13 && said.has('b04_tarla')) say('b04_tarif', { gap: 8 });
+        if (!TARIFYOK && ai === 2 && R.kor === 0) say('b04_kemer', { gap: 8 });
         if (ai === 3) say('b04_firin_duman', { gap: 6 });
         // başak ipucu: yakında (18 m) toplanmamış demet varsa Pırıl en yakınını gösterir (uzaktan, boss kapısında "topla" demez)
         if (R.un < R.unN && intro > 8 && unHintN < 5 && (unHintT -= dt) <= 0) {

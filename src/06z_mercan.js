@@ -302,7 +302,7 @@ const MERCAN = (() => {
     }
     // Mini oyun köşesi: Mercan Ormanı'nda "Kabarcık Patlat" (yoksa kayıtlı ilk mini oyun)
     try {
-      if (typeof MINIGAME !== 'undefined' && MINIGAME && MINIGAME.list) {
+      if (false && typeof MINIGAME !== 'undefined' && MINIGAME && MINIGAME.list) {   // (ebeveyn: bölüm içinde mini oyun yok)
         const ids = MINIGAME.list(), id = ids.find(i => /kabarcik|baloncuk|deniz|balik/i.test(i)) || ids[0], rm = room(a2[1] ?? a2[0]);
         const p = id && rm && roomSpot(api, rm, { pmin: 0.35, pmax: 0.75, r: 1.1 }, taken);
         if (p) { (L.stations || (L.stations = [])).push({ id: 'mini_' + id, kind: 'mini', mini: id, x: p.x, z: p.z, r: 1.0 }); D.mini = { x: p.x, z: p.z, id }; taken.push({ x: p.x, z: p.z, r: 2.2 }); }

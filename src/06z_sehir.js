@@ -480,7 +480,7 @@ const SEHIR = (() => {
       setTimeout(() => say('b08_pirilkale', { force: true, once: false }), 11500);
     });
     const hero = () => g0 && g0.P;
-    let senlik = null; try { senlik = SENLIK.koy(L, api, npcs, on); } catch (e) { console.warn('senlik', e); }
+    let senlik = null;   // (ebeveyn: bölüm içinde mini oyun yok; şenlik istasyonları kurulmaz)
     const waveM = new THREE.MeshBasicMaterial({ color: 0xfff6ec, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false });
     const wave = new THREE.Mesh(geo('wave', () => kp(new THREE.RingGeometry(0.88, 1, 72).rotateX(-PI / 2))), waveM); wave.visible = false; wave.renderOrder = 6; api.add(wave); api.dispose(waveM);
     const ringHand = new THREE.Group(); void ringHand;
