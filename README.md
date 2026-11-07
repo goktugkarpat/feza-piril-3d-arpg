@@ -56,6 +56,6 @@ Diyarlar arasında kısa bir yolculuk sahnesi vardır (atlanabilir).
 
 ## Yapım
 
-Bu oyun, Feza'nın babası **Göktuğ Karpat** (@goktugkarpat) ile yapay zekâ yardımcısı **Claude** (Anthropic) birlikte çalışarak yapılmıştır.
-Fikirler, hikâye ve kararlar ailenindir; kod, 3B modeller, bölüm tasarımları ve düzenlemeler Claude ile birlikte yazılmıştır.
+Bu oyun, Feza'nın babası **Göktuğ Karpat** (@goktugkarpat) ile yapay zekâ yardımcıları **Claude** (Anthropic) ve **Codex** (OpenAI) birlikte çalışarak yapılmıştır.
+Fikirler, hikâye ve kararlar ailenindir; kod, 3B modeller, bölüm tasarımları ve düzenlemeler Claude ve Codex ile birlikte yazılmıştır.
 Oyun yalnızca Feza için, kâr amacı olmadan yapılmış bir aile projesidir.

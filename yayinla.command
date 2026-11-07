@@ -23,7 +23,7 @@ fi
 git add -A
 git update-index --chmod=+x yayinla.command
 if ! git diff --cached --quiet; then
-  git commit -m "Feza ve Pırıl: Kayıp Işıklar – güncelleme $(date '+%Y-%m-%d %H:%M')" -m 'Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>'
+  git commit -m "Feza ve Pırıl: Kayıp Işıklar – güncelleme $(date '+%Y-%m-%d %H:%M')" -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' -m 'Co-authored-by: Codex <codex@openai.com>'
 fi
 if ! git remote get-url origin >/dev/null 2>&1; then
   if gh repo view goktugkarpat/feza-piril-3d-arpg >/dev/null 2>&1; then
