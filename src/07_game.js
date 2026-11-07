@@ -2323,7 +2323,7 @@ const GAME = (() => {
   function startEncounter(b) {
     if (b.encounter) return;
     b.encounter = { eggs: [], eggT: ENCOUNTER.eggEvery, serial: 0, timer: 6, move: null, splits: 0, nextNew: true, sancak: null, bonus: null };
-    if (isT(b.type, 'ejderha')) { layEggs(b, 3); ftext(b.x, 1.7, b.z, 'Yumurtalara dikkat!', 'word'); }
+    if (isT(b.type, 'ejderha') && !(b.kit && b.kit.own)) { layEggs(b, 3); ftext(b.x, 1.7, b.z, 'Yumurtalara dikkat!', 'word'); }   // (kendi kitli ejderhada yumurta yok)
   }
   // cheer: the boss itself just cheered up — its playmates stay so bossDown can cheer them up with everyone else
   // (and the ones already cheering finish their happy goodbye); otherwise (nap, calm, zone change) they just go.
@@ -5219,6 +5219,9 @@ const GAME = (() => {
       if (C.mode === 'move' && !C.drag && !C.targetE && !C.targetObj) { C.drag = true; C.dragWinT = -1; C.route = null; C.routeTried = false; C.dragRoute = null; }
       const tgt = C.targetE || C.targetObj;
       if (tgt !== C.tgtRef) { C.tgtRef = tgt; C.wandRoute = null; C.wandPlanAt = -99; C.tgtBest = 1e9; C.tgtStall = 0; C.waitT = 0; }
+      if (C.targetE && C.targetE.boss && !C.targetE.aggro) {   // QA 7 Kasım: uyuyan boss'a dokununca Feza beklerdi (görüş hattı hiç hesaplanmıyor) → ona doğru yürür
+        const e = C.targetE; C.targetE = null; C.tx = e.x; C.tz = e.z; C.hasT = true; C.mode = 'move'; C.route = null; C.routeTried = false;
+      }
       if (C.targetE) {
         const e = C.targetE, dx = e.x - P.pos.x, dz = e.z - P.pos.z, d = Math.hypot(dx, dz) || 1e-3;
         if (hidden(e)) {   // a köstebek dug in: follow its mound (it is coming anyway) and whack it when it pops up
@@ -7130,7 +7133,7 @@ const GAME = (() => {
     if (ORB.degdi === n) return; ORB.degdi = n;
     emit('isikDegdi', { n });
     const GUC = { 1: ['Işık Nefesi', '🌬️', '#ffe9a0'], 2: ['Köpük Kalkanı', '🫧', '#9fdcff'], 6: ['Kanat Rüzgârı', '🍃', '#c9f0d0'], 9: ['Kalp Tozu', '💖', '#ffc0d8'], 10: ['Büyüme ve Uçuş', '🪽', '#ffe27a'] }[n];
-    if (GUC) later(1.6, () => { if (GAME.state === 'play') emit('yeniGuc', { n, ad: GUC[0], icon: GUC[1], color: GUC[2] }); });   // 09_ui: 'Yeni Yetenek!' bandı (index yok, ad burada)
+    if (GUC) later(1.6, () => { if (GAME.state === 'play' && !M2.cine) emit('yeniGuc', { n, ad: GUC[0], icon: GUC[1], color: GUC[2] }); });   // 09_ui: 'Yeni Yetenek!' bandı (index yok, ad burada)
     story('isikDegdi', n);
   }
   function isikTopu(b, n, bx, bz) {

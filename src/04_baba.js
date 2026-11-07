@@ -617,6 +617,9 @@ const BABA = (() => {
         if (act && act.k !== 'git') spd = 0;
       } else {
         const o = fol.step(dt, p); face = o.face; spd = o.speed;
+        // QA 7 Kasım: Baba Feza'nın kamera tarafında (güneyinde) dip dibe durup onu kapatmasın → yavaşça yana/arkaya kayar
+        const ox = pos.x - p.x, oz = pos.z - p.z;
+        if (oz > 0.2 && Math.abs(ox) < 1.8 && Math.hypot(ox, oz) < 3.2) { const sx = (ox >= 0 ? 1 : -1) * 2.2 * dt, sz = -1.6 * dt; env.move ? env.move(pos, sx, sz, .39) : (pos.x += sx, pos.z += sz); }
       }
       if (fire.visible) { const t = performance.now() / 1000; const u = fire.userData; u.f1.scale.set(1, 1 + .12 * Math.sin(t * 9), 1); u.f2.scale.set(1, 1 + .18 * Math.sin(t * 13 + 1), 1); }
       root.position.set(pos.x, 0, pos.z); root.rotation.y += Math.atan2(Math.sin(face - root.rotation.y), Math.cos(face - root.rotation.y)) * (1 - Math.exp(-10 * dt));
