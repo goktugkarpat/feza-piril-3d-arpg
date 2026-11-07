@@ -463,7 +463,7 @@ const SEHIR = (() => {
       const o = g0.nesne.ekle({ id: 'esya' + i, tur: 'tasinir', x: q.x, z: q.z, r: 1.3, mesh: esyaMesh(n.w.esya), kucakY: 1.0, kabulId: 'h' + i });
       g0.nesne.hedef({ id: 'h' + i, x: n.p.x, z: n.p.z, r: 2.4, yerlesti() { remember(i); } });
       const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex(), color: 0xffd860, transparent: true, depthWrite: false, opacity: 0.8 })); halo.scale.set(2.4, 2.4, 1); halo.position.set(q.x, 0.6, q.z); api.add(halo); api.dispose(halo.material);
-      S.items[i] = { o, halo }; trails[i].grp.visible = true; pawM.opacity = 0.7;
+      S.items[i] = { o, halo, at: S.t }; trails[i].grp.visible = true; pawM.opacity = 0.7;
       const first = i === 0; say(first ? 'b08_simitci' : n.w.balon, { force: true, once: false });
       if (i === 1) setTimeout(() => say('b08_nehir', { force: true }), 100);
       if (i === 2) setTimeout(() => say('b08_tabela'), 6000);
@@ -512,7 +512,17 @@ const SEHIR = (() => {
       // kapı
       if (gate) {
         if (gate.open) { if (gate.anim < 1) { gate.anim = Math.min(1, gate.anim + dt / 1.6); gate.pm.opacity = 0.55 * (1 - gate.anim); gate.panel.position.y = 0.40 + gate.anim * 0.6; if (gate.anim >= 1) { gate.panel.visible = false; for (const so of gate.solids) so.alive = false; L._sh = null; } } }
-        else { gate.pm.opacity = 0.48 + 0.1 * Math.sin(T * 2); if (playing && hyp(P.pos.x - gate.x, P.pos.z - gate.z) < 6) S.stuck += dt; if (S.stuck > 80) { gate.open = true; } }
+        else {
+          gate.pm.opacity = 0.48 + 0.1 * Math.sin(T * 2);
+          // YUMUŞAK KAPI (ebeveyn isteği: Feza 4,5 yaşında, görevleri atlasa da ilerleyebilsin): kapının yanında toplam ~4 sn kalınca
+          // (durmak da geri gelmek de sayılır) Pırıl kapıyı yine de açar. Önce tek ipucu: sözü + Pırıl sıradaki eşyayı/şehirliyi gösterir.
+          let dG = hyp(P.pos.x - gate.x, P.pos.z - gate.z); for (const so of gate.solids) dG = Math.min(dG, hyp(P.pos.x - so.x, P.pos.z - so.z));
+          if (playing && dG < 6 && !S.towerAt) {
+            S.stuck += dt;
+            if (!S.gateHint) { S.gateHint = 1; say('b08_kule', { force: true, once: false }); const j = S.done.findIndex(q => !q), it = j >= 0 && S.items[j], o = it && it.o; const q = o && !o.tut && !o.yerlesik ? o : j >= 0 && npcs[j] ? npcs[j].p : null; if (q && hyp(P.pos.x - q.x, P.pos.z - q.z) < 20) pirilGit(q.x, q.z); }
+            if (S.stuck > 4) { gate.open = true; S.softGate = 1; sfx('unlock', { x: gate.x, z: gate.z }); burst('star', gate.x, 1.2, gate.z, { count: 8, color: '#fff2a8' }); pirilGit(gate.x, gate.z); say('kapi_acildi', { force: true, once: false }); }
+          }
+        }
       }
       if (S.towerAt && T >= S.towerAt && gate && !gate.open) { S.towerAt = 0; gate.open = true; sfx('unlock', { x: gate.x, z: gate.z }); say('b08_kulegir', { force: true, once: false }); }
       // tek sis dalgası
@@ -532,6 +542,9 @@ const SEHIR = (() => {
         if (T > 2.5 && !S.items[0]) activate(0);
         if (S.nextAt && T >= S.nextAt) { S.nextAt = 0; if (S.act >= 0) activate(S.act); }
         if (T > 22 && S.started === 3) { S.started = 4; say('b08_kule'); }
+        // eşya bulunamıyorsa: 12 sn sonra Feza yakınındayken Pırıl bir kez eşyanın üstüne uçup gösterir (sessiz, tek işaret)
+        { const it = S.act >= 0 && !S.done[S.act] && S.items[S.act], o = it && it.o;
+          if (o && !it.shown && T - it.at > 12 && !o.tut && !o.yerlesik && hyp(P.pos.x - o.x, P.pos.z - o.z) < 16) { it.shown = 1; pirilGit(o.x, o.z); } }
         if (ar !== S.area) {
           S.area = ar;
           if (ar === 1) say('b08_pirilruzgar', { force: true });

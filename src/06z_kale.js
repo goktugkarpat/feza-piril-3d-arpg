@@ -259,7 +259,16 @@ const KALE = (() => {
       try { if (o.egg) o.egg.kir(); } catch (e) { /* yok */ }
       if (S.delivered === 1) say('b09_yuva_tamam', { force: true, once: false });
       else if (S.delivered === 2) say('b09_yuva_tamam', { force: true, once: false });
+      else if (S.delivered >= 3 && S.perde && S.perde.open) { /* perde zaten açık (Pırıl açtı): "Sis çekiliyor" demeyelim; kalpler yeter */ }
       else if (S.delivered >= 3) { say('b09_yumurta3', { force: true }); later(3.5, () => { if (S.perde && !S.perde.open) { S.perde.open = true; sfx('unlock', { x: S.perde.x, z: S.perde.z }); later(2.5, () => say('b09_kapi', { force: true })); } }); }
+    }
+    // KILIT-YUMUSAK: yumurtalar yarım kalsa da perde açılır (Feza 4,5 yaşında; hiçbir ilerleme isteğe bağlı işe bağlı değil).
+    // Pırıl perdeye uçar, tek pırıltı + kilit sesi, sonra "Büyük salonun kapısı açıldı." Yumurtalar oyunda kalır (ödül/eğlence).
+    function perdeYedekAc() {
+      const pd = S.perde; if (!pd || pd.open) return;
+      pd.open = true; S.perdeYedek = 1; pirilGit(pd.x, pd.z);
+      sfx('unlock', { x: pd.x, z: pd.z }); burst('sparkle', pd.x, 1.6, pd.z, { color: '#ffe6f0', count: 14 });
+      later(1.6, () => say('b09_kapi', { force: true, once: false }));
     }
     // dostlar: Baba, Kartal (BABA.kur / KARTAL.kur), Hala (fırıncı modeli, yürür)
     let baba = null, kartal = null, hala = null, halaT = 0;
@@ -286,7 +295,7 @@ const KALE = (() => {
         }
       }
     } catch (e) { console.warn('[kale] COMPANION', e); }
-    KALE._halaOn = false;
+    KALE._halaOn = false; L.kaleS = S;   // kaleS: testler için (perde / yumurta durumu)
 
     // ── olaylar ──
     on('happy', e => {   // boss neşelendi: Kalp Işığı yolda; kuleden gölge
@@ -302,6 +311,8 @@ const KALE = (() => {
       const P = g0 && g0.P; if (!P) return;
       const playing = live();
       if (baba && baba.update) baba.update(dt); if (kartal && kartal.update) kartal.update(dt);
+      // motor (nesneNorm) L.nesneler'i kopyalayıp değiştirir: S.eggs canlı kopyaları göstersin (tut / yerlesik / x,z güncel olsun; yoksa ipuçları teslim edilmiş yumurtayı sorar)
+      for (let i = 0; i < S.eggs.length; i++) { const q = L.nesneler && L.nesneler.find(n => n.id === S.eggs[i].id); if (q && q !== S.eggs[i]) S.eggs[i] = q; }
       // yumurta halkası + yuva halkası nabzı
       S.eggs.forEach(o => { if (o.egg && o.egg.update) o.egg.update(dt); if (o.ringM && !o.tut && !o.yerlesik) { o.ringM.visible = true; o.ringM.material.opacity = 0.6 + 0.25 * Math.sin(T * 3); } });
       S.nests.forEach((n, i) => { const full = L.hedefler[i] && L.hedefler[i].dolu; n.ring.material.opacity = full ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + i); });
@@ -312,8 +323,13 @@ const KALE = (() => {
         const pd = S.perde;
         if (!pd.open) pd.pm.opacity = 0.5 + 0.08 * Math.sin(T * 2);
         else if (pd.anim < 1) { pd.anim = Math.min(1, pd.anim + dt / 1.8); pd.pm.opacity = 0.5 * (1 - pd.anim); pd.panel.position.y = 1.9 + pd.anim * 2.4; if (pd.anim >= 1) { pd.panel.visible = false; for (const so of pd.solids) so.alive = false; L._sh = null; } }
-        if (!pd.open && playing && hyp(P.pos.x - pd.x, P.pos.z - pd.z) < 4.5) { S.perdeNear = (S.perdeNear || 0) + dt; if (S.perdeNear > 3) { S.perdeNear = 0; if (S.delivered < 3) { const nx = S.eggs.find(o => !o.yerlesik); if (nx) pirilGit(nx.x, nx.z); say('b09_yumurta_p', { force: true, once: false, gap: 12 }); } } }
-        if (!pd.open && (S.stuck = (S.stuck || 0) + (playing && P.area === arenaK - 1 ? dt : 0)) > 150) { S.delivered = 3; pd.open = true; }   // yedek: çok uzun takılırsa perde kendiliğinden açılır
+        // perde önünde (≤6 m) toplam süre birikir (durmak da, geri gelmek de sayılır): ~1 sn'de tek ipucu (en yakın yumurtayı gösterir), 4 sn'de Pırıl perdeyi açar
+        if (!pd.open && playing && pd.solids.some(so => hyp(P.pos.x - so.x, P.pos.z - so.z) < 6)) {   // perdenin herhangi bir yerine yakın (kapı noktası perdenin ucunda kalabilir)
+          S.perdeNear = (S.perdeNear || 0) + dt;
+          if (S.perdeNear > 1 && !S.perdeIpucu && S.delivered < 3) { S.perdeIpucu = 1; let nx = null, nd = 1e9; for (const o of S.eggs) { if (o.yerlesik || o.tut) continue; const d = hyp(o.x - P.pos.x, o.z - P.pos.z); if (d < nd) { nd = d; nx = o; } } if (nx) pirilGit(nx.x, nx.z); say('b09_yumurta_p', { force: true, once: false }); }
+          if (S.perdeNear >= 4) perdeYedekAc();
+        }
+        if (!pd.open && (S.stuck = (S.stuck || 0) + (playing && P.area === arenaK - 1 ? dt : 0)) > 150) perdeYedekAc();   // yedek: çok uzun takılırsa perde kendiliğinden açılır
       }
       if (!playing) return;
       // konuşmalar

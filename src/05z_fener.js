@@ -72,7 +72,7 @@ const HZ_FENER = (() => {
   const dmgOf = (b, k) => b.dmg * k * (BOSSDAV.api.hard ? 1.25 : 1);
   const heroUp = () => { try { return (GAME.jump && GAME.jump.y) || 0; } catch (e) { return 0; } };
   const faceTo = (b, x, z, k, dt) => { b.face = dampAngle(b.face, Math.atan2(x - b.x, z - b.z), k, dt); };
-  function clearAll() { for (const s of W.strips) markOff(s.mk); for (const r of W.rings) markOff(r.mk); W.strips.length = 0; W.rings.length = 0; W.toys.length = 0; W.cheered = 0; W.given = 0; W.frame = 0; W.busy = false; W.fin = false; W.spark = null; W.say.clear(); }
+  function clearAll() { for (const s of W.strips) markOff(s.mk); for (const r of W.rings) markOff(r.mk); W.strips.length = 0; W.rings.length = 0; W.toys.length = 0; W.cheered = 0; W.given = 0; W.frame = 0; W.tekrar = 0; W.busy = false; W.fin = false; W.spark = null; W.say.clear(); }
   const warn = (S, key) => { const A = BOSSDAV.api; if (!key || !A || !A.hasLine(key)) return; const sd = S.said || (S.said = {}); if (sd[key]) return; sd[key] = true; try { A.say(key, 3, { interrupt: true }); } catch (e) { /* yok */ } };
 
   // kıvılcım kopyası: Pırıl'dan Kral'ın fenerine uçar, fener "tık" yanar (Pırıl'ınki yerinde kalır)
@@ -86,7 +86,9 @@ const HZ_FENER = (() => {
 
   // ── anı sahneleri (atlanabilir sinematik) ──
   function ani(b, n) {
-    const G = GAME, A = BOSSDAV.api; if (W.busy || !G || !G.sinematik) { return false; }
+    const G = GAME, A = BOSSDAV.api; if (W.busy) return false;
+    // KİLİT YOK: sinematik yoksa anı sahnesiz geçilir (3. anıda Kral yine neşelenir)
+    if (!G || !G.sinematik) { if (n >= 2 && FENER) FENER.color.setHex(0xffd45a); if (n === 3) fin(b); return false; }
     W.busy = true;
     const P = A.P, bak = { x: b.x, z: b.z, y: 2.0 };
     const bitir = () => { W.busy = false; if (n === 3) fin(b); };
@@ -103,7 +105,12 @@ const HZ_FENER = (() => {
       { sure: 3.6, bak, zoom: 1.3, soz: 'b10_ad_p' },
       { sure: 3.4, bak, zoom: 1.3, soz: 'b10_ad_f', fn: () => { A.burst('hearts', b.x, 2.4, b.z, { count: 8 }); } },
     ];
-    return G.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { if (n === 2 && FENER) FENER.color.setHex(0xffd45a); bitir(); } });
+    const ok = G.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { if (n === 2 && FENER) FENER.color.setHex(0xffd45a); bitir(); } });
+    if (!ok) {   // başka bir sinematik sürüyordu: W.busy takılı kalmasın (Kral sonsuza dek 'sessiz' beklerdi); sonraki seçimde yeniden dene, 3 denemeden sonra sahnesiz geç
+      W.busy = false; W.tekrar = (W.tekrar || 0) + 1;
+      if (W.tekrar <= 3) W.frame = n - 1; else { W.tekrar = 0; if (n >= 2 && FENER) FENER.color.setHex(0xffd45a); if (n === 3) fin(b); }
+    } else W.tekrar = 0;
+    return ok;
   }
   function fin(b) {
     if (W.fin) return; W.fin = true;

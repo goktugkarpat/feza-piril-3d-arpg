@@ -26,8 +26,7 @@ const MABET = (() => {
     const now = g.time || 0;
     if (!o.force && now - sayAt < (o.gap ?? 4.5)) return false;
     sayAt = now; said.add(key);
-    try { g.halaApi.say(key, o.prio || 2); } catch (e) { return false; }
-    return true;
+    try { return g.halaApi.say(key, o.prio || 2) !== 0; } catch (e) { return false; }   // 0: ses motoru reddetti (ör. aynı cümle 24 sn içinde)
   }
   const sfx = (n, o) => { try { if (typeof AUD !== 'undefined' && AUD.sfx) AUD.sfx(n, o); } catch (e) { /* yok */ } };
   const burst = (k, x, y, z, o) => { try { if (typeof FX !== 'undefined' && FX.burst) FX.burst(k, x, y, z, o); } catch (e) { /* yok */ } };
@@ -468,7 +467,8 @@ const MABET = (() => {
       if (e.id === 'hi1' && !S.hiDone) { S.hiDone = true; lightPad('hi1'); prize('mabet_kuyruklu', 1); say('b06_dilek', { force: true, once: false }); burst('sparkle', e.x || 0, 3, 0, {}); }
       if (e.id === 'ca1' && !S.catiDone) { S.catiDone = true; lightPad('ca1'); prize('gizli_mabet_cati', 2); say('b06_cati', { force: true, once: false }); }
     });
-    on('nesne', e => { if (e && /^run\d$/.test(e.id)) { S.rune++; if (S.rune === 1) say('b06_run_p', { force: true }); if (S.rune === 3) pirilGit((M.rsteps[0] || {}).x || 0, (M.rsteps[0] || {}).z || 0); } });
+    on('nesne', e => { if (e && /^run\d$/.test(e.id)) { const rr = S['R' + e.id.slice(3)]; if (rr) rr.o.done = true;   // motor nesneyi kopyalar: bizim kopyayı da işaretle (parlama + en yakın taş)
+      S.rune++; if (S.rune === 1) say('b06_run_p', { force: true }); if (S.rune === 3) pirilGit((M.rsteps[0] || {}).x || 0, (M.rsteps[0] || {}).z || 0); } });
     on('dusme', () => { if (S.fell++ === 0) say('b06_dusme', { force: true }); });
     on('happy', e => {
       if (!e || !e.boss || e.type !== 'mabetBekcisi') return;
@@ -478,6 +478,9 @@ const MABET = (() => {
     on('zone', () => { for (const f of offs) { try { f(); } catch (e) { /* yok */ } } });
 
     const hero = () => g0 && g0.P;
+    S.soft = {};   // Pırıl'ın kendisi açtığı kapılar (görev yapılmadan)
+    // basılmamış en yakın ay işareti taşı (sırayla değil, herhangi biri basılabilir)
+    const enYakinRun = P => { let best = null, bd = 1e9; for (let i = 0; i < 3; i++) { const r = S['R' + i]; if (!r || r.o.done) continue; const d = hyp(P.pos.x - r.o.x, P.pos.z - r.o.z); if (d < bd) { bd = d; best = r.o; } } return best || M.rsteps[0]; };
     MABET.qa = { S, M, surf, gates, unlock, lightPad };
     let T = 0;
     api.anim((dt, hx, hz) => {
@@ -499,9 +502,17 @@ const MABET = (() => {
         } else {
           gt.pm.opacity = 0.34 + 0.1 * Math.sin(T * 2.2);
           const d = hyp(P.pos.x - gt.x, P.pos.z - gt.z);
-          if (playing && d < 5.5) { S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt; gt.near += dt; } else gt.near = Math.max(0, gt.near - dt * 0.5);
-          if (playing && d < 4.2 && gt.near > 2.4) { gt.near = 0; const first = { tas1: 'b06_kapi1', rs3: 'b06_kapi2', p11: 'b06_bas_ipucu2' }[gt.id]; if (first) say(first, { force: true, once: false, gap: 12 }); const tgt = gt.id === 'tas1' ? M.tas1 : gt.id === 'rs3' ? (S.rune < 3 ? M.runs[S.rune] : M.rsteps[0]) : (M.pads && M.pads[0]); if (tgt) pirilGit(tgt.x, tgt.z); }
-          if ((S.stuck[gt.id] || 0) > 70) unlock(gt.id);   // yedek: takılırsa kapı kendiliğinden açılır
+          // YUMUŞAK KAPI: görev isteğe bağlı. Feza kapının yanında (6 m) toplam ~4,5 sn durursa (gidip gelse de sayılır) Pırıl kapıyı kendisi açar.
+          if (playing && d < 6) { S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt; gt.near += dt; }
+          if (playing && d < 6 && !gt.hint && gt.near > 0.8) {   // ipucu bir kez: cümle + Pırıl görevin yerini gösterir
+            gt.hint = true; const first = { tas1: 'b06_kapi1', rs3: 'b06_kapi2', p11: 'b06_bas_ipucu2' }[gt.id]; if (first) say(first, { force: true, once: false });
+            const tgt = gt.id === 'tas1' ? M.tas1 : gt.id === 'rs3' ? (S.rune < 3 ? enYakinRun(P) : M.rsteps[0]) : (M.pads && M.pads[0]); if (tgt) pirilGit(tgt.x, tgt.z);
+          }
+          if (playing && (S.stuck[gt.id] || 0) > 4.5) {   // Pırıl açar: kapıya uçar, parıltı + "yol açıldı"
+            pirilGit(gt.x, gt.z); S.soft[gt.id] = true; unlock(gt.id);
+            // tapınak kapısı (p11) için "Tapınağın kapısı açıldı"; ses motoru aynı cümleyi 24 sn içinde tekrar söylemez → öbürüne geç
+            for (const k of gt.id === 'p11' ? ['b06_kapi', 'kapi_acildi'] : ['kapi_acildi', 'b06_kapi']) if (say(k, { force: true, once: false, prio: 3 })) break;
+          }
         }
       }
       if (beamT >= 0) { beamT += dt; const u = beamT / 4.2; beamM.opacity = Math.sin(clamp(u, 0, 1) * PI) * 0.3; if (u >= 1) { beamT = -1; beam.visible = false; } }
@@ -518,8 +529,8 @@ const MABET = (() => {
         const ar = P.area;
         if (T > 1 && !S.started) { S.started = 1; say('b06_giris', { force: true }); }
         if (T > 8 && S.started === 1) { S.started = 2; say('b06_giris_p'); }
-        if (T > 15 && S.started === 2 && !S.tas) { S.started = 3; say('b06_zip_ipucu'); }
-        if (T > 22 && S.started === 3 && !S.tas) { S.started = 4; say('b06_ziplama'); if (M.tas1) pirilGit(M.tas1.x, M.tas1.z); }
+        if (T > 15 && S.started === 2 && !S.tas && !S.soft.tas1) { S.started = 3; say('b06_zip_ipucu'); }
+        if (T > 22 && S.started === 3 && !S.tas && !S.soft.tas1) { S.started = 4; say('b06_ziplama'); if (M.tas1) pirilGit(M.tas1.x, M.tas1.z); }
         if (ar !== S.area) {
           S.area = ar;
           if (ar === 1) { say('b06_avlu', { force: true }); setTimeout(() => say('b06_kuyruklu'), 9000); }
@@ -535,7 +546,7 @@ const MABET = (() => {
           if (S.paintSaid === 1 && T - S.paintAt > 7.5) { S.paintSaid = 2; say('b06_resim_p', { force: true }); }
         }
         if (ar === 4 && !S.areaT) S.areaT = T;
-        if (ar === 0 && !S.tas && M.tas1 && T > 3 && hyp(P.pos.x - M.tas1.x, P.pos.z - M.tas1.z) < 6) say('b06_ziplama');
+        if (ar === 0 && !S.tas && !S.soft.tas1 && M.tas1 && T > 3 && hyp(P.pos.x - M.tas1.x, P.pos.z - M.tas1.z) < 6) say('b06_ziplama');
       }
       if (sleeper) sleeper.rotation.z = Math.sin(T * 1.4) * 0.02;
     });

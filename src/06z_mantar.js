@@ -611,11 +611,16 @@ const MANTAR = (() => {
     })();
 
     // zıplatan mantarlar (2. alan): basınca şapka ezilir, Feza yay çizerek bir sonrakine uçar
+    // KİLİT (doğrulama): yol üstündeki mantar Feza'yı geldiği yere geri fırlatıyordu; Feza ileri yürüdükçe aynı mantara basıp
+    //   döngüde kalıyordu (tohum 12: 25 sn'de 12 kez, oda geçilemedi) → yalnız Feza o mantarın fırlattığı yöne doğru yürüyorsa zıplatır
+    const mv = { x: 0, z: 0, px: null, pz: null };
+    if (T && (L.mzPads || []).length) api.anim((dt, hx, hz) => { if (mv.px !== null && dt > 0) { const vx = (hx - mv.px) / dt, vz = (hz - mv.pz) / dt, k = Math.min(1, dt * 8); if (hyp(vx, vz) < 20) { mv.x += (vx - mv.x) * k; mv.z += (vz - mv.z) * k; } } mv.px = hx; mv.pz = hz; });
+    const padYon = p => { const s = hyp(mv.x, mv.z), dx = p.to.x - p.x, dz = p.to.z - p.z; return s < 0.5 || (mv.x * dx + mv.z * dz) / (s * (hyp(dx, dz) || 1)) > 0; };
     if (T) for (const p of L.mzPads || []) {
       const M = liveMush(p.x, p.z, 0.55, 1.05, 0xff7ec8, { gc: 0xa8fff4 });
       api.glow(p.x, p.z, 1.6, 0xff9fe0, 0.2);
       let sq = 9;
-      const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.9 }, line: p.g === 0 ? 'b01_ziplat' : null, near: 7, cd: 0.6, repeat: true,
+      const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.9 }, line: p.g === 0 ? 'b01_ziplat' : null, near: 7, cd: 0.6, repeat: true, can: () => padYon(p),
         use: () => {
           sq = 0; sfx('mantarBoing', { x: p.x, z: p.z }); sfx('bounce', { x: p.x, z: p.z, pitch: 0.9 }); burst('sparkle', p.x, 0.8, p.z, { color: '#ffd0f4', count: 6 });
           const tx = p.to.x, tz = p.to.z, D = hyp(tx - p.x, tz - p.z);

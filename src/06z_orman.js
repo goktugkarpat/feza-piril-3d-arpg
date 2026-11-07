@@ -423,10 +423,23 @@ const ORMAN = (() => {
       }
       if (S.lighting) { S.lighting.t += dt; if (S.lighting.t > 0.75) { ignite(S.lighting.i); S.lighting = null; } }
       if (S.liftAt && S.t >= S.liftAt && playing) { S.liftAt = 0; startLift(); }
-      // ─ sisin önünde bekleme: ipucu ─
-      { let near = false; if (act < W.length && W[act].state === 'closed' ) { const w = W[act]; near = hyp(P.pos.x - w.x, P.pos.z - w.z) < 3.2; }
-        S.bump = near ? S.bump + dt : Math.max(0, S.bump - dt * 0.5);
-        if (S.bump > 2.2 && playing) { S.bump = 0; if (!say('b03_sis_dondu', { force: true })) say('b03_kartal_yon', { force: true, once: false, gap: 12 }); pirilGit(F[act].x, F[act].z); } }
+      // ─ sisin önünde bekleme: ipucu + YUMUŞAK KİLİT (eski 3.2 m / 2.2 sn ipucunun yerine). Feza feneri bulamasa da yol açılır:
+      //   sisin ~6 m yakınında toplam ~1.5 sn → ipucu bir kez (cümle + Pırıl fenere uçar); toplam ~4 sn (gelip gitmek de sayılır) →
+      //   Pırıl feneri kendisi yakar (aynı yakma: kıvılcım + 'Fener yandı, sis çekildi' + sis erir).
+      if (S.soft === undefined) S.soft = W.map(() => 0);
+      if (playing && act < W.length && W[act].state === 'closed' && !S.lighting && !S.lift && !F[act].lit) {
+        const w = W[act];
+        if (hyp(P.pos.x - w.x, P.pos.z - w.z) < 6) {
+          const t0 = S.soft[act]; S.soft[act] += dt;
+          if (t0 < 1.5 && S.soft[act] >= 1.5) pirilGit(F[act].x, F[act].z);
+          // ipucu cümlesi: anlatıcı o an konuşuyorsa sıraya girmez (fener yandıktan sonra çalardı); susunca 3 sn'ye dek yeniden dener
+          S.hint = S.hint || W.map(() => 0);
+          if (S.soft[act] >= 1.5 && !S.hint[act]) { const mesgul = typeof AUD !== 'undefined' && AUD.speaking && AUD.speaking();
+            if (!mesgul) { S.hint[act] = 1; if (!say('b03_sis_dondu', { force: true })) say('b03_fener', { once: false, gap: 8 }); }   // (aynı cümle 8 sn içinde iki kez olmasın)
+            else if (S.soft[act] >= 3) S.hint[act] = 1; }
+          if (S.soft[act] >= 4) { S.lighting = { i: act, t: 0 }; pirilGit(F[act].x, F[act].z); sfx('whoosh', { x: F[act].x, z: F[act].z, pitch: 1.4 }); }
+        }
+      }
       // ─ kamp ateşi (başlangıç): Baba yakar, Pırıl kıvılcım ─
       if (fire && playing) {
         if (S.campStep === 0) {

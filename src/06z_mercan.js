@@ -1611,6 +1611,21 @@ const MERCAN = (() => {
         else if (hintCd <= 0 && Math.abs(s0) < 6.5) { hintCd = 7; try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.goster) PIRIL_GUC.goster(v.x, v.z, 3); } catch (e) { /* yok */ } }
       });
     }
+    // KİLİTSİZ: Feza çukurun geliş yanında (~6 m) toplam 4 s kalırsa (bacayı bulamasa da) Pırıl onu köpükle karşıya taşır; ilerleme bacaya bağlı değil
+    function pitHelp(dt, hx, hz) {
+      if (!D.pits.length || !DV.done || !live() || R.busy()) return;
+      D.pits.forEach((p, pi) => {
+        if (R.busy()) return;
+        const rx = hx - p.x, rz = hz - p.z, s0 = rx * p.dx + rz * p.dz, o = rx * p.nx + rz * p.nz;
+        if (s0 >= 0 || s0 < -6 || o < -p.wl - 0.8 || o > p.wr + 0.8) return;   // yalnız geliş yanı (yol sırasıyla ileri taşır)
+        if ((p.helpT = (p.helpT || 0) + dt) < 4) return;
+        p.helpT = 0;
+        const v = R.vents.find(q => q.pit === pi && q.side === -1), ld = (v && v.land) || p.la;
+        burst('sparkle', hx, 1.1, hz, { color: '#bff4ff', count: 12 }); sfx('kabarcik', { x: hx, z: hz, vol: 0.9 }); sfx('unlock', { vol: 0.6 });
+        R.arc(ld.x, ld.z, 3.4, 1.15);
+        sayNow('kapi_acildi', 3);   // "Yaşasın, yol açıldı! Hadi devam edelim!"
+      });
+    }
     // ── her kare: gölgelendirici merkezleri, kask, Pırıl'ın kabarcıkları, ortam sesi ──
     let ambT = 3, kaskT = 1.2, pirilT = 0.5, shT = 0;
     api.anim((dt, hx, hz) => {
@@ -1623,7 +1638,7 @@ const MERCAN = (() => {
       bubM.uniforms.uC.value.set(hx, 0, hz); plM.uniforms.uC.value.set(hx, 0, hz);
       const ph = (typeof renderer !== 'undefined' && renderer.domElement ? renderer.domElement.height : 800) * 0.5;
       bubM.uniforms.uPx.value = ph; plM.uniforms.uPx.value = ph;
-      diveStep(dt); sqStep(dt); pitHints(dt, hx, hz);
+      diveStep(dt); sqStep(dt); pitHints(dt, hx, hz); pitHelp(dt, hx, hz);
       helmetSync(true);
       finaleStep(dt);
       babyStep(dt, hx, hz);

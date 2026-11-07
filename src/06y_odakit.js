@@ -675,7 +675,7 @@ const ODAKIT = (() => {
   // ── Alan geçitleri (BÜTÜN odalar; 06_level build çağırır): bir alanın çıkışı, o alanın huysuzlarının %70'i neşelenince açılır ──
   // Kapalıyken koridorda renkli şeker çit + kurdele + kalan huysuz rozeti; Feza yaklaşınca Aytuğ Hala söyler, kalan huysuzlar uyanıp
   // Feza'ya gelir, yerde ok onları gösterir. Açılınca çit yere iner, konfeti, "Yol açıldı!". Boss arenası da son alan temizlenince açılır.
-  const GATE_K = 0.7;
+  const GATE_K = 0.7, GATE_NEAR = 8, GATE_WAIT = 35;   // (emniyet: geçide 8 m yakında toplam 35 sn → yine açılır)
   let GS = null;   // şu anki bölümün geçit durumu
   const isBossT = t => typeof EDEF !== 'undefined' && EDEF && EDEF[t] && EDEF[t].kind === 'boss';
   function badgeTex(n) {
@@ -797,6 +797,10 @@ const ODAKIT = (() => {
         left = gt.wave.length ? Math.max(1, gt.need2 - gt.c2) : Math.max(0, gt.need2 - gt.c2);
         if (left > 0 && !gt.wave.length && g0.roomEnemies && !g0.roomEnemies(A[gt.prev].rooms).length) left = 0;
       }
+      // takılmasın emniyeti (Feza 4,5 yaş): kapalı geçidin 8 m yakınında toplam ~35 sn geçirdiyse (durup beklese de, gidip gelse de) yol yine açılır.
+      // Normal yol hâlâ huysuzları neşelendirmek; bu yalnız uzakta takılı kalan / hiç gelmeyen / sayılamayan huysuzlara karşı. (Bekleyen dalga doğmaz.)
+      { const pr = st.cheered[gt.prev] + (gt.c2 || 0); if (pr !== gt.prog) { gt.prog = pr; gt.nearT = 0; } }   // (her neşelendirmede sayaç baştan: savaş sürerken / dalgaya geçerken erken açılmaz; yalnız ~35 sn hiç ilerleme yoksa)
+      if (left > 0 && playing() && Math.hypot(hx - gt.g.x, hz - gt.g.z) < GATE_NEAR) { gt.nearT = (gt.nearT || 0) + dt; if (gt.nearT >= GATE_WAIT) { left = 0; gt.yardim = true; } }
       if (left !== gt.shown) { gt.shown = left; gt.bm.map.dispose(); gt.bm.map = badgeTex(left); gt.bm.needsUpdate = true; }
       if (!gt.kuzey) {   // rozet geçidin kuzey (kameradan uzak) tarafına: güneydeki geçitlerde kameranın dibine düşmesin
         gt.kuzey = 1; const p = gt.badge.getWorldPosition(BW); p.z -= 1.4; gt.grp.worldToLocal(p); gt.badge.position.x = p.x; gt.badge.position.z = p.z;

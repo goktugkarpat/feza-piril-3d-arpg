@@ -228,6 +228,7 @@ const YANARDAG = (() => {
     const gatePts = A.map(a => a.gate); for (let k = 1; k < A.length; k++) A[k].gate = null;
     for (const k of [1, 2, 3]) { const gp = gatePts[k]; if (gp) gates.push(Object.assign(kapi(api, L, gp, 'g' + k), { k })); }
     const S = { t: 0, started: 0, area: -1, btn: {}, shell: 0, carry: false, hug: 0, still: 0, stuck: {}, orb: null, saved: null, bossOn: false, happy: false, prints: 0 };
+    M.S = S; M.gates = gates;   // (test için: L.yd.S / L.yd.gates)
     L.nesneler = L.nesneler || [];
     for (const k of [1, 2, 3]) {
       const q = M.btn && M.btn[k]; if (!q) continue;
@@ -303,7 +304,7 @@ const YANARDAG = (() => {
       const P = hero(); if (!P) return;
       const playing = live();
       if (dragon) dragon.update(dt);
-      for (const k of [1, 2, 3]) { const b = S.btn[k]; if (!b) continue; b.C.spokes.rotation.y += dt * (b.o.done ? 0.4 : 1.4); b.C.ring.material.opacity = b.o.done ? 0.25 : 0.55 + 0.25 * Math.sin(T * 3); b.C.top.material.emissiveIntensity = b.o.done ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + k); }
+      for (const k of [1, 2, 3]) { const b = S.btn[k]; if (!b) continue; b.C.spokes.rotation.y += dt * (b.done ? 0.4 : 1.4); b.C.ring.material.opacity = b.done ? 0.25 : 0.55 + 0.25 * Math.sin(T * 3); b.C.top.material.emissiveIntensity = b.done ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + k); }   // (b.done: motor nesneyi kopyalar, b.o değişmez)
       for (const gt of gates) {
         if (gt.open) {
           if (gt.anim < 1) {
@@ -313,10 +314,13 @@ const YANARDAG = (() => {
           }
         } else {
           gt.pm.opacity = 0.5 + 0.1 * Math.sin(T * 2.2);
-          const d = hyp(P.pos.x - gt.x, P.pos.z - gt.z);
-          if (playing && d < 5.5) { S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt; gt.near += dt; } else gt.near = Math.max(0, gt.near - dt * 0.5);
-          if (playing && d < 4.5 && gt.near > 2.2) { gt.near = 0; const bk = S.btn[gt.k]; if (bk) { say('b07_nehir1', { force: true, once: false, gap: 12 }); pirilGit(bk.o.x, bk.o.z); } }
-          if ((S.stuck[gt.id] || 0) > 70) unlock(gt.id);
+          // yumuşak kilit (Feza 4,5 yaşında, düğmeyi kaçırabilir): kapının 6 m yakınında toplam ~1 sn → bir kez ipucu (Pırıl düğmeyi gösterir);
+          // toplam ~5 sn → Pırıl kapıya uçar, kapıyı kendisi açar (düğme de "basılmış" sayılır, artık çağırmaz). Süre birikir: gidip gelmek de sayılır.
+          const d = hyp(P.pos.x - gt.x, P.pos.z - gt.z), bk = S.btn[gt.k];
+          if (playing && d < 6) S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt;
+          const st = S.stuck[gt.id] || 0;
+          if (playing && d < 6 && !gt.ipucu && st > 1) { gt.ipucu = 1; if (bk && !bk.done) { say('b07_nehir1', { force: true, once: false }); pirilGit(bk.o.x, bk.o.z); } }
+          if (playing && st > 4.8) { if (bk) { bk.done = true; try { const n = g0.nesne.bul(bk.o.id); if (n) { n.done = true; n.basili = true; } } catch (e) { /* yok */ } } pirilGit(gt.x, gt.z); unlock(gt.id, gt.k === 3 ? 'b07_kapi_acildi' : 'kapi_acildi'); }
         }
       }
       if (playing) {

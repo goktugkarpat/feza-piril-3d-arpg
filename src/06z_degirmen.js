@@ -35,7 +35,7 @@ const DEGIRMEN = (() => {
 
   // ── Tarif durumu (bölüme girince sıfırlanır; kayıt gerekmez: bölüm 11 dk) ──
   const R = { un: 0, unN: 5, su: 0, kor: 0, korN: 3, durum: 'topla', yogur: 0, pisti: false, bekci: false, tutan: null };
-  const resetR = () => { R.un = 0; R.su = 0; R.kor = 0; R.durum = 'topla'; R.yogur = 0; R.pisti = false; R.bekci = false; R.tutan = null; };
+  const resetR = () => { R.un = 0; R.su = 0; R.kor = 0; R.durum = 'topla'; R.yogur = 0; R.pisti = false; R.bekci = false; R.tutan = null; R.yardim = false; };
   const hazir = () => R.un >= R.unN && R.su >= 1 && R.kor >= R.korN;
 
   // ── Tarif tahtası (alt orta; 3 simge: un, su, ateş; sonra ekmek) ──
@@ -754,16 +754,23 @@ const DEGIRMEN = (() => {
       bk.add(G.cone(3), 0xd6b648, [lx, 0.4, lz], [Math.cos(a) * lean, 0, -Math.sin(a) * lean], [0.05, 0.8, 0.05]);
       bk.add(G.octa(), 0xf4cb52, [lx + Math.sin(a) * 0.16, 0.86, lz + Math.cos(a) * 0.16], [Math.cos(a) * lean, 0, -Math.sin(a) * lean], [0.055, 0.22, 0.055]); }
     bk.add(G.torus(TAU, 0.14, 12), 0x9a6a3c, [0, 0.28, 0], [PI / 2, 0, 0], [0.12, 0.12, 0.8]);
-    const bundleGeo = api.dispose(bk.build()), bundleMat = api.dispose(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, emissive: new THREE.Color(0xffc850), emissiveIntensity: 0.25 }));
+    const bundleGeo = api.dispose(bk.build()), bundleMat = api.dispose(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, emissive: new THREE.Color(0xffc850), emissiveIntensity: 0.4 }));
+    // (altın demet altın tarlada kayboluyordu: altına koyu toprak lekesi → demet zeminden ayrılır; tek, sade, ışıltısız)
+    const soilGeo = api.dispose(new THREE.CircleGeometry(1.0, 24).rotateX(-PI / 2)), soilMat = api.dispose(new THREE.MeshBasicMaterial({ color: 0x8a5a2c, transparent: true, opacity: 0.5, depthWrite: false }));
+    const bundleLeft = [];   // toplanmamış demetler (Pırıl en yakınını gösterir)
     (D.bundles || []).forEach((p, i) => {
-      const m = new THREE.Mesh(bundleGeo, bundleMat); m.position.set(p.x, 0, p.z); m.rotation.y = i; m.scale.setScalar(1.25); m.castShadow = true; api.add(m);
+      const m = new THREE.Mesh(bundleGeo, bundleMat); m.position.set(p.x, 0, p.z); m.rotation.y = i; m.scale.setScalar(1.45); m.castShadow = true; api.add(m);
+      const soil = new THREE.Mesh(soilGeo, soilMat); soil.position.set(p.x, 0.035, p.z); soil.renderOrder = 2; api.add(soil);
       api.glow(p.x, p.z, 1.5, 0xffe08a, 0.22);
+      const bl = { x: p.x, z: p.z, done: false }; bundleLeft.push(bl);
       let got = -1;
-      T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.6 }, near: 7, once: true, cd: 0.5, line: i === 0 ? 'b04_un' : null,
-        use: () => { got = 0; R.un++; hudUpdate(); sfxAt('pop', p.x, p.z, { pitch: 1 + R.un * 0.1 }); burst('sparkle', p.x, 0.9, p.z, { color: '#ffe08a', count: 9 }); burst('hearts', p.x, 1.2, p.z, { count: 2 });
+      T.add({ x: p.x, z: p.z, r: 1.15, hint: { y: 1.6 }, near: 7, once: true, cd: 0.5, line: i === 0 ? 'b04_un' : null,
+        use: () => { got = 0; bl.done = true; R.un++; hudUpdate(); sfxAt('pop', p.x, p.z, { pitch: 1 + R.un * 0.1 }); burst('sparkle', p.x, 0.9, p.z, { color: '#ffe08a', count: 9 }); burst('hearts', p.x, 1.2, p.z, { count: 2 });
           if (R.un >= R.unN) { sfxAt('bell', p.x, p.z, { pitch: 1.3 }); say('b04_basak_tam', { gap: 1, force: true }); } },
-        tick: dt => { if (got >= 0 && got < 1) { got += dt * 2.5; m.position.y = got * 1.2; m.scale.setScalar(1.25 * (1 - got)); if (got >= 1) m.visible = false; } else if (got < 0) { m.rotation.y += dt * 0.5; m.position.y = 0.04 * Math.sin(GAME.time * 3 + i); } } });
+        tick: dt => { if (got >= 0 && got < 1) { got += dt * 2.5; m.position.y = got * 1.2; m.scale.setScalar(1.45 * (1 - got)); if (got >= 1) { m.visible = false; soil.visible = false; } } else if (got < 0) { m.rotation.y += dt * 0.5; m.position.y = 0.04 * Math.sin(GAME.time * 3 + i); } } });
     });
+    const nearBundle = (x, z) => { let b = null, bd = 1e9; for (const q of bundleLeft) if (!q.done) { const d = hyp(q.x - x, q.z - z); if (d < bd) { bd = d; b = q; } } return b ? { x: b.x, z: b.z, d: bd } : null; };
+    const pointTo = (x, z) => { try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.pointTo) PIRIL_GUC.pointTo(x, z); } catch (e) { /* yok */ } };
 
     // ── 2) su kovası ──
     if (D.bucket) {
@@ -950,8 +957,41 @@ const DEGIRMEN = (() => {
       }
       const wm = kitMesh(api, kk, { name: 'degirmen-kapi-cuval' }); wm.position.set(cx, 0, cz); grp.add(wm); api.add(grp);
       for (let o = -lo; o <= hi; o += 1.6) { /* süs yok */ }
-      wallObj = { grp, solids, open: false, gx: cx, gz: cz, said: 0 };
+      wallObj = { grp, solids, open: false, gx: cx, gz: cz, said: -99, near: 0 }; DEGIRMEN._qa.wall = wallObj;
     }
+    // Yumuşak kilit (Feza 4,5 yaşında; hiçbir ilerleme göreve bağlı değil): ekmek pişmediyse Feza duvarın yanında toplam 4 sn
+    // durunca (ya da Bekçi uyanırsa) Hala ekmeği kendisi pişirip getirir, çuvallar açılır. ("Pişirdin" demez; Hala'nın cümlesi.)
+    const openWall = () => {
+      wallObj.open = true; for (const so of wallObj.solids) so.alive = false; L._sh = null;
+      burst('confetti', wallObj.gx, 1.4, wallObj.gz, { scale: 0.8 }); burst('sparkle', wallObj.gx, 1, wallObj.gz, { color: '#ffe08a', count: 20 }); sfx('pop', { x: wallObj.gx, z: wallObj.gz }); wallObj.grp.visible = false;
+    };
+    const halaBakes = (woke) => {
+      R.durum = 'pisti'; R.pisti = true; R.tutan = 'ekmek'; R.bakeAnim = null; R.yardim = true; hudUpdate();
+      if (trailM) { trailM.visible = true; trailMat.u.value = 1; }
+      if (hala) haI.said = true;   // (Hala arkasından gelir, ekmek Feza'nın elinde; Bekçi'ye ikram yine olur)
+      for (let i = Q.length - 1; i >= 0; i--) if (/^(pp_degirmen_hala|b04_hala_der|b04_pisir)$/.test(Q[i].k)) Q.splice(i, 1);   // (bekleyen "birlikte ekmek yapacaklar" karşılaması artık yersiz: düşer)
+      c.spinners.forEach(s => { if (s.once) s.spin = TAU; });
+      sfxAt('bell', hx(), hz(), { pitch: 1.0 }); burst('hearts', hx(), 1.6, hz(), { count: 3 });
+      seq((hala ? ['b04_hala_yardim'] : []).concat(woke ? [] : ['kapi_acildi']), 0.3);   // (Bekçi uyanırken az söz: yalnız Hala)
+    };
+    const wallTick = (dt, x, z) => {
+      if (!wallObj || wallObj.open) return;
+      if (R.pisti) { openWall(); return; }
+      const bs0 = GAME.boss, woke = !!(bs0 && bs0.type === 'degirmenBekcisi' && bs0.aggro && !bs0.dead);   // Bekçi uyandıysa duvar kapalı kalmasın
+      let dW = hyp(x - wallObj.gx, z - wallObj.gz);
+      // (alanın neşe kapısı hâlâ kapalıysa Feza buraya gelemez: o kapının kendi ipucu konuşur, sayaç beklemez — iki "açıldı" üst üste gelmesin)
+      if (dW < 6 && D.gate && L.solids.some(s => s.tag === 'kapi' && s.alive && !wallObj.solids.includes(s) && hyp(s.x - D.gate.x, s.z - D.gate.z) < 3.5)) dW = 99;
+      if (dW < 6) wallObj.near += dt;
+      if (woke || wallObj.near >= 4) { halaBakes(woke); openWall(); return; }
+      // tek ipucu: neyin eksik olduğuna göre (Pırıl fırını / tezgâhı gösterir). İlk 1 sn susar: Feza doğruca yürürse Bekçi uyanır, duvar hemen
+      // açılır — Pırıl tam o an geriye (fırına) uçmasın; durup bekleyen Feza ipucunu yine duyar (açılmadan ~3 sn önce).
+      if (dW < 6 && wallObj.near >= 1 && tt - wallObj.said > 14) {
+        wallObj.said = tt;
+        if (R.durum === 'pisir') { say('b04_pisir', { once: false, gap: 3, force: true }); if (ov) pointTo(ov.x, ov.z); }
+        else if (hazir()) { say('b04_tarif_geri', { once: false, gap: 3, force: true }); if (tbl) pointTo(tbl.x, tbl.z); else if (ov) pointTo(ov.x, ov.z); }
+        else { say('b04_tarif', { once: false, gap: 3, force: true }); if (ov) pointTo(ov.x, ov.z); }
+      }
+    };
 
     // ── Kuzu Ağılı (yan oda A): 3 kuzuyu say ──
     const sheepK = new Kit(); sheepKit(sheepK); const sheepGeo = api.dispose(sheepK.build()), sheepMat = api.dispose(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
@@ -995,7 +1035,7 @@ const DEGIRMEN = (() => {
     yield;
 
     // ── canlı dünya ──
-    let tt = 0, intro = 0, areaSaid = {}, splashT = 0, smokeT = 0, lastX = 0, lastZ = 0, ikram = null, cheerT = -1, wasPisti = false;
+    let tt = 0, intro = 0, unHintT = 2, unHintN = 0, areaSaid = {}, splashT = 0, smokeT = 0, lastX = 0, lastZ = 0, ikram = null, cheerT = -1, wasPisti = false;
     const nearStream = (x, z) => { for (const S of c.streams) for (const q of S.sp) if (dist2(q.x, q.z, x, z) < (S.w * 0.9) * (S.w * 0.9)) return true; return false; };
     const areaIdx = () => (GAME.P.area ?? -1);
     api.anim((dt, hx_, hz_) => {
@@ -1018,12 +1058,13 @@ const DEGIRMEN = (() => {
         if (ai === 0 && intro > 13 && said.has('b04_tarla')) say('b04_tarif', { gap: 8 });
                 if (ai === 2 && R.kor === 0) say('b04_kemer', { gap: 8 });
         if (ai === 3) say('b04_firin_duman', { gap: 6 });
-        if (ai >= 1 && R.un < R.unN && intro > 30) say('b04_un', { once: false, gap: 40 });
-        // kapı çuvalları: ekmek pişince kaybolur; önce yaklaşırsa kibarca uyarır
-        if (wallObj && !wallObj.open) {
-          if (R.pisti) { wallObj.open = true; for (const so of wallObj.solids) so.alive = false; L._sh = null; burst('confetti', wallObj.gx, 1.4, wallObj.gz, { scale: 0.8 }); burst('sparkle', wallObj.gx, 1, wallObj.gz, { color: '#ffe08a', count: 20 }); sfx('pop', { x: wallObj.gx, z: wallObj.gz }); wallObj.grp.visible = false; }
-          else if (hyp(hx_ - wallObj.gx, hz_ - wallObj.gz) < 5 && tt - wallObj.said > 14) { wallObj.said = tt; say('b04_tarif_geri', { once: false, gap: 3, force: true }); try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.pointTo && ov) PIRIL_GUC.pointTo(ov.x, ov.z); } catch (e) { /* yok */ } }
+        // başak ipucu: yakında (18 m) toplanmamış demet varsa Pırıl en yakınını gösterir (uzaktan, boss kapısında "topla" demez)
+        if (R.un < R.unN && intro > 8 && unHintN < 5 && (unHintT -= dt) <= 0) {
+          const nb = nearBundle(hx_, hz_);
+          if (nb && nb.d < 18 && nb.d > 2) { if (say('b04_un', { once: false, gap: 6 })) { unHintT = 24; unHintN++; pointTo(nb.x, nb.z); } else unHintT = 2; } else unHintT = 1;
         }
+        // kapı çuvalları: ekmek pişince kaybolur; önce yaklaşırsa kibarca uyarır, beklerse Hala ekmekle gelir (yumuşak kilit)
+        wallTick(dt, hx_, hz_);
       }
       // ekmek pişme sahnesi: ekmek ocaktan çıkar, yarılır, altın iz yola uzanır, ekmek Feza'nın eline gelir
       if (R.bakeAnim && ov) {

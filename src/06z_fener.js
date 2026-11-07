@@ -83,15 +83,17 @@ const FENER = (() => {
           };
           G.rs(); addEventListener('resize', G.rs);
           const pos = e => { const b = root.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
-          G.dn = e => { const [x, y] = pos(e), p = G.pl[G.n]; if (p && !p.on && Math.hypot(x - p.x, y - p.y) < 90) { G.drag = { id: e.pointerId, dx: p.x - x, dy: p.y - y }; e.preventDefault(); } };
+          G.dn = e => { const [x, y] = pos(e), p = G.pl[G.n]; if (p && !p.on && Math.hypot(x - p.x, y - p.y) < 90) { G.drag = { id: e.pointerId, dx: p.x - x, dy: p.y - y }; p.oto = 0; p.back = 0; G.bos = 0; e.preventDefault(); } };
           G.mv = e => { if (G.drag && G.drag.id === e.pointerId) { const [x, y] = pos(e), p = G.pl[G.n]; p.x = x + G.drag.dx; p.y = y + G.drag.dy; } };
+          G.yerles = () => {   // aktif parça yuvasına oturur (Feza'nın parmağıyla ya da Pırıl'ın yardımıyla)
+            const p = G.pl[G.n], s = G.so[G.n]; if (!p || !s) return;
+            p.x = s.x; p.y = s.y; p.on = true; p.oto = 0; s.ok = true; G.n++; G.bos = 0; snd('star');
+            for (let i = 0; i < 8; i++) { const a = i * TAU2 / 8; G.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, l: 0.5, col: hexs(s.col) }); }
+            if (G.n >= 9) { G.bitti = 0.001; snd('cheer'); }
+          };
           G.up = e => {
             if (!G.drag) return; const p = G.pl[G.n], s = G.so[G.n]; G.drag = null;
-            if (Math.hypot(p.x - s.x, p.y - s.y) < 120) {
-              p.x = s.x; p.y = s.y; p.on = true; s.ok = true; G.n++; snd('star');
-              for (let i = 0; i < 8; i++) { const a = i * TAU2 / 8; G.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, l: 0.5, col: hexs(s.col) }); }
-              if (G.n >= 9) { G.bitti = 0.001; snd('cheer'); }
-            } else p.back = 1;
+            if (Math.hypot(p.x - s.x, p.y - s.y) < 120) G.yerles(); else p.back = 1;
           };
           root.addEventListener('pointerdown', G.dn); root.addEventListener('pointermove', G.mv); root.addEventListener('pointerup', G.up); root.addEventListener('pointercancel', G.up);
           root._mini = G; ctx.data.G = G;
@@ -102,6 +104,13 @@ const FENER = (() => {
           const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1b2a4a'); g.addColorStop(1, '#3b6a86'); c.fillStyle = g; c.fillRect(0, 0, W, H);
           c.fillStyle = 'rgba(255,255,255,.1)'; c.beginPath(); c.moveTo(W / 2 - 70, H); c.lineTo(W / 2 - 40, H * 0.32); c.lineTo(W / 2 + 40, H * 0.32); c.lineTo(W / 2 + 70, H); c.fill();
           for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.l -= dt; } G.parts = G.parts.filter(q => q.l > 0);
+          // KİLİT YOK: Feza bir süre parçaya dokunmazsa Pırıl yardım eder — parça kendi kendine yavaşça yuvasına süzülür (ilk 7 sn, sonra 4 sn)
+          if (!G.bitti && G.n < 9) {
+            const p = G.pl[G.n], s = G.so[G.n];
+            if (G.drag || p.back) G.bos = 0; else G.bos = (G.bos || 0) + dt;
+            if (!p.oto && G.bos > (G.yardim ? 4 : 7)) { p.oto = 1; G.yardim = 1; }
+            if (p.oto && !G.drag) { const k = Math.min(1, dt * 2.2); p.x += (s.x - p.x) * k; p.y += (s.y - p.y) * k; if (Math.hypot(p.x - s.x, p.y - s.y) < 8) G.yerles(); }
+          }
           G.so.forEach((s, i) => {
             const act = i === G.n; c.lineWidth = 8; c.strokeStyle = hexs(s.col); c.globalAlpha = s.ok ? 1 : act ? 0.6 + 0.4 * Math.sin(G.t * 6) : 0.35;
             c.beginPath(); c.arc(s.x, s.y, 30 + (act ? 4 * Math.sin(G.t * 6) : 0), 0, TAU2); c.stroke(); c.globalAlpha = 1;
@@ -252,9 +261,11 @@ const FENER = (() => {
     L.finaleBekle = () => S.endStep > 0 && !S.finalDone;
     on('happy', e => { if (e && e.boss && e.type === 'unutulanKralTonton') { S.endT = T; S.endStep = 1; } });
 
+    const sonBitti = () => { if (S.finalDone) return; S.finalDone = true; S.oynaBekle = 0; for (let i = 0; i < 9; i++) lit(i); S.lamp = 9; S.dostGo = true; if (F.tower) F.tower.socket.material.color.setHex(0xffd45a); };   // KİLİT YOK: final ne olursa olsun biter
     function sonSahne() {   // Kral neşelendikten sonra: fener yanar → dostlar → ejderha selamı (tek sinematik, atlanabilir)
-      if (S.final || !g0 || !g0.sinematik) return; S.final = true;
-      const tw = F.tower, ar = F.arena; if (!tw || !ar) return;
+      if (S.final) return; S.final = true;
+      if (!g0 || !g0.sinematik) { sonBitti(); return; }
+      const tw = F.tower, ar = F.arena; if (!tw || !ar) { sonBitti(); return; }
       const tx = ar.x, tz = ar.z - ar.r - 4.2, lamp = { x: tx, z: tz, y: tw.H + 1 };
       // dostlar fenerin yanına toplanır
       const spots = [[-3.4, 2.5], [-1.4, 3.8], [1.4, 3.8], [3.4, 2.5]];
@@ -271,7 +282,9 @@ const FENER = (() => {
         { sure: 4.2, bak: { x: tx, z: tz + 5, y: 2 }, zoom: 1.0, soz: 'b10_bes_ejder', fn: () => { tele(tx, tz + 10); } },
       ];
       void lamp;
-      const oyna = () => { if (!g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { S.finalDone = true; for (let i = 0; i < 9; i++) lit(i); S.lamp = 9; S.dostGo = true; say('b10_kral_son', { force: true, once: false }); } })) S.final = false; };
+      // başka bir sinematik sürüyorsa kısa aralarla yeniden dene (anim döngüsü: S.oynaBekle); olmazsa final yine de biter
+      const oyna = () => { if (S.finalDone) return; if (g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { sonBitti(); say('b10_kral_son', { force: true, once: false }); } })) { S.oynaBekle = 0; return; } S.oynaBekle = S.oynaBekle || T; S.oynaTekrar = T + 0.5; };
+      S.oyna = oyna;
       say('b10_yuvalar', { force: true, once: false });
       if (!YUVA.ac(oyna)) oyna();
     }
@@ -299,7 +312,9 @@ const FENER = (() => {
       // köprü bayrakları: Feza yürüdükçe renkleri sırayla yanar
       flags.forEach((f, i) => { if (!f.on && live() && P.pos.x > f.x - 0.8 && hyp(P.pos.z - (F.kopru ? F.kopru.z : 0), 0) < (F.kopru ? F.kopru.r + 2 : 99) && P.area >= 3 && Math.abs(P.pos.x - f.x) < 1.6) { f.on = true; f.m.color.setHex(f.c); S.flags++; sfx('star', { vol: 0.35, pitch: 1 + i * 0.06 }); if (S.flags === 9) say('b10_kopru', { force: true }); } });
       // boss sonrası: sis çekilir cümlesi, sonra final sinematiği
-      if (S.endStep) { const el = T - S.endT; if (el > 2 && S.endStep === 1) { S.endStep = 2; say('b10_sis', { force: true, once: false }); } if (el > 3.2 && S.endStep === 2) { S.endStep = 3; sonSahne(); } }
+      if (S.endStep) { const el = T - S.endT; if (el > 2 && S.endStep === 1) { S.endStep = 2; say('b10_sis', { force: true, once: false }); } if (el > 3.2 && S.endStep === 2) { S.endStep = 3; sonSahne(); }
+        if (S.oynaBekle && !S.finalDone) { if (T - S.oynaBekle > 12) sonBitti(); else if (T >= S.oynaTekrar && S.oyna) S.oyna(); }   // sinematik açılamadı: yeniden dene, 12 sn sonra vazgeç
+        if (S.endStep === 3 && !S.finalDone && el > 90) sonBitti(); }   // emniyet: mini oyun sırasında T durur; sinematik ~32 sn — 90 sn'de final kendiliğinden biter
       if (!live()) return;
       const ar = P.area, N = A.length - 1;
       if (T > 1 && !S.started) { S.started = 1; say('b10_giris_a', { force: true }); }
