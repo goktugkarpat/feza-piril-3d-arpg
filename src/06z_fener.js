@@ -286,7 +286,7 @@ const FENER = (() => {
       const oyna = () => { if (S.finalDone) return; if (g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { sonBitti(); say('b10_kral_son', { force: true, once: false }); } })) { S.oynaBekle = 0; return; } S.oynaBekle = S.oynaBekle || T; S.oynaTekrar = T + 0.5; };
       S.oyna = oyna;
       say('b10_yuvalar', { force: true, once: false });
-      if (!YUVA.ac(oyna)) oyna();
+      oyna();   // (ebeveyn: parça yerleştirme mini oyunu yok; bitiş sahnesi doğrudan gelir)
     }
     function lit(i) { const p = F.tower && F.tower.panes[i]; if (p) p.m.color.setHex(p.c); if (F.tower) { F.tower.lit = Math.max(F.tower.lit, i + 1); F.tower.halo.material.opacity = 0.16 + 0.12 * (F.tower.lit / 9); } }
 
