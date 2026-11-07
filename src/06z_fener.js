@@ -13,9 +13,10 @@ const FENER = (() => {
   const PI = Math.PI, TAU = PI * 2, hyp = Math.hypot;
   const G_ = () => (typeof GAME !== 'undefined' ? GAME : null);
   const live = () => { const g = G_(); return !!(g && g.state === 'play' && !g.paused && g.P && !g.P.dead); };
-  const said = new Set(); let sayAt = -99;
+  const said = new Set(); let sayAt = -99, sus = false;   // sus: Kral neşelendi → bölüm sohbeti susar (QA: sohbet cümleleri final sinematiğinin araya giriyor, ejderha sözleri bir sonraki plana kayıyordu)
   function say(key, o = {}) {
     const g = G_();
+    if (sus && !o.son) return false;
     if (!g || !g.halaApi || !(typeof AUD !== 'undefined' && AUD.LINES && AUD.LINES[key])) return false;
     if (o.once !== false && said.has(key)) return false;
     const now = g.time || 0;
@@ -56,81 +57,15 @@ const FENER = (() => {
     const rm = a => { const r = L.rooms[mainRooms(a)[0]]; return r ? { x: r.x, z: r.z, r: r.r || 8 } : null; };
     F.adim = rm(0); F.yagmur = rm(1); F.kopru = rm(2); F.yildiz = rm(3);
     const ar = L.rooms.filter(r => r.kind !== 'side').pop(); if (ar) F.arena = { x: ar.x, z: ar.z, r: ar.r || 11 };
+    // uyuyan Işık Ejderhaları (final selamı): denizde, yüzleri adaya dönük; yaw = hem dönüş hem final kamerasının baktığı yön.
+    // Dekor (07m_dekor_fener) bu noktaların ve kameraya giden yolun çevresine kaya/çam koymaz (QA: kaya ejderhayı örtüyordu)
+    if (F.arena) F.uyku = [['su', -1], ['toprak', 1], ['ates', 0]].map(([tur, sd], i) => {
+      const r = F.arena.r + 15 + i * 2;
+      return { tur, x: F.arena.x + (sd === 0 ? 0 : sd * (r + 3)), z: F.arena.z + (sd === 0 ? -r - 14 : -4 - i * 3), yaw: sd === 0 ? 0 : (sd > 0 ? -PI / 2 : PI / 2) };
+    });
   }
 
-  // ════════════════ Fener Işığı Yuvaları (QA2): 9 ışık parçası, 9 renkli yuva; parmakla sürükle, yanlış yuva yok ════════════════
-  const YUVA = (() => {
-    let kay = false;
-    const TAU2 = Math.PI * 2, hexs = c => '#' + c.toString(16).padStart(6, '0');
-    const snd = n => { try { if (typeof AUD !== 'undefined' && AUD.sfx) AUD.sfx(n); } catch (e) { /* sessiz */ } };
-    function kayit() {
-      if (kay || typeof MINIGAME === 'undefined') return false; kay = true;
-      MINIGAME.register('fenerYuvalari', { ad: 'Fener Işığı Yuvaları', ikon: '💡', renk: '#ffe27a', holdsWorld: true, yildizlar: [1, 9, 9],
-        start(ctx) {
-          const root = ctx.root;
-          root.style.cssText = 'position:fixed;inset:0;z-index:60;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;background:#1b2a4a';
-          root.innerHTML = '';
-          const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none'; root.appendChild(cv);
-          const skip = document.createElement('button'); skip.textContent = 'Geç ▶'; skip.style.cssText = 'position:absolute;right:16px;top:16px;font:bold 22px system-ui,sans-serif;padding:10px 18px;border-radius:22px;border:3px solid #fff;background:rgba(255,255,255,.25);color:#fff';
-          root.appendChild(skip);
-          const G = { root, cv, c: cv.getContext('2d'), W: 0, H: 0, t: 0, n: 0, drag: null, pl: [], so: null, bitti: 0, atla: false, parts: [] };
-          skip.addEventListener('pointerdown', e => { e.stopPropagation(); G.atla = true; });
-          G.rs = () => {
-            const w = innerWidth, h = innerHeight, d = Math.min(2, devicePixelRatio || 1); cv.width = Math.round(w * d); cv.height = Math.round(h * d); G.W = w; G.H = h; G.c.setTransform(d, 0, 0, d, 0, 0);
-            const cx = w / 2, R = Math.min(w * 0.42, 330), oldS = G.so, oldP = G.pl;
-            G.so = CAM.map((col, i) => { const a = Math.PI * (0.06 + 0.88 * i / 8); return { col, x: cx - Math.cos(a) * R * 1.12, y: h * 0.7 - Math.sin(a) * R * 0.42 + R * 0.12, ok: oldS ? oldS[i].ok : false }; });
-            G.pl = CAM.map((col, i) => { const o = oldP[i], hx = w * (0.14 + 0.72 * i / 8), hy = h * 0.15 + (i % 2) * 44; return { col, hx, hy, x: o && (o.on || G.drag) ? o.x : hx, y: o && (o.on || G.drag) ? o.y : hy, on: o ? o.on : false }; });
-          };
-          G.rs(); addEventListener('resize', G.rs);
-          const pos = e => { const b = root.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
-          G.dn = e => { const [x, y] = pos(e), p = G.pl[G.n]; if (p && !p.on && Math.hypot(x - p.x, y - p.y) < 90) { G.drag = { id: e.pointerId, dx: p.x - x, dy: p.y - y }; p.oto = 0; p.back = 0; G.bos = 0; e.preventDefault(); } };
-          G.mv = e => { if (G.drag && G.drag.id === e.pointerId) { const [x, y] = pos(e), p = G.pl[G.n]; p.x = x + G.drag.dx; p.y = y + G.drag.dy; } };
-          G.yerles = () => {   // aktif parça yuvasına oturur (Feza'nın parmağıyla ya da Pırıl'ın yardımıyla)
-            const p = G.pl[G.n], s = G.so[G.n]; if (!p || !s) return;
-            p.x = s.x; p.y = s.y; p.on = true; p.oto = 0; s.ok = true; G.n++; G.bos = 0; snd('star');
-            for (let i = 0; i < 8; i++) { const a = i * TAU2 / 8; G.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, l: 0.5, col: hexs(s.col) }); }
-            if (G.n >= 9) { G.bitti = 0.001; snd('cheer'); }
-          };
-          G.up = e => {
-            if (!G.drag) return; const p = G.pl[G.n], s = G.so[G.n]; G.drag = null;
-            if (Math.hypot(p.x - s.x, p.y - s.y) < 120) G.yerles(); else p.back = 1;
-          };
-          root.addEventListener('pointerdown', G.dn); root.addEventListener('pointermove', G.mv); root.addEventListener('pointerup', G.up); root.addEventListener('pointercancel', G.up);
-          root._mini = G; ctx.data.G = G;
-        },
-        update(dt, ctx) {
-          const G = ctx.data.G; if (!G) return 'done'; dt = Math.min(Math.max(dt, 0), 0.05); G.t += dt; const c = G.c, W = G.W, H = G.H;
-          if (G.atla) { for (const s of G.so) s.ok = true; G.n = 9; return 'done'; }
-          const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1b2a4a'); g.addColorStop(1, '#3b6a86'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-          c.fillStyle = 'rgba(255,255,255,.1)'; c.beginPath(); c.moveTo(W / 2 - 70, H); c.lineTo(W / 2 - 40, H * 0.32); c.lineTo(W / 2 + 40, H * 0.32); c.lineTo(W / 2 + 70, H); c.fill();
-          for (const q of G.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.l -= dt; } G.parts = G.parts.filter(q => q.l > 0);
-          // KİLİT YOK: Feza bir süre parçaya dokunmazsa Pırıl yardım eder — parça kendi kendine yavaşça yuvasına süzülür (ilk 7 sn, sonra 4 sn)
-          if (!G.bitti && G.n < 9) {
-            const p = G.pl[G.n], s = G.so[G.n];
-            if (G.drag || p.back) G.bos = 0; else G.bos = (G.bos || 0) + dt;
-            if (!p.oto && G.bos > (G.yardim ? 4 : 7)) { p.oto = 1; G.yardim = 1; }
-            if (p.oto && !G.drag) { const k = Math.min(1, dt * 2.2); p.x += (s.x - p.x) * k; p.y += (s.y - p.y) * k; if (Math.hypot(p.x - s.x, p.y - s.y) < 8) G.yerles(); }
-          }
-          G.so.forEach((s, i) => {
-            const act = i === G.n; c.lineWidth = 8; c.strokeStyle = hexs(s.col); c.globalAlpha = s.ok ? 1 : act ? 0.6 + 0.4 * Math.sin(G.t * 6) : 0.35;
-            c.beginPath(); c.arc(s.x, s.y, 30 + (act ? 4 * Math.sin(G.t * 6) : 0), 0, TAU2); c.stroke(); c.globalAlpha = 1;
-            if (s.ok) { c.fillStyle = hexs(s.col); c.globalAlpha = 0.35; c.beginPath(); c.arc(s.x, s.y, 42, 0, TAU2); c.fill(); c.globalAlpha = 1; }
-          });
-          G.pl.forEach((p, i) => {
-            if (p.back) { p.x += (p.hx - p.x) * Math.min(1, dt * 10); p.y += (p.hy - p.y) * Math.min(1, dt * 10); if (Math.hypot(p.x - p.hx, p.y - p.hy) < 2) p.back = 0; }
-            const act = i === G.n, r = p.on ? 24 : act ? 30 + 3 * Math.sin(G.t * 6) : 22;
-            c.globalAlpha = p.on || act ? 1 : 0.55; c.fillStyle = hexs(p.col); c.beginPath(); c.arc(p.x, p.y, r, 0, TAU2); c.fill();
-            c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.arc(p.x - r * 0.3, p.y - r * 0.3, r * 0.28, 0, TAU2); c.fill(); c.globalAlpha = 1;
-            if (act && !p.on && !G.drag && G.t > 0.5) { c.font = '44px "Segoe UI Emoji","Apple Color Emoji",sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('👇', p.x + 8, p.y + 70 + 6 * Math.sin(G.t * 5)); }
-          });
-          for (const q of G.parts) { c.globalAlpha = Math.min(1, q.l * 2); c.fillStyle = q.col; c.beginPath(); c.arc(q.x, q.y, 6, 0, TAU2); c.fill(); } c.globalAlpha = 1;
-          if (G.bitti) { G.bitti += dt; c.fillStyle = 'rgba(255,240,170,' + Math.min(0.5, G.bitti * 0.5) + ')'; c.fillRect(0, 0, W, H); if (G.bitti > 2.2) return 'done'; }
-        },
-        end(ctx) { const G = ctx.data.G; if (G) { G.root.removeEventListener('pointerdown', G.dn); G.root.removeEventListener('pointermove', G.mv); G.root.removeEventListener('pointerup', G.up); removeEventListener('resize', G.rs); } return 9; } });
-      return true;
-    }
-    return { ac(onEnd) { kayit(); let ok = false; try { ok = typeof MINIGAME !== 'undefined' && MINIGAME.start('fenerYuvalari', { from: 'zone', onEnd }); } catch (e) { ok = false; } return ok; } };
-  })();
+  // (ebeveyn: fener yuva mini oyunu kaldırıldı — bitiş sahnesi doğrudan gelir)
 
   // ════════════════ Büyük Fener modeli ════════════════
   function fenerModel(api, x, z) {
@@ -215,7 +150,7 @@ const FENER = (() => {
     const g0 = G_(), A = L.areas || [], F = L.fn || {};
     const offs = []; const on = (n, fn) => { if (g0 && g0.on) { try { const r = g0.on(n, e => { if (g0.L === L || n === 'zone') fn(e); }); if (typeof r === 'function') offs.push(r); } catch (e) { /* yok */ } } };
     for (let k = 1; k < A.length; k++) A[k].gate = null;   // motorun şeker kapıları kapalı: bölüm açık yürünür
-    let T = 0; const TQ = []; const later = (sn, fn) => { TQ.push({ t: T + sn, fn }); };
+    sus = false; let T = 0; const TQ = []; const later = (sn, fn) => { TQ.push({ t: T + sn, fn }); };
     const S = { started: 0, area: -1, flags: 0, endT: 0, endStep: 0, lamp: -1, lampT: 0, final: false, ejd: [], dostPos: null };
     // dost bayrakları (köprü): 9 renkli, Feza yürüdükçe sırayla yanar
     const flags = [];
@@ -237,12 +172,11 @@ const FENER = (() => {
     try { if (typeof HALA !== 'undefined' && HALA.firinciModel) { hala = HALA.firinciModel(api); api.add(hala); } } catch (e) { hala = null; }
     try { if (typeof EJDERHA !== 'undefined' && EJDERHA.anne) { anne = EJDERHA.anne({ renk: 1, durum: 'tanima' }); anne.root.scale.setScalar(0.42); api.add(anne.root); } } catch (e) { anne = null; }
     const sleepers = [];
-    if (F.arena && typeof EJDERHA !== 'undefined' && EJDERHA.uykulu) {
-      [['su', -1], ['toprak', 1], ['ates', 0]].forEach(([tur, sd], i) => {
+    if (F.uyku && typeof EJDERHA !== 'undefined' && EJDERHA.uykulu) {
+      F.uyku.forEach(({ tur, x, z, yaw }) => {
         try {
-          const d = EJDERHA.uykulu(tur), r = F.arena.r + 15 + i * 2;
-          const x = F.arena.x + (sd === 0 ? 0 : sd * (r + 3)), z = F.arena.z + (sd === 0 ? -r - 14 : -4 - i * 3);
-          d.root.position.set(x, 0, z); d.root.scale.setScalar(2.6); d.root.rotation.y = sd === 0 ? 0 : (sd > 0 ? -PI / 2 : PI / 2); api.add(d.root); sleepers.push({ d, tur, x, z, up: 0, t0: -1 });
+          const d = EJDERHA.uykulu(tur);
+          d.root.position.set(x, 0, z); d.root.scale.setScalar(2.6); d.root.rotation.y = yaw; api.add(d.root); sleepers.push({ d, tur, x, z, yaw, up: 0, t0: -1 });
         } catch (e) { /* yok */ }
       });
     }
@@ -259,34 +193,36 @@ const FENER = (() => {
 
     // MOTOR2 isteği (B910_MOTOR2.md): nesilli finalde 'neşe kristali' töreni, fener finali bitene dek beklesin
     L.finaleBekle = () => S.endStep > 0 && !S.finalDone;
-    on('happy', e => { if (e && e.boss && e.type === 'unutulanKralTonton') { S.endT = T; S.endStep = 1; } });
+    on('happy', e => { if (e && e.boss && e.type === 'unutulanKralTonton') { S.endT = T; S.endStep = 1; sus = true; TQ.length = 0; } });
 
     const sonBitti = () => { if (S.finalDone) return; S.finalDone = true; S.oynaBekle = 0; for (let i = 0; i < 9; i++) lit(i); S.lamp = 9; S.dostGo = true; if (F.tower) F.tower.socket.material.color.setHex(0xffd45a); };   // KİLİT YOK: final ne olursa olsun biter
     function sonSahne() {   // Kral neşelendikten sonra: fener yanar → dostlar → ejderha selamı (tek sinematik, atlanabilir)
       if (S.final) return; S.final = true;
       if (!g0 || !g0.sinematik) { sonBitti(); return; }
       const tw = F.tower, ar = F.arena; if (!tw || !ar) { sonBitti(); return; }
-      const tx = ar.x, tz = ar.z - ar.r - 4.2, lamp = { x: tx, z: tz, y: tw.H + 1 };
+      const tx = ar.x, tz = ar.z - ar.r - 4.2, lamp = { x: tx, z: tz, y: tw.H + 0.6 };
       // dostlar fenerin yanına toplanır
       const spots = [[-3.4, 2.5], [-1.4, 3.8], [1.4, 3.8], [3.4, 2.5]];
       S.dostPos = { baba: [tx + spots[0][0], tz + spots[0][1] + 3], kartal: [tx + spots[1][0], tz + spots[1][1] + 3], hala: [tx + spots[2][0], tz + spots[2][1] + 3], anne: [tx + 6, tz + 5] };
-      const sirala = (ix) => { const s = sleepers[ix]; if (s) { s.t0 = T; } };
       const tele = (x, z) => { try { g0.teleport(x, z); } catch (e) { /* yok */ } };
+      // QA: Feza artık denize ışınlanmaz (kamera ejderhalara kendisi gider; Feza dostlarla arenada kalır). Kamera her ejderhaya yüzünden bakar.
+      const ejd = (tur, soz) => { const s = sleepers.find(q => q.tur === tur); if (!s) return null; return { sure: 4.6, bak: { x: s.x, z: s.z, y: 2.6 }, zoom: 1.15, pitch: 0.62, yaw: s.yaw || 0, gecis: 0.25, soz, fn: () => { kamK(40); s.t0 = T; } }; };
+      // QA: ejderhalar arası kamera kayarken fener kulesinin içinden geçiyordu (ekranı dev sarı ışık kaplıyordu) → ejderha planları kısa kesme ile geçer
+      const kamK = k => { try { if (g0.kameraIstek) g0.kameraIstek.k = k; } catch (e) { /* yok */ } };
+      // QA: plan süresi cümleden kısaydı → sözler her planda biraz daha geride kalıyordu (Ateş Dede'nin sözü Toprak ejderhasının planında). Süre ≥ cümle + ara
+      const sur = (a) => { if (!a) return a; try { const d = typeof AUD !== 'undefined' && AUD.estimate && a.soz ? AUD.estimate(a.soz) : 0; if (d > 0) a.sure = Math.max(a.sure, d + 1.0); } catch (e) { /* yok */ } return a; };
       const adim = [
-        { sure: 6.0, bak: { x: tx, z: tz, y: 9 }, zoom: 1.0, pitch: 0.6, soz: 'b10_fener_yak', fn: () => { tele(tx, tz + 13); S.lamp = 0; S.lampT = T; } },
-        { sure: 4.0, bak: { x: tx, z: tz, y: 9 }, zoom: 1.0, pitch: 0.6, soz: 'b10_fener_oldu', fn: () => { S.dostGo = true; } },
-        { sure: 4.0, bak: { x: tx, z: tz + 4, y: 1.5 }, zoom: 1.2, soz: 'b10_dostlar_son', fn: () => { tele(tx, tz + 9); } },
-        { sure: 4.6, bak: sleepers[0] ? { x: sleepers[0].x, z: sleepers[0].z, y: 3 } : { x: tx, z: tz, y: 3 }, zoom: 1.2, soz: 'b10_ejder_su', fn: () => { if (sleepers[0]) tele(sleepers[0].x + 9, sleepers[0].z + 4); sirala(0); } },
-        { sure: 4.6, bak: sleepers[1] ? { x: sleepers[1].x, z: sleepers[1].z, y: 3 } : { x: tx, z: tz, y: 3 }, zoom: 1.2, soz: 'b10_ejder_toprak', fn: () => { if (sleepers[1]) tele(sleepers[1].x - 9, sleepers[1].z + 4); sirala(1); } },
-        { sure: 4.6, bak: sleepers[2] ? { x: sleepers[2].x, z: sleepers[2].z, y: 3 } : { x: tx, z: tz, y: 3 }, zoom: 1.2, soz: 'b10_ejder_ates', fn: () => { if (sleepers[2]) tele(sleepers[2].x, sleepers[2].z + 11); sirala(2); } },
-        { sure: 4.2, bak: { x: tx, z: tz + 5, y: 2 }, zoom: 1.0, soz: 'b10_bes_ejder', fn: () => { tele(tx, tz + 10); } },
-      ];
-      void lamp;
+        // lamba: kamera lambanın hizasında, biraz uzaktan (önceden kule gövdesine bakıyordu, lamba ekran dışındaydı)
+        { sure: 6.0, bak: lamp, zoom: 1.6, pitch: 0.3, soz: 'b10_fener_yak', fn: () => { tele(tx, tz + 13); S.lamp = 0; S.lampT = T; } },
+        { sure: 4.0, bak: lamp, zoom: 1.75, pitch: 0.34, soz: 'b10_fener_oldu', fn: () => { S.dostGo = true; } },
+        { sure: 4.0, bak: { x: tx, z: tz + 6, y: 1.5 }, zoom: 1.15, soz: 'b10_dostlar_son', fn: () => { tele(tx, tz + 9); } },
+        ejd('su', 'b10_ejder_su'), ejd('ates', 'b10_ejder_ates'), ejd('toprak', 'b10_ejder_toprak'),   // sıra: Su (batı) → Ateş (kuzey) → Toprak (doğu); aralarda kısa kesme
+        { sure: 4.6, bak: { x: tx, z: tz + 6, y: 3.5 }, zoom: 2.0, pitch: 0.48, gecis: 0.25, soz: 'b10_bes_ejder', fn: () => { kamK(40); } },   // geniş plan: yanan fener + dibinde toplanan dostlar
+      ].filter(Boolean).map(sur);
       // başka bir sinematik sürüyorsa kısa aralarla yeniden dene (anim döngüsü: S.oynaBekle); olmazsa final yine de biter
-      const oyna = () => { if (S.finalDone) return; if (g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { sonBitti(); say('b10_kral_son', { force: true, once: false }); } })) { S.oynaBekle = 0; return; } S.oynaBekle = S.oynaBekle || T; S.oynaTekrar = T + 0.5; };
+      const oyna = () => { if (S.finalDone) return; if (g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { kamK(3); sonBitti(); } })) { S.oynaBekle = 0; return; } S.oynaBekle = S.oynaBekle || T; S.oynaTekrar = T + 0.5; };   // (b10_kral_son yok: motorun final cümlesi onu hemen kesiyordu)
       S.oyna = oyna;
-      say('b10_yuvalar', { force: true, once: false });
-      oyna();   // (ebeveyn: parça yerleştirme mini oyunu yok; bitiş sahnesi doğrudan gelir)
+      oyna();   // (ebeveyn: parça yerleştirme mini oyunu yok; bitiş sahnesi doğrudan gelir. 'b10_yuvalar' artık söylenmez: yuva oyunu yok, cümleler üst üste biniyordu)
     }
     function lit(i) { const p = F.tower && F.tower.panes[i]; if (p) p.m.color.setHex(p.c); if (F.tower) { F.tower.lit = Math.max(F.tower.lit, i + 1); F.tower.halo.material.opacity = 0.16 + 0.12 * (F.tower.lit / 9); } }
 
@@ -298,7 +234,7 @@ const FENER = (() => {
       if (anne) { anne.update(dt); const tx = P.pos.x + 2.6, tz = P.pos.z - 2.4, dx = tx - annePos.x, dz = tz - annePos.z, d = hyp(dx, dz); if (!annePos.i) { annePos.x = P.pos.x - 3; annePos.z = P.pos.z - 3; annePos.i = 1; } let gx = tx, gz = tz; if (S.dostGo && S.dostPos) { gx = S.dostPos.anne[0]; gz = S.dostPos.anne[1]; } const ddx = gx - annePos.x, ddz = gz - annePos.z, dd = hyp(ddx, ddz); if (dd > 0.6) { annePos.x += ddx / dd * Math.min(dd, 3.2 * dt); annePos.z += ddz / dd * Math.min(dd, 3.2 * dt); anne.root.rotation.y = Math.atan2(ddx, ddz); } anne.root.position.set(annePos.x, 0.8 + Math.sin(T * 1.6) * 0.15, annePos.z); void d; void dx; void dz; }
       if (hala) {
         if (S.dostGo && S.dostPos) { halaPos.x += (S.dostPos.hala[0] - halaPos.x) * Math.min(1, dt * 1.2); halaPos.z += (S.dostPos.hala[1] - halaPos.z) * Math.min(1, dt * 1.2); }
-        else { if (!halaPos.i) { halaPos.x = P.pos.x - 2; halaPos.z = P.pos.z + 2; halaPos.i = 1; } const tx = P.pos.x - Math.sin(P.face) * 2.2 + Math.cos(P.face) * 1.6, tz = P.pos.z - Math.cos(P.face) * 2.2 - Math.sin(P.face) * 1.6, dx = tx - halaPos.x, dz = tz - halaPos.z, d = hyp(dx, dz); if (d > 1.2) { const st = Math.min(d, 4.0 * dt), nx = halaPos.x + dx / d * st, nz = halaPos.z + dz / d * st; if (HA.isFloor(nx, nz)) { halaPos.x = nx; halaPos.z = nz; } hala.rotation.y = Math.atan2(dx, dz); } }
+        else { if (!halaPos.i) { halaPos.x = P.pos.x - 2; halaPos.z = P.pos.z + 2; halaPos.i = 1; } const tx = P.pos.x - Math.sin(P.face) * 2.2 + Math.cos(P.face) * 1.6, tz = P.pos.z - Math.cos(P.face) * 2.2 - Math.sin(P.face) * 1.6, dx = tx - halaPos.x, dz = tz - halaPos.z, d = hyp(dx, dz); if (d > 1.2) { const st = Math.min(d, 4.0 * dt), nx = halaPos.x + dx / d * st, nz = halaPos.z + dz / d * st; if (!HA || !HA.isFloor || HA.isFloor(nx, nz)) { halaPos.x = nx; halaPos.z = nz; } hala.rotation.y = Math.atan2(dx, dz); } }
         hala.position.set(halaPos.x, 0, halaPos.z);
       }
       if (S.dostGo && S.dostPos && baba && baba.pos) { baba.pos.x += (S.dostPos.baba[0] - baba.pos.x) * Math.min(1, dt * 0.8); baba.pos.z += (S.dostPos.baba[1] - baba.pos.z) * Math.min(1, dt * 0.8); }
@@ -310,9 +246,13 @@ const FENER = (() => {
         if (s.t0 >= 0) { const u = (T - s.t0) / 4.2; const k = u < 0 ? 0 : u > 1 ? 0 : Math.sin(u * PI); s.d.root.position.y = 0.0 + k * 0.5; s.d.root.rotation.x = -k * 0.18; if (u > 1) { s.t0 = -1; s.d.root.rotation.x = 0; s.d.root.position.y = 0; } }
       }
       // köprü bayrakları: Feza yürüdükçe renkleri sırayla yanar
-      flags.forEach((f, i) => { if (!f.on && live() && P.pos.x > f.x - 0.8 && hyp(P.pos.z - (F.kopru ? F.kopru.z : 0), 0) < (F.kopru ? F.kopru.r + 2 : 99) && P.area >= 3 && Math.abs(P.pos.x - f.x) < 1.6) { f.on = true; f.m.color.setHex(f.c); S.flags++; sfx('star', { vol: 0.35, pitch: 1 + i * 0.06 }); if (S.flags === 9) say('b10_kopru', { force: true }); } });
+      // QA: eskiden yalnız soldan sağa yürüyünce ve yanlış alan numarasında (P.area>=3; köprü 2. alan) yanıyordu → hiç yanmıyordu. Şimdi köprü adasındayken her 0.35 sn'de bir sonraki bayrak yanar.
+      if (F.kopru && S.flags < flags.length && live() && hyp(P.pos.x - F.kopru.x, P.pos.z - F.kopru.z) < F.kopru.r + 1.5 && T - (S.flagT || 0) > 0.35) {
+        const i = S.flags, f = flags[i]; S.flagT = T; f.on = true; f.m.color.setHex(f.c); S.flags++; sfx('star', { vol: 0.35, pitch: 1 + i * 0.06 });
+      }
       // boss sonrası: sis çekilir cümlesi, sonra final sinematiği
-      if (S.endStep) { const el = T - S.endT; if (el > 2 && S.endStep === 1) { S.endStep = 2; say('b10_sis', { force: true, once: false }); } if (el > 3.2 && S.endStep === 2) { S.endStep = 3; sonSahne(); }
+      if (S.endStep) { const el = T - S.endT; if (el > 2 && S.endStep === 1) S.endStep = 2;   // (b10_sis söylenmez: 'b10_boss_bitti' zaten 'sis çekiliyor' diyor; kuyruğu doldurup fener cümlesini düşürüyordu)
+        if (S.endStep === 2 && el > 6.4 && (el > 9 || typeof AUD === 'undefined' || !AUD.current)) { S.endStep = 3; sonSahne(); }   // Kral'ın neşe cümlesi bitsin, sonra fener (motor boss sonrası 6 sn yalnız önemli cümleleri söyler: 'b10_fener_yak' düşüyordu)
         if (S.oynaBekle && !S.finalDone) { if (T - S.oynaBekle > 12) sonBitti(); else if (T >= S.oynaTekrar && S.oyna) S.oyna(); }   // sinematik açılamadı: yeniden dene, 12 sn sonra vazgeç
         if (S.endStep === 3 && !S.finalDone && el > 90) sonBitti(); }   // emniyet: mini oyun sırasında T durur; sinematik ~32 sn — 90 sn'de final kendiliğinden biter
       if (!live()) return;

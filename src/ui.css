@@ -1241,8 +1241,9 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 #ui .u-tbtns { flex-wrap: nowrap; }
 @media (max-aspect-ratio: 1/1) { #ui .u-tbtns { flex-wrap: nowrap; } #ui .u-tbtns .u-btn, #ui .u-tbtns .u-btn.main, #ui .u-tbtns .u-title-map { width: calc(var(--k) * 190px); min-width: 0; font-size: calc(var(--k) * 21px); } }
 
-/* Zıp düğmesi (07_game kendi oluşturur): sağ altta, Kılıç düğmesinin SOLUNDA; can topu ve alt yazıyla çakışmasın (dikey ekranda da) */
-#zipBtn { left: auto !important; right: calc(var(--k) * 185px + max(14px, env(safe-area-inset-right))) !important; bottom: calc(var(--k) * 34px + max(14px, env(safe-area-inset-bottom))) !important; width: calc(var(--k) * 92px) !important; height: calc(var(--k) * 92px) !important; }
+/* Zıp düğmesi (07_game kendi oluşturur): SOL altta, can topunun hemen ÜSTÜNDE (anlatıcı: "Sol alttaki yıldız düğmesi");
+   sağdaki Kılıç / Pırıl gücü / yetenek düğmeleriyle ve alttaki altyazıyla çakışmaz (dikey ekranda da) */
+#zipBtn { right: auto !important; left: calc(var(--k) * 40px + max(14px, env(safe-area-inset-left))) !important; bottom: calc(var(--k) * 228px + max(14px, env(safe-area-inset-bottom))) !important; width: calc(var(--k) * 100px) !important; height: calc(var(--k) * 100px) !important; }
 
 /* ── Sol üst HUD sadeleştirme (ebeveyn kararı): ana ilerleme = Büyük Fener'in 10 ışık yuvası; XP + altın küçük ve silik ── */
 .his-malz { display: none !important; }   /* eski "5 ejderha ışığı" sırası kalktı (08j_his.js yine kurar, görünmez) */
@@ -1297,3 +1298,33 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 
 /* Sinematik sırasında sağ üstteki mini harita ve düğmeler tamamen gizlenir ("Geç" düğmesiyle asla çakışmaz) */
 #ui.cine-on .u-mini, #ui.cine-on .u-sbtns, .st-cinema #ui .u-tr { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+
+/* ── Dokunma boyu (5 yaş parmağı): her düğme en az ~60 px; küçük kalanlar büyütüldü ── */
+/* başlık (dikey): üç düğme yan yana sığar, yazı kesilmez ("Dünya Haritası" kenara taşıyordu) */
+@media (max-aspect-ratio: 1/1) {
+  body #ui .u-title .u-tbtns { gap: 2vw; max-width: 97vw; }
+  body #ui .u-title .u-tbtns .u-btn, body #ui .u-title .u-tbtns .u-btn.main, body #ui .u-title .u-tbtns .u-title-map {
+    width: 31vw; max-width: 31vw; min-width: 0; height: max(64px, calc(var(--k) * 62px)); min-height: max(64px, calc(var(--k) * 62px));
+    font-size: clamp(15px, 2.5vw, 22px); padding: 0 .4em !important; }
+}
+body #ui .u-title .u-tbtns .u-btn, body #ui .u-title .u-tbtns .u-btn.main, body #ui .u-title .u-tbtns .u-title-map { min-height: max(62px, calc(var(--k) * 56px)); }
+/* Mola: küçük panel kalır, düğmeler parmak boyu */
+.u-pause-panel .u-btn, .u-pause-panel .u-btn.wide, .u-pause-panel .u-btn.p.wide { min-height: max(60px, calc(var(--k) * 56px)); }
+/* kahraman seçimi › Geri; yolculuk › Geç */
+#ui .u-choiceback { min-height: 62px; min-width: 150px; }
+#ui .u-dt-skip { min-height: max(64px, calc(var(--k) * 64px)); min-width: max(130px, calc(var(--k) * 130px)); font-size: calc(var(--k) * 24px); }
+/* oyunun kendi sinematik "Geç ▸" düğmesi (07_game, sınıfsız): masalın "Geç" düğmesiyle aynı boy ve yer */
+body > button:not([id]):not([class]) { min-height: 72px !important; min-width: 130px !important; font-size: 24px !important; border-color: #ffe38a !important; border-width: 4px !important;
+  top: calc(env(safe-area-inset-top, 0px) + 16px) !important; right: calc(env(safe-area-inset-right, 0px) + 16px) !important; background: linear-gradient(180deg, #5aa8ff, #2a62c8) !important; border-radius: 40px !important; }
+/* Dünya Haritası › Kapat: parmak boyu */
+#ui .u-dream-screen .u-dream-top-close { min-height: 62px; min-width: 130px; padding: 8px 20px; font-size: 20px; border-radius: 31px; }
+#ui .u-dream-screen .u-dream-top-close .u-svg { width: 20px; height: 20px; }
+/* dikey ekranda Zıp düğmesi (sol alt, can topunun üstü) altyazının altında kalıyordu: Zıp görünürken altyazı onun üstüne çıkar */
+@media (max-aspect-ratio: 1/1) {
+  body:has(> #zipBtn[style*="display: block"]) #ui.hud-on .u-sub { bottom: calc(var(--padB) + var(--k) * 352px); }
+}
+/* Zıp düğmesi (07_game, #ui dışında) menü / harita / yolculuk / sinematik / bitiş ekranının ÜSTÜNDE kalıyordu: o anlarda gizli */
+body:has(#ui.menu-on) #zipBtn, body:has(#ui.journey-on) #zipBtn, body:has(#ui.cine-on) #zipBtn, body:has(#ui:not(.hud-on)) #zipBtn, body.st-cinema #zipBtn { display: none !important; }
+
+/* Dikey ekran: altyazı kutusu can topunun üstünde durur; Zıp düğmesi onun da ÜSTÜNE (altyazıyı kapatmasın) */
+@media (orientation: portrait) { #zipBtn { bottom: calc(var(--k) * 390px + max(14px, env(safe-area-inset-bottom))) !important; } }

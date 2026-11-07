@@ -334,6 +334,7 @@ const HZ_MABET = (() => {
       if (b.did === 0) {
         b.did = 1; const G = gm(), pts = spots(b, b.x, b.z, 3, 3.2, 6.0, 3.2);
         for (const p of pts) { const mesh = new THREE.Mesh(G.oct, G.star); mesh.scale.set(0.34, 0.5, 0.34); mesh.position.set(p.x, 0.95, p.z); scene.add(mesh); W.stars.push({ x: p.x, z: p.z, t: 0, m: mesh, done: false, mk: mark('ring', p.x, p.z, 0.9, '#ffd24a', 24) }); }
+        if (!W.stars.length) { A.bossEnd(b, 1.0, 1.0); return; }   // yer bulunamadı: "üç ışığı topla" deyip 24 sn boş bekletme
         warn(S, 'b06_yildiz_oyun');
       }
       if (b.did === 1 && W.stars.length && W.stars.every(s => s.done)) {

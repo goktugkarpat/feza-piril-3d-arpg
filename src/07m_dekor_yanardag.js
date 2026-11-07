@@ -11,7 +11,9 @@ const YANARDAG_DEKOR = (() => {
     if (!K || typeof MANTAR_DEKOR === 'undefined' || !P.basalt || !P.TEMA.yanardag) return false;
     if (K.lowShadow) K.lowShadow(api, 99);
     const THREE_ = api.THREE || THREE, rnd = api.rnd, put = api.put, T = P.TEMA.yanardag, isF = (x, z) => api.isFloor(x, z), M = L.yd || {};
-    const pick = a => a[(rnd() * a.length) | 0];
+    const pick = a => (Array.isArray(a) && a.length ? a[(rnd() * a.length) | 0] : (a != null ? a : 0xa88a74));   // (eksik palet → süs yarıda çökmesin; T.fern yoktu)
+    if (!T.fern) T.fern = T.leaf || T.grass || [0x7a8a3a];
+    if (!T.basalt) T.basalt = [0x9a7868, 0x8a6a5e];
     const coneH = (x, z) => { for (let d = 0.5; d <= 14; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return 0.5 + d * 0.85; } return 99; };
     const fN = (x, z) => K.floorNorth(L, x, z, 9), fD = (x, z, m = 8) => K.floorDist(L, x, z, m);
     const D = MANTAR_DEKOR.olustur(L, api, { K, coneH, fN, fD, isF, tema: 'yanardag' });

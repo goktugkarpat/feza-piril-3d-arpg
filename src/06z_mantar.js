@@ -354,7 +354,22 @@ const MANTAR = (() => {
       return { mushroom: mush, glowCluster: nop, mossMound: (x, z, s) => put(sph, x, -s * 0.2, z, s * 1.1, s * 0.75, s, MOSS[0], rnd() * TAU), stone: stn, fern: (x, z, s) => { for (let i = 0; i < 4; i++) put(frond, x, 0.02, z, s, s, s, 0x3f9a6a, i / 4 * TAU, 0, 0, 'decor'); },
         bush: nop, tuftAt: nop, flowerAt: nop, patch2: nop, rockGroup: stn, crystals: nop, logAt: nop, rootArc: nop, tree: nop, leafUmbrella: nop, signpost: nop, fenceRun: nop, bridge: nop, groundCover: nop };
     })();
-    const { mushroom, glowCluster, mossMound, stone, fern } = D;
+    const { glowCluster, mossMound, stone, fern } = D;
+    // QA5: kameraya göre sınır şapkayı da saymalı: coneH yalnız sap boyunu sınırlıyordu, dev şapka (yarıçap 3-5 m) kuzeye taşıp üstte
+    //   kalıyordu → yan odada / oda güneyinde ekranın yarısını turuncu şapka kaplıyor, Feza görünmüyordu (kamera uzaklığı 15,5).
+    //   Şapkanın tepesi ve kuzey kenarı da görüş konisinin altında kalmalı; sığmazsa önce boy, sonra şapka küçülür, yine sığmazsa konmaz.
+    const fitTall = (x, z, h, s, top = 0.6) => {
+      for (let k = 0; k < 8; k++) {
+        const lim = Math.min(coneH(x, z) - top * s, coneH(x, z - s * 0.95), coneH(x - s * 0.7, z - s * 0.7), coneH(x + s * 0.7, z - s * 0.7), coneH(x - s * 0.95, z), coneH(x + s * 0.95, z));
+        if (h <= lim) return [h, s];
+        if (lim >= Math.max(0.6, s * 0.9)) return [lim, s];
+        s *= 0.8;
+      }
+      return null;
+    };
+    const mushroom = (x, z, h, s, o) => { const f = fitTall(x, z, h, s); if (f) D.mushroom(x, z, f[0], f[1], o); };
+    const tree0 = D.tree;
+    D.tree = (x, z, h, o) => { const f = fitTall(x, z, h, h * 0.4, 0.15); if (f && f[0] >= 3 && f[1] >= h * 0.39) tree0(x, z, f[0], o); };
     // yerleşik oyun nesnelerinden uzak dur (zemin örtüsü ve kümeler)
     const keepClear = (x, z) => {
       if (hyp(x - L.start.x, z - L.start.z) < 2.2) return true;
@@ -554,12 +569,9 @@ const MANTAR = (() => {
       const sp = cand.length ? cand[(rnd() * cand.length) | 0] : null;
       if (sp) {
         const bx = sp.x, bz = sp.z, tx = bx + 3.4, tz = bz - 5.2;
-        for (let k = 0; k < 7; k++) put(shelf, bx + 0.55 * k, 0.22 + 0.62 * k, bz - 0.8 * k, 0.55, 0.5, 0.55, [0xffc8ec, 0xc8f0ff, 0xfff0b8][k % 3], 0.4 * k, 0.05);
+        // QA5: tırmanılamayan raf basamakları ve tepedeki ulaşılamaz sandık kaldırıldı (Feza çıkmaya uğraşıp takılıyordu); dev mantar süs olarak kalır
+        void shelf;
         mushroom(tx + 0.6, tz - 0.6, 4.6, 2.3, { ci: 3, light: true, li: 2.4, ld: 9, pk: 0.14 });
-        put(sph, tx + 0.6, 4.62, tz - 0.6, 0.85, 0.25, 0.7, 0x4a9a62, 0.3);      // yosun koltuk
-        put(sphL, tx + 0.45, 4.8, tz - 0.5, 0.22, 0.2, 0.2, 0xa87040, 0.3);         // küçük sandık
-        put(sphL, tx + 0.45, 5.0, tz - 0.5, 0.07, 0.07, 0.07, 0xfff0a0, 0, 0, 0, 'glow');
-        api.glow(bx, bz, 2.2, 0xfff0a8, 0.14);
         merdivenBase = { x: bx - 0.9, z: bz + 1.6 };
         if (!isF(merdivenBase.x, merdivenBase.z) && !(fD(merdivenBase.x, merdivenBase.z, 4) < 1.2)) { /* kenarda: hazine yine de oraya */ }
       }
@@ -615,7 +627,15 @@ const MANTAR = (() => {
     //   döngüde kalıyordu (tohum 12: 25 sn'de 12 kez, oda geçilemedi) → yalnız Feza o mantarın fırlattığı yöne doğru yürüyorsa zıplatır
     const mv = { x: 0, z: 0, px: null, pz: null };
     if (T && (L.mzPads || []).length) api.anim((dt, hx, hz) => { if (mv.px !== null && dt > 0) { const vx = (hx - mv.px) / dt, vz = (hz - mv.pz) / dt, k = Math.min(1, dt * 8); if (hyp(vx, vz) < 20) { mv.x += (vx - mv.x) * k; mv.z += (vz - mv.z) * k; } } mv.px = hx; mv.pz = hz; });
-    const padYon = p => { const s = hyp(mv.x, mv.z), dx = p.to.x - p.x, dz = p.to.z - p.z; return s < 0.5 || (mv.x * dx + mv.z * dz) / (s * (hyp(dx, dz) || 1)) > 0; };
+    // QA5: halkadaki iki komşu mantardan Feza'nın yürüdüğü yöne en uygun olanına fırlatır (eskiden yalnız tek yöne çalışıyordu: ters
+    //   taraftan basınca hiçbir şey olmuyordu, "bas" cümlesi boşa çıkıyordu); ikisi de arkadaysa zıplatmaz (geri fırlatma döngüsü yok)
+    const padHedef = p => {
+      const s = hyp(mv.x, mv.z); if (s < 0.5) return p.to;
+      let best = null, bd = 0.05;
+      for (const q of L.mzPads) { if (q.g !== p.g || q === p) continue; const dx = q.x - p.x, dz = q.z - p.z, d = (mv.x * dx + mv.z * dz) / (s * (hyp(dx, dz) || 1)); if (d > bd) { bd = d; best = q; } }
+      return best;
+    };
+    const padYon = p => { p.hedef = padHedef(p); return !!p.hedef; };
     if (T) for (const p of L.mzPads || []) {
       const M = liveMush(p.x, p.z, 0.55, 1.05, 0xff7ec8, { gc: 0xa8fff4 });
       api.glow(p.x, p.z, 1.6, 0xff9fe0, 0.2);
@@ -623,7 +643,7 @@ const MANTAR = (() => {
       const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.9 }, line: p.g === 0 ? 'b01_ziplat' : null, near: 7, cd: 0.6, repeat: true, can: () => padYon(p),
         use: () => {
           sq = 0; sfx('mantarBoing', { x: p.x, z: p.z }); sfx('bounce', { x: p.x, z: p.z, pitch: 0.9 }); burst('sparkle', p.x, 0.8, p.z, { color: '#ffd0f4', count: 6 });
-          const tx = p.to.x, tz = p.to.z, D = hyp(tx - p.x, tz - p.z);
+          const h = p.hedef || p.to, tx = h.x, tz = h.z, D = hyp(tx - p.x, tz - p.z);
           T.ride({ pts: [[p.x, p.z], [tx, tz]], speed: D / 0.95, y: u => 4 * (2.2 + D * 0.12) * u * (1 - u),
             tick: (u, x, z) => { if (Math.random() < 0.5) burst('sparkle', x, 1 + 4 * 2.2 * u * (1 - u), z, { color: '#fff0a8', count: 2 }); },
             end: () => { burst('dust', tx, 0.1, tz, { count: 3 }); if (!said.has('b01_ziplama')) say('b01_ziplama', { gap: 3 }); } });
@@ -721,7 +741,8 @@ const MANTAR = (() => {
         if (!welcomed && wT > 2.5) welcomed = true;   // (bölüm girişi cümlesini STORY söyler)
         if (welcomed && wT > 12 && !said.has('b01_surukle') && hyp(hx - L.start.x, hz - L.start.z) < 3) say('b01_surukle');
         if (!said.has('b01_ogretVur')) { for (const e of GAME.enemies) if (!e.dead && !e.boss && dist2(e.x, e.z, hx, hz) < 49) { say('b01_ogretVur', { gap: 2 }); break; } }
-        if (a4 && !said.has('b01_tunel')) { const r = L.rooms[a4.rooms[0]]; if (r && dist2(r.x, r.z, hx, hz) < r.r * r.r) say('b01_tunel'); }
+        // (QA5: sis aynı odada başlıyor → tünel cümlesi sis cümlesini yutuyordu; sis varken söylenmez)
+        if (a4 && !said.has('b01_tunel') && !(MANTAR._sis && MANTAR._sis.room)) { const r = L.rooms[a4.rooms[0]]; if (r && dist2(r.x, r.z, hx, hz) < r.r * r.r) say('b01_tunel'); }
         if (ar && !arenaSaid && dist2(ar.x, ar.z, hx, hz) < (ar.r + 6) * (ar.r + 6)) arenaSaid = true;   // (arena cümlesi STORY'nin)
       }
       // boss kutlaması: neşelenince peri halkası ve arena mantarları ışıl ışıl, havaya ışık tozu fıskiyeleri
@@ -738,7 +759,8 @@ const MANTAR = (() => {
           M.g.position.set(cbx + Math.sin(a) * r, Math.abs(Math.sin(t1 * 7 + i * 1.3)) * 0.45, cbz + Math.cos(a) * r);
           M.g.rotation.y = t1 * 4 + i; const k = 1 + 0.15 * Math.sin(t1 * 14 + i); M.g.scale.set(k, 2 - k, k);
         });
-        if (t1 > 5.0 && t1 < 6.6 && (zT -= dt) <= 0) { zT = 0.7; burst('zzz', cbx + 0.6, 3.4, cbz + 0.8, {}); }
+        // QA6: her Zzz patlaması 3 harf, 1 s'ye yayılır ve 1,7 s yaşar (~2,7 s ekranda) → 4,6-5,6'da çıkanlar boss kaybolduktan (~5,8 s) sonra boşlukta asılı kalıyordu
+        if (t1 > 2.2 && t1 < 3.0 && (zT -= dt) <= 0) { zT = 0.7; burst('zzz', cbx + 0.6, 3.4, cbz + 0.8, {}); }
       }
       if (cheerT >= 0 && ar) {
         const n0 = Math.floor(cheerT / 0.25); cheerT += dt; const n1 = Math.floor(cheerT / 0.25);
@@ -751,7 +773,8 @@ const MANTAR = (() => {
     const sis = { st: 0, k: 0, t: 0, lamps: [], tap: false, init: false, said: 0, seker: false };
     MANTAR._sis = sis;
     const a4rooms = a4 ? a4.rooms.map(ri => L.rooms[ri]) : [];
-    sis.room = a4rooms[1] || a4rooms[0] || null;
+    // QA5: sis tünelin İLK odasında (ikinci oda arenanın dibindeydi: sis cümleleri boss uyanışıyla üst üste biniyordu)
+    sis.room = a4rooms[0] || null;
     const lampStem = api.dispose(lathe(THREE, STEM_P, 10)), lampCap = api.dispose(lathe(THREE, CAP_P, 14));
     function lamp(x, z, ci) {
       const c = CAPS[ci % CAPS.length], g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rnd() * TAU;
@@ -810,8 +833,14 @@ const MANTAR = (() => {
       if (a3 && sis.pd == null) { const r3 = L.rooms[a3.rooms[0]]; if (r3 && dist2(r3.x, r3.z, hx, hz) < r3.r * r3.r * 0.8) { sis.pd = 1; say('b01_pirilDokun', { gap: 3 }); } }
       if (sis.pd === 1 && sis.tap) { sis.pd = 2; }
       if (sis.pd === 2) { sis.pd = 3; setTimeout(() => { if (inZone()) say('b01_ziplamaKikir', { gap: 1 }); }, 600); }
+      // QA5: arenaya yaklaştıysa (ya da boss uyandıysa) sis sahnesi biter: sessizce aydınlanır, ışık nefesi açılır (boss cümleleriyle karışmasın)
+      const bossNear = (GAME.boss && GAME.boss.aggro) || (ar && dist2(ar.x, ar.z, hx, hz) < (ar.r + 5) * (ar.r + 5));
+      if (bossNear && sis.st < 3) {
+        try { if (PG()) { PG().ac('nefes'); PG().isikGoster(null); } } catch (e) { /* yok */ }
+        if (sis.st === 0) { sis.st = 4; sis.k = 0; sis.lamps.forEach(l => l.set(1)); } else { sis.st = 3; sis.t = 0; }
+      }
       // sis durum makinesi
-      if (sis.st === 0 && sis.room && dist2(sis.room.x, sis.room.z, hx, hz) < sis.room.r * sis.room.r * 0.5) {
+      if (sis.st === 0 && sis.room && dist2(sis.room.x, sis.room.z, hx, hz) < sis.room.r * sis.room.r * 0.6) {
         sis.st = 1; sis.t = 0; say('b01_sis', { gap: 1 }); try { if (PG()) PG().isikGoster(0.12); } catch (e) { /* yok */ }
         if (typeof scene !== 'undefined' && scene.fog && !fogBase) fogBase = { c: scene.fog.color.clone(), n: scene.fog.near, f: scene.fog.far };
       }
@@ -842,7 +871,7 @@ const MANTAR = (() => {
     if (typeof GAME !== 'undefined' && GAME.on && !MANTAR._hooked) {
       MANTAR._hooked = true;
       GAME.on('happy', e => { if (inZone() && e && !e.boss) { if (!said.has('b01_ilkNese')) say('b01_ilkNese', { gap: 1 }); else if (Math.random() < 0.12) say(['b01_aferin1', 'b01_aferin2', 'b01_aferin3'][(Math.random() * 3) | 0], { once: false, gap: 25 }); } });
-      GAME.on('boss', o => { if (inZone() && o && o.on && o.type === 'kocaPofudukMantar') say('b01_pirilBoss', { gap: 4 }); });
+      // (QA5: b01_pirilBoss kaldırıldı — boss uyanınca giriş + arena cümleleriyle aynı anda üç cümle üst üste biniyordu)
     }
   }
 

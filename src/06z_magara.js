@@ -33,7 +33,7 @@ const MAGARA = (() => {
 
   // ── durum (bölüme girince sıfırlanır) ──
   const R = { p1: null, p2: null, echo: null, bilbo: 'yok', bilboT: 0, ejder: 0, ejderT: 0, gizli: false, t: 0 };
-  const resetR = () => { R.p1 = R.p2 = R.echo = null; R.bilbo = 'yok'; R.bilboT = 0; R.ejder = 0; R.ejderT = 0; R.gizli = false; R.t = 0; said.clear(); sayAt = -99; };
+  const resetR = () => { R.p1 = R.p2 = R.echo = null; R.bilbo = 'yok'; R.bilboT = 0; R.ejder = 0; R.ejderT = 0; R.gizli = false; R.t = 0; R.said1 = R.said2 = R.said3 = R.said4 = R.ejS1 = false; said.clear(); sayAt = -99; };
   const Q = []; let qT = 0;
   const later = (s, fn) => Q.push({ at: qT + s, fn });
 
@@ -119,13 +119,18 @@ const MAGARA = (() => {
     }
     D.p1 = layout(room(1, 1) || room(1, 0), PAT[1]) || layout(room(1, 0), PAT[1]);
     D.p2 = layout(room(3, 0), PAT[2]) || layout(room(3, 1), PAT[2]) || layout(room(3, 0), PAT[3]) || layout(room(3, 1), PAT[3]) || layout(room(3, 2), PAT[3]);
-    // renk yankısı: Yankı Salonu'nun 2. odasında 4 kristal
-    { const rm = room(3, 1) || room(3, 0), pts = [];
-      if (rm) for (let t = 0; t < 40 && pts.length < 4; t++) {
-        const R0 = rm.r * (0.42 - t * 0.004), i = pts.length, a = i * PI / 2 + 0.78 + (t > 20 ? 0.3 : 0), p = spot(rm, Math.sin(a) * R0, Math.cos(a) * R0, 0.9);
-        if (p && pts.every(q => hyp(q.x - p.x, q.z - p.z) > 3.4)) pts.push(p); else if (t % 8 === 7) pts.length = 0;
+    // renk yankısı: Yankı Salonu'nun 2. odasında 4 kristal. QA: ayna bulmacasıyla üst üste düşmesin (huzme kristalin içinden geçiyordu, ayna ile
+    // kristal arasında 0,9 m dar aralık kalıyordu) → bulmaca noktalarından/huzme yolundan uzak dur; sığmazsa 1. odaya
+    const segD = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, u = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); return hyp(x - a.x - dx * u, z - a.z - dz * u); };
+    const p2Pts = D.p2 ? [D.p2.S, ...D.p2.M, D.p2.T] : [];
+    const nearP2 = p => p2Pts.some(q => hyp(q.x - p.x, q.z - p.z) < 3.2) || p2Pts.some((q, i) => i && segD(p.x, p.z, p2Pts[i - 1], q) < 1.9);
+    for (const rm of [room(3, 1), room(3, 0)].filter(Boolean)) {
+      const pts = [];
+      for (let t = 0; t < 64 && pts.length < 4; t++) {
+        const R0 = rm.r * (t < 40 ? 0.42 - t * 0.004 : 0.62 - (t - 40) * 0.005), i = pts.length, a = i * PI / 2 + 0.78 + (t > 20 ? 0.3 : 0), p = spot(rm, Math.sin(a) * R0, Math.cos(a) * R0, 0.9);
+        if (p && !nearP2(p) && pts.every(q => hyp(q.x - p.x, q.z - p.z) > 3.4)) pts.push(p); else if (t % 8 === 7) pts.length = 0;
       }
-      if (pts.length === 4) D.echo = { pts, room: L.rooms.indexOf(rm) };
+      if (pts.length === 4) { D.echo = { pts, room: L.rooms.indexOf(rm) }; break; }
     }
     { const rm = room(2, 1) || room(2, 0); D.bilbo = rm ? (spot(rm, 0, 0, 1) || { x: rm.x, z: rm.z }) : null; }
     { const rm = room(4, 0); if (rm) {
@@ -304,11 +309,14 @@ const MAGARA = (() => {
       // QA1: kapının önüne gelen çocuk kaynağı hiç görmemiş olabilir (kaynak yoldan 13-15 m uzakta) → Pırıl kaynağı gösterir
       const nearDoor = !!(P.door && !P.door.open && P.door.g && hyp(hx - P.door.g.x, hz - P.door.g.z) < 9);
       if (!P.srcOn && nearDoor && t - (P.doorHintT ?? -99) > 14) { P.doorHintT = t; pointTo(lay.S.x, lay.S.z); say('pp_b05_kristal', { gap: 3, force: true }); }
+      // QA2: kapı (Pırıl'la) açıldıysa bulmaca isteğe bağlı: "aynayı çevir / ışığı kapıya götür" denmez, Pırıl'ın oku geri (aynaya) çekmez
+      const dAcik = !!(P.door && P.door.open && !P.lit);
       if (!P.srcOn) {
         if (hyp(hx - lay.S.x, hz - lay.S.z) < 7.5) {
+          if (dAcik) P.told = true;
           if (!P.told) { P.told = true; pointTo(lay.S.x, lay.S.z); say(P.key === 'p1' ? 'b05_kristal' : 'b05_ayna_iki', { gap: 2, force: true }); }
           P.srcT += dt;
-          if (P.srcT > 1.5) { P.srcOn = true; P.dirty = true; sfx('star', { x: lay.S.x, z: lay.S.z, pitch: 1.1 }); burst('sparkle', lay.S.x, 1.0, lay.S.z, { color: '#ffe08a', count: 12 }); say(P.key === 'p1' ? 'pp_b05_kristal' : 'b05_ayna_ipucu', { gap: 3 }); later(3.5, () => { if (!(P.door && (P.door.open || (P.door.nearT || 0) > 2))) say(P.key === 'p1' ? 'b05_ayna_ilk' : 'b05_ayna_ipucu2', { gap: 1 }); }); }   // kapı bu arada Pırıl'la açıldıysa "ışık kapıya ulaşsın" deme (kapi_acildi ile üst üste binmesin)
+          if (P.srcT > 1.5) { P.srcOn = true; P.dirty = true; sfx('star', { x: lay.S.x, z: lay.S.z, pitch: 1.1 }); burst('sparkle', lay.S.x, 1.0, lay.S.z, { color: '#ffe08a', count: 12 }); if (!dAcik) say(P.key === 'p1' ? 'pp_b05_kristal' : 'b05_ayna_ipucu', { gap: 3 }); later(3.5, () => { if (!(P.door && (P.door.open || (P.door.nearT || 0) > 2))) say(P.key === 'p1' ? 'b05_ayna_ilk' : 'b05_ayna_ipucu2', { gap: 1 }); }); }   // kapı bu arada Pırıl'la açıldıysa "ışık kapıya ulaşsın" deme (kapi_acildi ile üst üste binmesin)
         }
         P.src.material.emissiveIntensity = 0.08 + 0.05 * Math.sin(t * 2);
         return;
@@ -327,19 +335,20 @@ const MAGARA = (() => {
         P.litT += dt;
         P.tgt.material.emissive.setHex(AMBER); P.tgt.material.emissiveIntensity = Math.min(0.7, P.litT);
         if (!P.done && P.litT > 0.4) { P.done = true; sfx('unlock', { x: lay.T.x, z: lay.T.z }); burst('sparkle', lay.T.x, 1.2, lay.T.z, { color: '#ffe08a', count: 18 }); api.glow(lay.T.x, lay.T.z, 3, AMBER, 0.2);
-          if (!(P.door && P.door.soft)) say('b05_ayna_bitti', { gap: 1, force: true });   // kapı Pırıl'la açıldıysa "kapı açıldı" deme
+          if (!(P.door && P.door.soft) && (P.key === 'p1' || !R.echo || R.echo.first)) say('b05_ayna_bitti', { gap: 1, force: true });   // kapı Pırıl'la açıldıysa ya da kapıyı sonra renk yankısı açacaksa "kapı açıldı" deme
           if (P.onLit) P.onLit(P); }
         return;
       }
       if ((Math.floor(t * 4) % 6) === 0 && Math.random() < dt * 8 && P.segs[0]) sparkleAlong(P.segs[Math.min(P.segs.length - 1, (Math.random() * P.segs.length) | 0)]);
       // yardım: 12 sn → Pırıl doğru aynayı gösterir; 25 sn → ayna kendiliğinden bir çeyrek döner
+      if (P.door && P.door.open) { P.idle = 0; return; }   // QA2: kapı açıldı → yardım cümlesi/ok yok (Feza ilerliyor; ayna yine elle çevrilebilir)
       if (hyp(hx - lay.S.x, hz - lay.S.z) < 16 || nearDoor) P.idle += dt;
       if (P.idle > 12 && P.hinted < 1) { P.hinted = 1; const w = firstWrong(P); if (w) { pointTo(w.x, w.z); say('b05_ayna_yardim', { once: false, gap: 4, force: true }); } else pointTo(lay.T.x, lay.T.z); }
       if (P.idle > 25) { P.idle = 0; P.hinted = 0; const w = firstWrong(P); if (w) { try { GAME.nesne.cevir(w.id); } catch (e) { /* yok */ } burst('hearts', w.x, 1.6, w.z, { count: 3 }); } }
     }
     const firstWrong = P => { for (let i = 0; i < P.ids.length; i++) { const o = NS(P.ids[i]); if (o && o.durum !== 0) return { id: P.ids[i], x: o.x, z: o.z }; } return null; };
     R.p1 = mkPuzzle(D.p1, 'p1', 2, () => { const sft = doors[2] && doors[2].soft; openDoor(doors[2]); if (!sft) pointTo(D.gates[2] ? D.gates[2].x : D.p1.T.x, D.gates[2] ? D.gates[2].z : D.p1.T.z); });
-    R.p2 = mkPuzzle(D.p2, 'p2', 4, p => { if (R.echo) R.echo.armed = true; });
+    R.p2 = mkPuzzle(D.p2, 'p2', 4, p => { if (R.echo && !R.echo.first) R.echo.armed = true; else { openDoor(doors[4]); if (D.gates[4]) pointTo(D.gates[4].x, D.gates[4].z); } });   // renk yankısı yoksa ya da yolda bulmacadan ÖNCE geliyorsa kapıyı bulmaca açar
     // YUMUŞAK KİLİT: Feza (4,5 yaş) bulmacayı atlayabilir. Kristal kapının önünde (6 m) toplam ~4 sn kalınca Pırıl kapıyı kendisi açar.
     // Bulmacalar oyunda kalır (geri dönüp oynanabilir); kapı açık olduğu için bitince "kapı açıldı" denmez. Kapı 2 ← bulmaca 1; kapı 4 ← bulmaca 2 + renk yankısı.
     function softDoor(d, P, dt, hx, hz) {
@@ -358,7 +367,9 @@ const MAGARA = (() => {
 
     // ── renk yankısı: 4 büyük kristal (amber, turkuaz, mercan, yeşil) ──
     if (D.echo) {
-      const E = R.echo = { state: 'wait', armed: !D.p2, seq: [], round: 0, idx: 0, t: 0, gl: [0, 0, 0, 0], items: [], fails: 0, idle: 0, inside: -1, said: false, lens: [2, 3, 4], cd: 0 };
+      // QA: yankı kristalleri bulmaca odasından ÖNCEKİ odaya düştüyse (first) oyun hemen hazır olur; bitince kapıyı değil bulmaca açar (geri yürütmesin)
+      const first = !!(D.p2 && D.echo.room < D.p2.room);
+      const E = R.echo = { first, state: 'wait', armed: !D.p2 || first, seq: [], round: 0, idx: 0, t: 0, gl: [0, 0, 0, 0], items: [], fails: 0, idle: 0, inside: -1, said: false, lens: [2, 3, 4], cd: 0 };
       D.echo.pts.forEach((p, i) => {
         const kk = new Kit(); crystalKit(kk, NOTE[i].c, 1.7); kk.add(G.cyl(1, 1.15, 14), 0x7b86a2, [0, 0.09, 0], null, [0.9, 0.18, 0.9]);
         const m = kitMesh(api, kk, { name: 'magara-yanki-' + i, rough: 0.25, emissive: NOTE[i].c, ei: 0.05 }); m.position.set(p.x, 0, p.z); api.add(m); E.items.push(m);
@@ -417,7 +428,10 @@ const MAGARA = (() => {
           if (R.bilbo === 'yok') {
             bilboM.root.rotation.y = Math.atan2(hx - b.x, hz - b.z) * 0.0 + Math.sin(tt * 0.5) * 0.6;
             bilboM.update(dt, { speed: 0, sniff: true, bark: 0, happy: 0 });
-            if (d < 3.0) { R.bilbo = 'bulundu'; R.bilboT = 0; say('b05_bilbo_bulundu', { gap: 0, force: true, prio: 3 }); sfx('bilboBark', { x: b.x, z: b.z, vol: 0.5, pitch: 1.2 }); }
+            // QA: yol Bilbo'nun 3 m yakınından geçmeyebiliyordu (tohum 1, 4: Bilbo hiç bulunmadı, takıma katılmadı) → 7 m; Feza alanı yine de
+            // geçip gittiyse Bilbo koşup yanına gelir (sahne Feza'nın yanında oynar)
+            if (d >= 7 && ai > 2 && ai < 5) { b.x = hx + 2.2; b.z = hz + 1.2; bilboM.root.position.set(b.x, 0, b.z); }
+            if (d < 7 || (ai > 2 && ai < 5)) { R.bilbo = 'bulundu'; R.bilboT = 0; say('b05_bilbo_bulundu', { gap: 0, force: true, prio: 3 }); sfx('bilboBark', { x: b.x, z: b.z, vol: 0.5, pitch: 1.2 }); }
           } else if (R.bilbo === 'bulundu') {
             R.bilboT += dt; bilboM.root.rotation.y = dampAngle(bilboM.root.rotation.y, Math.atan2(hx - b.x, hz - b.z), 5, dt);
             bilboM.update(dt, { speed: 0, sniff: R.bilboT < 3.0, bark: 0, happy: R.bilboT > 3.2 ? 1 : 0 });
@@ -426,17 +440,20 @@ const MAGARA = (() => {
             if (R.bilboT > 6.6) { R.bilbo = 'katildi'; bilboM.root.visible = false;
               try { GAME.yoldas.ac('bilbo', true); } catch (e) { /* yok */ }
               try { if (typeof COMPANION !== 'undefined' && COMPANION.register) COMPANION.register('bilbo', { ad: 'Bilbo', bekleme: 14, ilkBekleme: 5, sure: 2.2, esik: 0.35, canEsik: 0.35, dusman: 4, etkin: () => !!(GAME.yoldas.get('bilbo') && GAME.yoldas.get('bilbo').on), eylem: () => { try { return !!GAME.bilboHavla(); } catch (e) { return false; } } }); } catch (e) { /* yok */ }
-              say('b05_bilbo_katildi', { gap: 0, force: true, prio: 3 }); later(5, () => say('pp_b05_bilbo_bin', { gap: 3 })); }
+              say('b05_bilbo_katildi', { gap: 0, force: true, prio: 3 }); }   // ("Bilbo'ya bin, dokun yeter" denmez: binme düğmesi oyunda yok)
           }
         }
         // ── ejderha ──
         if (ej && cover) {
           const dg = D.dragon, d = hyp(hx - dg.x, hz - dg.z);
           ej.update(dt);
-          if (R.ejder === 0 && d < 9) { R.ejder = 1; R.ejderT = 0; say('b05_dag', { gap: 0, force: true, prio: 3 }); sfx('rumble', { x: dg.x, z: dg.z, vol: 0.3, pitch: 0.7 }); }
+          if (R.ejder === 0 && (d < 12.5 || (ai === 4 && areaT > 1.5 && d < 20))) {   // QA: ejderha oda kenarının 4 m ötesinde; yol oda ortasından geçince 9 m'ye hiç girilmiyordu → sahne kaçıyordu
+            R.ejder = 1; R.ejderT = 0; say('b05_dag', { gap: 0, force: true, prio: 3 }); sfx('rumble', { x: dg.x, z: dg.z, vol: 0.3, pitch: 0.7 });
+            // QA: ejderha ekranın üst kenarının dışında kalıyordu (yalnız kuyruk ucu görünüyordu) → kısa, atlanabilir kamera bakışı (~6 sn, sonra Feza'ya döner)
+            try { if (GAME.sinematik && GAME.sinematik.oyna) GAME.sinematik.oyna({ adimlar: [{ sure: 4.6, bak: { x: dg.x, z: dg.z + 0.8, y: 2.6 }, gecis: 1.2 }, { sure: 1.3, gecis: 1.0 }], atlanabilir: true }); } catch (e) { /* yok */ } }
           if (R.ejder === 1) {
             R.ejderT += dt; const u = clamp((R.ejderT - 1.2) / 2.2, 0, 1); cover.position.y = -u * 7; cover.rotation.z = Math.sin(R.ejderT * 20) * 0.01 * (1 - u);
-            if (R.ejderT > 2.0 && !R.said1) { R.said1 = true; say('pp_b05_dag', { gap: 0, force: true, prio: 3 }); }
+            if (R.ejderT > 2.0 && !R.ejS1) { R.ejS1 = true; say('pp_b05_dag', { gap: 0, force: true, prio: 3 }); }
             if (u >= 1) { R.ejder = 2; R.ejderT = 0; cover.visible = false; }
           }
           if (R.ejder === 2) {
@@ -457,7 +474,7 @@ const MAGARA = (() => {
     });
     function echoDone(E, D2, hx, hz) {
       E.state = 'done';
-      if (doors[4] && doors[4].open) { burst('hearts', hx, 1.6, hz, { count: 4 }); return; }   // kapı zaten açık (Pırıl açtı): yalnız küçük sevinç
+      if ((doors[4] && doors[4].open) || E.first) { burst('hearts', hx, 1.6, hz, { count: 4 }); sfx('star', { x: hx, z: hz }); if (E.first && R.p2 && !R.p2.lit) later(1.5, () => pointTo(D.p2.S.x, D.p2.S.z)); return; }   // kapı zaten açık (Pırıl açtı): yalnız küçük sevinç
       say('b05_yanki_bitti', { gap: 0, force: true, prio: 3 });
       later(1.0, () => { openDoor(doors[4]); pointTo(D.gates[4] ? D.gates[4].x : D2.pts[0].x, D.gates[4] ? D.gates[4].z : D2.pts[0].z); try { GAME.storyCheer(1.5, true); } catch (e) { /* yok */ } });
     }
@@ -469,15 +486,16 @@ const MAGARA = (() => {
       const near = hyp(hx - D2.pts[0].x, hz - D2.pts[0].z) < 14 || hyp(hx - D2.pts[2].x, hz - D2.pts[2].z) < 14;
       const lit = i => { E.gl[i] = 1; sfx('bell', { x: D2.pts[i].x, z: D2.pts[i].z, pitch: NOTE[i].p, vol: 0.8 }); burst('sparkle', D2.pts[i].x, 1.4, D2.pts[i].z, { color: NOTE[i].h, count: 8 }); };
       if (E.state === 'wait') {
-        if (!near) return;
+        if (!near || R.bilbo === 'bulundu') return;   // QA2: Bilbo bulma sahnesi bitmeden "Bilbo söylüyor" başlamasın (cümleler üst üste biniyordu)
         E.state = 'show0'; E.t = 0;
         say('b05_yanki_ilk', { gap: 1, force: true }); later(3.5, () => say('b05_yanki', { gap: 1, force: true }));
-        E.seq = []; for (let i = 0; i < 4; i++) E.seq.push((Math.random() * 4) | 0);
+        // QA2: aynı kristal art arda gelmesin (çocuk kristalin üstünde durunca ikinci kez sayılmıyordu: çıkıp yeniden girmesi gerekiyordu, anlaşılmıyordu)
+        E.seq = []; for (let i = 0; i < 4; i++) { let c = (Math.random() * 4) | 0; if (i && c === E.seq[i - 1]) c = (c + 1 + ((Math.random() * 3) | 0)) % 4; E.seq.push(c); }
         const bm = GAME.yoldas && GAME.yoldas.get && GAME.yoldas.get('bilbo'); E.bm = bm;
         return;
       }
-      // kapı Pırıl'la açıldıysa ve Feza oyunu yarıda bırakıp uzaklaştıysa: oyun sessizce baştan bekler (uzaktan işaret/ses olmasın)
-      if (doors[4] && doors[4].open && E.state !== 'wait' && !near) { E.state = 'wait'; E.t = 0; E.round = 0; return; }
+      // QA: Feza oyunu yarıda bırakıp uzaklaştıysa (kapı açık ya da değil) oyun sessizce baştan bekler; Pırıl'ın oku uzaktaki kristalleri göstermeye devam etmesin
+      if (E.state !== 'wait' && !near) { E.state = 'wait'; E.t = 0; E.round = 0; return; }
       E.t += dt;
       // QA1: çıkmaz olmasın — 4 yanlış ya da ~2,5 dk sonra Bilbo yardım eder, kapı kendiliğinden açılır (5 yaşında dizi hatırlayamayabilir)
       if (E.state !== 'wait' && E.state !== 'show0') E.total = (E.total || 0) + dt;
@@ -489,12 +507,16 @@ const MAGARA = (() => {
       if (E.state === 'show') {
         const step = 1.0;
         if (E.t >= 0.6 + E.k * step && E.k < E.len) { const c = E.seq[E.k]; lit(c); pointTo(D2.pts[c].x, D2.pts[c].z); if (E.k === 0 && E.bm && E.bm.pos) { sfx('bilboBark', { x: E.bm.pos.x, z: E.bm.pos.z, vol: 0.5 }); ring(E.bm.pos.x, E.bm.pos.z, 2.2, '#ffe397'); } E.k++; }
-        if (E.k >= E.len && E.t > 0.6 + E.len * step + 0.5) { E.state = 'input'; E.t = 0; E.idx = 0; E.idle = 0; E.inside = -1; if (E.round === 0) say('b05_yanki_tekrar', { gap: 1, force: true }); else if (E.round === 1) say('b05_yanki_uzun', { once: true, gap: 1, force: true }); }
+        if (E.k >= E.len && E.t > 0.6 + E.len * step + 0.5) { E.state = 'input'; E.t = 0; E.idx = 0; E.idle = 0; E.inside = -1;
+          // QA2: Feza gösteri boyunca bir kristalin yanında durduysa o kristal hemen "yanlış" sayılıyordu → üstünde durduğu kristal (dizinin ilki değilse) önce bırakılmalı
+          for (let i = 0; i < 4; i++) if (i !== E.seq[0] && hyp(hx - D2.pts[i].x, hz - D2.pts[i].z) < 2.1) E.inside = i;
+          if (E.round === 0) say('b05_yanki_tekrar', { gap: 1, force: true }); else if (E.round === 1) say('b05_yanki_uzun', { once: true, gap: 1, force: true }); }
         return;
       }
       if (E.state === 'input') {
         E.idle += dt;
-        let at = -1; for (let i = 0; i < 4; i++) if (hyp(hx - D2.pts[i].x, hz - D2.pts[i].z) < 1.85) at = i;
+        let at = -1, bd = 1.85; for (let i = 0; i < 4; i++) { const di = hyp(hx - D2.pts[i].x, hz - D2.pts[i].z); if (di < bd) { bd = di; at = i; } }
+        if (E.inside >= 0 && hyp(hx - D2.pts[E.inside].x, hz - D2.pts[E.inside].z) < 2.1) at = E.inside;   // QA2: iki kristalin arasında durunca EN YAKIN olan sayılır (eskiden son sıradaki → yanlış sayılıyordu)
         if (at < 0) E.inside = -1;
         else if (at !== E.inside && E.t > 0.4) {
           E.inside = at; E.idle = 0; lit(at);

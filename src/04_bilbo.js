@@ -289,7 +289,7 @@ const BILBO = (() => {
       if (blinkAt <= 0) { blink = .18; blinkAt = 2.7 + Math.random() * 2.4; }
       blink = Math.max(0, blink - dt);
       const lid = state.portrait ? 1 : 1 - .92 * Math.sin(Math.PI * clamp01(blink / .18));
-      eyes.forEach(b => { b.scale.y = lid * 1.16; });
+      eyes.forEach(b => { b.scale.set(1.16, lid * 1.16, 1.16); });   // (x/z her kare sıfırlanır: merak/yalvar gözleri sonsuza dek büyütmesin)
       // Anticipation, tucked paws, floppy ears and a soft landing make the playful leap readable.
       const leap = clamp01(state.pounce || 0), nibble = chew > 0 ? Math.sin(t * 25) * .07 + .12 : 0;
       body.rotation.x -= .16 * leap;

@@ -16,8 +16,8 @@
 const HZ_MANTAR = (() => {
   'use strict';
   // SADE (okunurluk): Feza okumayı bilmiyor → boss sözcük balonları seyrek (en çok 9 sn'de bir; ses ve hareket yine anlatır)
-  let sadeFtT = -1e9;
-  const sadeFt = (A, ...r) => { const n = performance.now(); if (n - sadeFtT < 9000) return; sadeFtT = n; try { sadeFt(A, ...r); } catch (e) { /* yok */ } };
+  // QA5: eskiden kendini çağırıyordu (hiç yazı çıkmıyordu, yalnız şans eseri sonsuz döngü olmuyordu) → açıkça boş: yazı yok, ses ve hareket anlatır
+  const sadeFt = () => {};
   // SADE4: belirgin yer uyarısı — seslendirmede söylenen renkle aynı; yarı saydam dolgu + kalın kenar (halka) ya da şerit (yol).
   //   Havuzlu, paylaşılan geometri; malzeme işaret başına bir kez (havuzda yeniden kullanılır). Süre dolunca söner (≥ 2,2 s: cümle boyunca yerde kalır).
   const ZM = { pool: [], geo: null };
@@ -718,7 +718,7 @@ const HZ_MANTAR = (() => {
         b.did = 1; sadeFt(A, b.x, b.height + 0.5, b.z, 'Spor halkası!', 'word'); A.sfx('whoosh', { x: b.x, z: b.z, pitch: 1.1 });
         S.a0 = rnd(0, TAU); S.ring = []; S.ringHit = false; S.wave = 0;   // TELEG: dalgalar ARDIŞIK (3 + 4 = 7 halka); ikinci dalga ilki patladıktan sonra çizilir (2,0 sn uyarı)
         halkaDalga(A, b, S, b.r + 1.6, 4, 2.0, 0);
-        warn(S, S.stageLine || 'pr_ipucu_halka'); S.stageLine = null;   // ("…spor halkası yapacak, boşluktan kaç!" — halkalar yerde, aynı anda)
+        warn(S, S.mzLine || 'pr_ipucu_halka'); S.mzLine = null;   // ("…spor halkası yapacak, boşluktan kaç!" — halkalar yerde, aynı anda)
       }
       for (const p of S.ring || []) if (!p.done && t >= p.at) {
         p.done = true;
@@ -738,7 +738,7 @@ const HZ_MANTAR = (() => {
     // Üç zıplama art arda (3. aşama): her inişin halkası önceden belli, sonuncusunda yorulur.
     uclu(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT, D = 1.45, k = Math.min(2, Math.floor(t / D)), tl = t - k * D;
-      if (b.did <= k && k < 3) { b.did = k + 1; S.J = newJump(b, S, 0.25, 1.15, 2.0, 2.2, 6.0); if (k === 0) { warn(S, S.stageLine || 'pr_ipucu_uclu'); S.stageLine = null; sadeFt(A, b.x, b.height + 0.4, b.z, 'Hop! Hop! Hop!', 'word'); } }
+      if (b.did <= k && k < 3) { b.did = k + 1; S.J = newJump(b, S, 0.25, 1.15, 2.0, 2.2, 6.0); if (k === 0) { warn(S, S.mzLine || 'pr_ipucu_uclu'); S.mzLine = null; sadeFt(A, b.x, b.height + 0.4, b.z, 'Hop! Hop! Hop!', 'word'); } }
       if (S.J) jumpStep(b, S, tl, S.J, A);
       if (t >= b.phD) { b.y = 0; b.st.air = 0; b.st.land = 0; S.n += 2; A.bossEnd(b, 1.6, 1.4); }
     },
@@ -759,7 +759,7 @@ const HZ_MANTAR = (() => {
         A.sfx('bonk', { x: b.x, z: b.z }); A.sfx('bounce', { x: b.x, z: b.z, pitch: 1.3 }); A.shake(0.22);
         A.burst('star', b.x, b.height + 0.3, b.z, { count: 5, color: '#fff3a0' }); A.burst('sparkle', b.x, b.height, b.z, { color: '#ffd0f4', count: 15 });
         // QA3: aşama cümlesi bir sonraki hamleyi anlatıyor → o hamlenin işaretleri çizilince söylenir (warn); burada değil
-        S.stageLine = S.stage === 2 ? 'pr_kocaPofudukMantar_asama2' : 'pr_kocaPofudukMantar_asama3'; S.forceNext = S.stage === 2 ? 'halka' : 'uclu';
+        S.mzLine = S.stage === 2 ? 'pr_kocaPofudukMantar_asama2' : 'pr_kocaPofudukMantar_asama3'; S.forceNext = S.stage === 2 ? 'halka' : 'uclu';
       }
       if (b.did === 1 && t > 1.6) { b.did = 2; A.burst('sparkle', b.x, b.height * 0.9, b.z, { color: '#ffe27a', count: 10 }); A.sfx('bubblePop', { x: b.x, z: b.z, pitch: 1.2 }); }
       if (t >= b.phD) A.bossEnd(b, 1.1, 0.8);
@@ -772,7 +772,9 @@ const HZ_MANTAR = (() => {
       choose(b, S, d) {
         const A = BOSSDAV.api;
         S.stage = S.stage || 1; S.napN = S.napN || 0; S.n = S.n || 0;
-        if (S.stage > 1 && S.sasirStage !== S.stage) { S.sasirStage = S.stage; A.bossPhase(b, 'sasir', 2.4); return; }
+        // QA5: aşama cümlesi S.mzLine'da (05c S.stageLine'ı kendi sırasına alıp hemen ardından söylüyordu → aynı şey iki kez); şapka uçuşu
+        //   boss başına bir kez (b.mzSasir): Feza yorulup kalkınca 05c S'yi sıfırlıyor, sahne ve cümle yeniden geliyordu
+        if (S.stage > 1 && (b.mzSasir || 1) < S.stage) { b.mzSasir = S.stage; A.bossPhase(b, 'sasir', 2.4); return; }
         // SADE4: aşama cümlesi bir sonraki hamleyi anlatıyor ("spor halkası" / "üç kere zıplayacak, pembe halkalar") → o hamle hemen gelsin
         if (S.forceNext) { const f = S.forceNext; S.forceNext = null; A.bossPhase(b, f, { halka: 5.2, uclu: 4.4 }[f]); return; }
         if (S.n >= (S.stage === 3 ? 3 : 4)) { A.bossPhase(b, 'uyku', S.stage === 1 ? 4.4 : 3.8); return; }

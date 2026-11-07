@@ -153,18 +153,21 @@ const MERCAN = (() => {
     if (L.start) taken.push({ x: L.start.x, z: L.start.z, r: 3 });
     for (const c of L.checkpoints || []) taken.push({ x: c.x, z: c.z, r: 2 });
     if (L.exit) taken.push({ x: L.exit.x, z: L.exit.z, r: 4 });
-    // Kabarcık bacaları: Kabuk Kumsalı'nın 2. odasında 3'lü zincir (+ tepede altın şeker), Batık Gemi Koyu'nda 2'li
+    // ana yola uzaklık (yol üstündeki baca Feza'yı yürürken istemeden uçurup geri atıyordu: takılma)
+    const PP = L.path || [];
+    const pathD = (x, z) => { let b = 1e9; for (let i = 0; i < PP.length - 1; i++) { const a = PP[i], c = PP[i + 1], dx = c.x - a.x, dz = c.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2)); b = Math.min(b, hyp(a.x + dx * t - x, a.z + dz * t - z)); } return b; };
+    // Kabarcık bacaları: Kabuk Kumsalı'nın 2. odasında 3'lü zincir (+ tepede altın şeker), Batık Gemi Koyu'nda 2'li (yolun yanında, üstünde değil)
     const chain = (rm, n, gold) => {
       if (!rm) return;
-      for (let tries = 0; tries < 8; tries++) {
-        const pts = [], p0 = roomSpot(api, rm, { pmin: 0.15, pmax: 0.55, r: 1.3 }, taken);
-        if (!p0) continue;
+      for (let tries = 0; tries < 14; tries++) {
+        const pts = [], p0 = roomSpot(api, rm, { pmin: 0.15, pmax: 0.75, r: 1.3 }, taken);
+        if (!p0 || pathD(p0.x, p0.z) < 2.6) continue;
         pts.push(p0); let ang = api.rnd() * TAU;
         for (let i = 1; i < n; i++) {
           let got = null;
           for (let s = 0; s < 14 && !got; s++) {
             const a = ang + (s % 2 ? 1 : -1) * Math.ceil(s / 2) * 0.45, q = pts[i - 1], x = q.x + Math.sin(a) * 4, z = q.z + Math.cos(a) * 4;
-            if (api.isFloor(x, z) && api.circleFree(x, z, 1.3) && hyp(x - rm.x, z - rm.z) < (rm.r || 6) + 1 && pts.every(p => hyp(p.x - x, p.z - z) > 3.2) && !taken.some(q2 => hyp(q2.x - x, q2.z - z) < q2.r + 1.2)) { got = { x, z }; ang = a; }
+            if (api.isFloor(x, z) && api.circleFree(x, z, 1.3) && pathD(x, z) >= 2.6 && hyp(x - rm.x, z - rm.z) < (rm.r || 6) + 1 && pts.every(p => hyp(p.x - x, p.z - z) > 3.2) && !taken.some(q2 => hyp(q2.x - x, q2.z - z) < q2.r + 1.2)) { got = { x, z }; ang = a; }
           }
           if (!got) break;
           pts.push(got);
@@ -227,33 +230,45 @@ const MERCAN = (() => {
       const rm = room(a4[0]);
       if (rm) {
         let best = null;
-        for (const cfg of [{ cf: 3.2, sz: 4.4, sx: 2.6, tn: 3.5 }, { cf: 2.7, sz: 4.0, sx: 2.3, tn: 2.5 }, { cf: 2.4, sz: 3.7, sx: 2.1, tn: 1.5 }]) {
-          for (let q = 0; q < 48; q++) {
-            const a = PI + (q / 48 - 0.5) * PI * 1.7, dd = (rm.r || 8) * (0.06 + (q % 6) * 0.07), x = rm.x + Math.sin(a) * dd, z = rm.z + Math.cos(a) * dd - (rm.r || 8) * 0.14;
-            if (!api.isFloor(x, z) || !api.circleFree(x, z, cfg.cf) || taken.some(t => hyp(t.x - x, t.z - z) < t.r + cfg.tn)) continue;
-            const sh = [-cfg.sx, 0, cfg.sx].map(ox => ({ x: x + ox, z: z + cfg.sz }));
-            if (!sh.every(s => api.isFloor(s.x, s.z) && api.circleFree(s.x, s.z, 0.8))) continue;
-            const sc = api.linkDist(x, z) + (rm.z - z) * 0.1; if (!best || sc > best.sc) best = { sc, x, z, shells: sh };
+        // QA: ejderhanın katı gövdesi (3 daire, z ±1,4, r 1,5) yolun ÜSTÜNE düşüyordu (tohum 10/16: yol tam içinden geçiyor, Feza
+        // kum tepesine dayanıp kalıyordu) → önce yoldan uzak yer ara (gövde kenarı yola ≥ 1 m); hiç yoksa yola en uzak olanı seç
+        const bodyGap = (x, z) => Math.min(pathD(x, z - 1.4) - 1.5, pathD(x, z + 0.1) - 1.5, pathD(x, z + 1.4) - 1.2);
+        for (const need of [1.0, 0.4, -99]) {
+          for (const cfg of [{ cf: 3.2, sz: 4.4, sx: 2.6, tn: 3.5 }, { cf: 2.7, sz: 4.0, sx: 2.3, tn: 2.5 }, { cf: 2.4, sz: 3.7, sx: 2.1, tn: 1.5 }]) {
+            for (let q = 0; q < 48; q++) {
+              const a = PI + (q / 48 - 0.5) * PI * 1.7, dd = (rm.r || 8) * (0.06 + (q % 6) * 0.07), x = rm.x + Math.sin(a) * dd, z = rm.z + Math.cos(a) * dd - (rm.r || 8) * 0.14;
+              if (!api.isFloor(x, z) || !api.circleFree(x, z, cfg.cf) || taken.some(t => hyp(t.x - x, t.z - z) < t.r + cfg.tn)) continue;
+              const bg = bodyGap(x, z); if (bg < need) continue;
+              const sh = [-cfg.sx, 0, cfg.sx].map(ox => ({ x: x + ox, z: z + cfg.sz }));
+              if (!sh.every(s => api.isFloor(s.x, s.z) && api.circleFree(s.x, s.z, 0.8))) continue;
+              const sc = api.linkDist(x, z) + (rm.z - z) * 0.1 + (need < -9 ? bg * 4 : 0); if (!best || sc > best.sc) best = { sc, x, z, shells: sh };
+            }
+            if (best) break;
           }
           if (best) break;
         }
         if (best) {
           const dr = D.dragon = { x: best.x, z: best.z, yaw: 0, shells: best.shells, mussels: [] };
           taken.push({ x: dr.x, z: dr.z, r: 5.2 }); for (const s of dr.shells) taken.push({ x: s.x, z: s.z, r: 1.6 });
-          for (let n = 0; n < 3; n++) {
+          for (let n = 0; n < 8 && dr.mussels.length < 3; n++) {
             const p = roomSpot(api, rm, { pmin: 0.45, pmax: 0.85, r: 0.9 }, taken.concat(dr.mussels.map(m => ({ x: m.x, z: m.z, r: 3 }))));
-            if (p && hyp(p.x - dr.x, p.z - dr.z) > 4.2 && api.linkDist(p.x, p.z) > 1.4) { dr.mussels.push({ x: p.x, z: p.z }); taken.push({ x: p.x, z: p.z, r: 1.8 }); }
+            if (p && hyp(p.x - dr.x, p.z - dr.z) > 4.2 && api.linkDist(p.x, p.z) > 1.4 && pathD(p.x, p.z) >= 1.6) { dr.mussels.push({ x: p.x, z: p.z }); taken.push({ x: p.x, z: p.z, r: 1.8 }); }
           }
-          while (dr.mussels.length < 3) {   // yer bulunamazsa ejderhanın iki yanına
-            const k = dr.mussels.length; dr.mussels.push({ x: dr.x + (k === 0 ? -4.2 : k === 1 ? 4.2 : 0), z: dr.z + (k === 2 ? -4.4 : 0.5) });
+          for (let q = 0; q < 64 && dr.mussels.length < 3; q++) {   // yer bulunamazsa ejderhanın çevresine — yalnız yürünür, boş yere (inci alınabilsin)
+            const a = q * 2.39996, dd = 4.2 + (q % 4) * 0.6, x = dr.x + Math.sin(a) * dd, z = dr.z + Math.cos(a) * dd;
+            if (!api.isFloor(x, z) || !api.circleFree(x, z, 0.9) || pathD(x, z) < 1.6 || dr.mussels.some(m => hyp(m.x - x, m.z - z) < 2.5) || dr.shells.some(s => hyp(s.x - x, s.z - z) < 2)) continue;
+            dr.mussels.push({ x, z }); taken.push({ x, z, r: 1.8 });
           }
+          if (dr.mussels.length < dr.shells.length) dr.shells.length = Math.max(1, dr.mussels.length);   // kabuk sayısı = inci sayısı (görev hep bitebilsin)
+          if (!dr.mussels.length) { const q = api.randomFloorNear(dr.x, dr.z, 4, 8); dr.mussels.push(q ? { x: q.x, z: q.z } : { x: dr.shells[0].x + 2.2, z: dr.shells[0].z + 1.2 }); }
         }
       }
     }
     // İnci istiridyeleri: her alanda (yaklaşınca açılır, şeker saçar)
     for (const ri of [a1[0], a2[0], a2[1], a3[1], a4[0]]) {
       const rm = room(ri); if (!rm) continue;
-      const p = roomSpot(api, rm, { pmin: 0.45, pmax: 0.8, r: 1.0 }, taken);
+      let p = null;   // yolun üstünde değil (katı kabuk yürüyüşü kesmesin)
+      for (let t = 0; t < 8 && !p; t++) { const q = roomSpot(api, rm, { pmin: 0.45, pmax: 0.85, r: 1.0 }, taken); if (q && pathD(q.x, q.z) >= 1.8) p = q; }
       if (p) { D.oysters.push({ x: p.x, z: p.z, yaw: Math.atan2(rm.x - p.x, rm.z - p.z) }); taken.push({ x: p.x, z: p.z, r: 2 }); p.solid = api.solid(p.x, p.z, 0.55, 'istiridye'); }
     }
     // Batık oyuncak gemi: Batık Gemi Koyu'nun 1. odasında, yolun uğramadığı kuzey yarıda (kamera açısında tam görünür);
@@ -737,7 +752,10 @@ const MERCAN = (() => {
       if (R.cd <= 0) for (const v of R.vents) {
         if (hyp(v.x - P.pos.x, v.z - P.pos.z) > v.r) continue;
         let tx, tz;
-        if (v.land) { tx = v.land.x; tz = v.land.z; }
+        if (v.land) {   // çukur bacası tek yönlü: karşıdan inip yola devam eden Feza'yı geri atmasın (yalnız çukura doğru gelirken uçurur)
+          if (prev) { const mx = P.pos.x - prev[0], mz = P.pos.z - prev[1]; const ml = hyp(mx, mz), ll = hyp(v.land.x - v.x, v.land.z - v.z) || 1; if (ml > 1e-3 && (mx * (v.land.x - v.x) + mz * (v.land.z - v.z)) / (ml * ll) < -0.3) continue; }
+          tx = v.land.x; tz = v.land.z;
+        }
         else if (v.to !== null && R.vents[v.to]) { tx = R.vents[v.to].x; tz = R.vents[v.to].z; }
         else {
           let dx = prev ? P.pos.x - prev[0] : 0, dz = prev ? P.pos.z - prev[1] : 0;
@@ -901,8 +919,9 @@ const MERCAN = (() => {
     R.zones.push({ x: s.x, z: s.z, r: 1.4, enter: () => {
       if (got) return; got = true; g.visible = false;
       try { GAME.addGoldSugar(1); GAME.giveSticker('gizli_mercan_sise', 'gizli'); } catch (e) { /* yok */ }
-      try {   // gizli ödül: Köpük Pelerini (ESYA 'kopukpelerin' eşyasını tanımlayınca verilir; yoksa yalnız çıkartma)
-        if (typeof ITEMS !== 'undefined' && ITEMS.make && ITEMS.BASES && (ITEMS.BASES.cape || []).some(b => b.id === 'kopukpelerin') && GAME.addItem) GAME.addItem(ITEMS.make('cape', 'kopukpelerin', 2, GAME.P.lvl || 1));
+      try {   // gizli ödül: köpük pelerini (ses "köpükten bir pelerin" diyor → gerçekten verilsin: Deniz Köpüğü Pelerini)
+        const id = typeof ITEMS !== 'undefined' && ITEMS.make && ITEMS.BASES && ['kopukpelerin', 'denizkopugu'].find(i => (ITEMS.BASES.cape || []).some(b => b.id === i));
+        if (id && GAME.addItem) GAME.addItem(ITEMS.make('cape', id, 2, GAME.P.lvl || 1));
       } catch (e) { /* eşya yok */ }
       burst('sparkle', s.x, 0.8, s.z, { color: '#bfffe8', count: 12 }); burst('confetti', s.x, 1, s.z); sfx('unlock', { vol: 0.7 }); coins(s.x, s.z, 6);
       ftext(s.x, 2, s.z, 'Mesaj Şişesi!', 'gold'); say('b02_sise', { gap: 2 });
@@ -1351,13 +1370,15 @@ const MERCAN = (() => {
       if (grp.visible) { if (dedeM) dedeM.update(dt); else body.scale.set(1, 1 + 0.035 * Math.sin(t * 1.25), 1); }
       if (!live()) return;
       if (Q.wait > 0) { Q.wait -= dt; return; }
-      if (Q.then && !speaking()) { const f = Q.then; Q.then = null; f(); }
+      // sessizlik bekle — ama en çok 6 s (savaş/öteki cümleler sırayı hiç boşaltmazsa ejderha sahnesi takılı kalmasın)
+      const quiet = () => { if (!speaking()) { Q.hold = 0; return true; } if ((Q.hold = (Q.hold || 0) + dt) > 6) { Q.hold = 0; return true; } return false; };
+      if (Q.then && quiet()) { const f = Q.then; Q.then = null; f(); }
       if (Q.st === 0) {   // yaklaşınca
         if (hyp(hx0 - d.x, hz0 - d.z) < 5.4) { Q.st = 1; Q.t1 = 0; say1('b02_ejderhaTepe', () => { Q.st = 2; Q.k = 0; Q.t2 = 0; grp.visible = true; burst('dust', d.x, 0.8, d.z, { count: 9, color: '#f6e2b8' }); sfx('pop', { x: d.x, z: d.z, pitch: 0.7 }); sayNow('b02_ejderha', 3); try { if (GAME.giveSticker) GAME.giveSticker('gizli_mercan_ejderha', 'gizli'); } catch (e) { /* albüm yok */ } }); try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.goster) PIRIL_GUC.goster(d.x, d.z, 3); } catch (e) { /* yok */ } }
       } else if (Q.st === 2) {   // kum silkelenir, ejderha yükselir (2 sn)
         Q.k = Math.min(1, Q.k + dt / 2.2); const u = ease(Q.k);
         grp.position.y = -1.2 + 1.18 * u; mg.position.y = -0.5 * u;
-        if (Q.k >= 1 && !speaking()) { Q.st = 3; Q.t3 = 0; mg.visible = false; }
+        if (Q.k >= 1 && quiet()) { Q.st = 3; Q.t3 = 0; mg.visible = false; }
       } else if (Q.st === 3) {   // tek büyük köpük: ejderhanın ağzında büyür → Pırıl'a süzülür → kalkan
         Q.t3 += dt; const u3 = Q.t3;
         const pr = pirilRoot();
@@ -1372,6 +1393,12 @@ const MERCAN = (() => {
           Q.st = 4; Q.t4 = 0; Q.then = () => { sayNow('b02_kalkan', 3); Q.then = () => { sayNow('b02_inciGetir', 3); }; }; Q.wait = 0.6;
         }
       } else if (Q.st === 4) {   // inci görevi
+        // Pırıl sıradaki midyeyi/inciyi gösterir (ses "incileri götür" diyor; Feza nereye gideceğini görsün) — yakındayken ~7 s'de bir
+        if ((Q.pt = (Q.pt ?? 2) - dt) <= 0 && hyp(hx0 - d.x, hz0 - d.z) < 16) {
+          Q.pt = 7; let bm = null, bd = 1e9;
+          for (const m of Q.mus) if (m.st < 2) { const px = m.st === 1 ? m.pearl.position.x : m.x, pz = m.st === 1 ? m.pearl.position.z : m.z, dd = hyp(hx0 - px, hz0 - pz); if (dd > 2 && dd < bd) { bd = dd; bm = { x: px, z: pz }; } }
+          if (bm) try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.goster) PIRIL_GUC.goster(bm.x, bm.z, 3); } catch (e) { /* yok */ }
+        }
         for (const m of Q.mus) {
           m.t += dt; const dd = hyp(hx0 - m.x, hz0 - m.z);
           if (m.st === 0 && dd < 2.6) { m.st = 1; m.t = 0; sfx('chime', { x: m.x, z: m.z, pitch: 1.5, vol: 0.6 }); burst('bubble', m.x, 0.6, m.z, { count: 3, scale: 0.8 }); m.pearl.visible = true; m.pearl.position.set(m.x, 0.4, m.z); }

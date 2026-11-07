@@ -3,7 +3,7 @@
    (aynı sitedeki başka oyunların kopyasına dokunmaz). */
 'use strict';
 const PREFIX = 'feza-piril-3d-arpg-';
-const CACHE = PREFIX + 'v7e96657e27';
+const CACHE = PREFIX + 'vc80d054e06';
 const CORE = [
   './',
   'index.html',

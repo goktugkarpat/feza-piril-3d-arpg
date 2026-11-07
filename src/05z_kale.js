@@ -151,7 +151,14 @@ const HZ_KALE = (() => {
       try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC.gucVer) PIRIL_GUC.gucVer('kalptozu'); } catch (e) { /* yok */ }
       b.hp = 1; try { G.damage(b, 999, { kind: 'team', force: true }); } catch (e) { /* yok */ }
     };
-    const tele = (x, z) => { try { G.teleport(x, z); } catch (e) { /* yok */ } };
+    // ışınlama yalnız arena içinde boş zemine (boss arenanın güneyindeyse b.z+9,5 duvarın/koridorun içine düşüyordu → sahne sonrası Feza takılırdı)
+    const tele = (x, z) => {
+      try {
+        const rm = A.bossRoom ? A.bossRoom() : null, HA = G && G.halaApi;
+        const ok = (px, pz) => A.isFloor(px, pz) && (!rm || !A.inRoom || A.inRoom(rm, px, pz, 1.2)) && (!HA || !HA.circleFree || HA.circleFree(px, pz, 0.6)) && hyp(px - b.x, pz - b.z) > b.r + 1.6;
+        for (let d = 0; d <= 9; d += 0.75) for (let k = 0; k < (d ? 12 : 1); k++) { const a = k * TAU / 12, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (ok(px, pz)) { G.teleport(px, pz); return; } }
+      } catch (e) { /* yok */ }   // boş yer yoksa Feza olduğu yerde kalır (kamera zaten sahneyi gösterir)
+    };
     const adim = [
       { sure: 2.6, bak: { x: sx, z: sz, y: 0.8 }, zoom: 1.5, fn: () => { tele(clamp((sx + b.x) / 2, b.x - 5, b.x + 5), b.z + 9.5);  say('b09_kabuk_yer', 3); if (kl && kl.shellGlow) kl.shellGlow(1.6); } },        // 1) kabuk pembe-altın parlar
       { sure: 2.2, bak: { x: b.x, z: b.z, y: 3.0 }, zoom: 1.3, fn: () => { if (ANNE) ANNE.durum('tanima'); } },                                       // 2) ≥1 sn sessizlik sonra gözler kocaman (yalnız bu)
@@ -169,6 +176,10 @@ const HZ_KALE = (() => {
   function stepObjects(dt) {
     const A = BOSSDAV.api, P = A && A.P, b = typeof GAME !== 'undefined' ? GAME.boss : null;
     markTick(dt);
+    // motorun genel ejderha karşılaşması (07_game startEncounter) arenaya 3 lila yumurta koyuyor; kendi hamleli (own) boss'ta hiç çatlamıyorlar.
+    // Feza bütün bölüm yumurta taşıdı: bunları da alınır sanıp boşuna peşinden koşuyordu → kaldır (minik ejderhalar kidsSpawn'dan gelir)
+    const q = b && b.encounter;
+    if (q && q.eggs && q.eggs.length) { for (const e of q.eggs) { try { if (e.pool) { if (e.pool.root && e.pool.root.parent) e.pool.root.parent.remove(e.pool.root); e.pool.used = false; } } catch (er) { /* yok */ } } q.eggs.length = 0; }
     if (!P) return;
     // renk geçişi (tanıma 3. adım)
     const r = W.rec;
@@ -210,7 +221,7 @@ const HZ_KALE = (() => {
     const A = BOSSDAV.api, out = [], rm = A.bossRoom();
     for (let t = 0; t < n * 16 && out.length < n; t++) {
       const a = rnd(0, TAU), r = rnd(rmin, rmax), x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
-      if (!A.isFloor(x, z) || (rm && !A.inRoom(rm, x, z, 0.9))) continue;
+      if (!A.isFloor(x, z) || (rm && !A.inRoom(rm, x, z, 0.9)) || (A.circleFree && !A.circleFree(x, z, 0.7))) continue;   // kalp bir eşyanın içine düşmesin (toplanamaz → 22 sn bekleme)
       if (out.some(p => hyp(p.x - x, p.z - z) < gap) || hyp(x - b.x, z - b.z) < b.r + 1.0) continue;
       out.push({ x, z });
     }
@@ -276,6 +287,7 @@ const HZ_KALE = (() => {
       b.st.move = 0; faceTo(b, A.P.pos.x, A.P.pos.z, 1.5, dt);
       if (b.did === 0) {
         b.did = 1; const G = gm(), pts = spots(b, b.x, b.z, 3, 3.6, 7.0, 3.4);
+        if (!pts.length) { A.bossEnd(b, 0.6, 0.6); return; }   // kalp konacak yer yoksa "kalpleri topla" denmesin
         for (const p of pts) {
           const mesh = new THREE.Mesh(G.heart, G.hrt); mesh.scale.set(0.8, 0.8, 0.8); mesh.position.set(p.x, 1.0, p.z); scene.add(mesh);
           W.hearts.push({ x: p.x, z: p.z, t: 0, m: mesh, done: false, mk: mark('ring', p.x, p.z, 1.0, '#ff7fb4', 14) });

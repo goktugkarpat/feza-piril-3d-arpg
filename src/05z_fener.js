@@ -21,7 +21,7 @@ const HZ_FENER = (() => {
   const viaBase = (base, post) => o => { const m = EM && EM.build ? EM.build.call(EM, base, o || {}) : null; if (m && m.root && post) post(m.root, m); return m; };
   const hueFix = (root, h, s, l) => { const k = K(); if (k && k.tint) k.tint(root, h, s, l); };
 
-  // ── oyuncaklar (üzgün, yavaş, yumuşak) ──
+  // ── oyuncaklar (üzgün, yavaş, yumuşak)
   const T = { ad: 0, hp: 14, dmg: 1 };
   HUYSUZ.type('tahtaAt', { ad: 'Tahta At', base: 'ayponpon', saldiri: 'ziplayan', stats: { hp: 14, dmg: 2, speed: 1.4, atkCd: 3.0, windup: 1.2 }, model: viaBase('ayponpon', r => hueFix(r, 0.08, 0.5, 1)), ilkSoz: 'b10_oyuncak_at' });
   HUYSUZ.type('kirikTren', { ad: 'Kırık Tren', base: 'kaplumbaga', saldiri: 'yuvarlanan', stats: { hp: 16, dmg: 2, speed: 1.4, atkCd: 3.2, windup: 1.2 }, model: viaBase('kaplumbaga', r => hueFix(r, 0.6, 0.5, 1)) });
@@ -101,8 +101,7 @@ const HZ_FENER = (() => {
       { sure: 3.6, bak: { x: P.pos.x, z: P.pos.z, y: 1.4 }, zoom: 1.4, soz: 'b10_pirilkivilcim', fn: () => { kivilcimUc(b, P); } },   // tek net efekt: kıvılcım kopyası → fener
       { sure: 3.8, bak, zoom: 1.3, soz: 'b10_kivilcim_kopya' },
     ] : [
-      { sure: 3.6, bak, zoom: 1.3, soz: 'b10_ad_a' },
-      { sure: 3.6, bak, zoom: 1.3, soz: 'b10_ad_p' },
+      { sure: 3.6, bak, zoom: 1.3, soz: 'b10_ad_a' },   // (b10_ad_p adımı silindi: cümlesi/sesi yok, 3.6 sn sessiz bekleme oluyordu)
       { sure: 3.4, bak, zoom: 1.3, soz: 'b10_ad_f', fn: () => { A.burst('hearts', b.x, 2.4, b.z, { count: 8 }); } },
     ];
     const ok = G.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { if (n === 2 && FENER) FENER.color.setHex(0xffd45a); bitir(); } });
@@ -231,7 +230,17 @@ const HZ_FENER = (() => {
         A.bossPhase(b, ph, { at: 3.8, tren: 6.0, ucurtma: 3.8, balerin: 3.8, ayi: 3.8 }[ph]);
       },
       moves: MOVES, hints: {},
-      hit(b, amount) { return (W.fin || W.allow) ? amount : 0; },   // Kral'a vurulmaz (kavga yok); oyuncaklar neşelendikçe anı çubuğu dolar
+      hit(b, amount) {   // Kral'a vurulmaz (kavga yok); oyuncaklar neşelendikçe anı çubuğu dolar
+        if (W.fin || W.allow) return amount;
+        // QA: Feza (5 yaş) hep Kral'a dokunuyordu → hiçbir şey olmuyordu, savaş 5 dakika takıldı. Kral'a dokunmak da işe yarasın:
+        // dokunuş Kral'ın yanındaki/Feza'ya en yakın üzgün oyuncağa gider (oyuncak güler), Kral'ın kendisi yine hiç incinmez.
+        try {
+          const P = BOSSDAV.api.P; let best = null, bd = 1e9;
+          for (const e of W.toys) { if (e.dead) continue; const d = Math.min(hyp(e.x - P.pos.x, e.z - P.pos.z), hyp(e.x - b.x, e.z - b.z) + 2); if (d < bd) { bd = d; best = e; } }
+          if (best && amount > 0 && (GAME.time || 0) - (W.yonT || 0) > 0.25) { W.yonT = GAME.time || 0; GAME.damage(best, Math.max(amount, Math.ceil(best.maxHp * 0.34)), { kind: 'team' }); BOSSDAV.api.burst('hearts', best.x, 1.2, best.z, { count: 2 }); }
+        } catch (er) { /* yok */ }
+        return 0;
+      },
       update(dt) { stepObjects(dt); },
     });
   }

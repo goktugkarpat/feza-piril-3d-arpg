@@ -142,7 +142,7 @@ const GAME = (() => {
       kraljole:      { per: 106, lo: 15, hi: 34, dmg: 11 },
       kefirdev:      { per: 135, lo: 18, hi: 40, dmg: 16 },   // Round 4: Köpüklü Kefir Devi, ~35–50 s for a button-masher (Round 6: 40–55)
       kostebekusta:  { per: 114, lo: 21, hi: 48, dmg: 26 },   // (Round 4: met ~2 levels stronger: 23 → 26)
-      lavkaplumbaga: { per: 165, lo: 26, hi: 60, dmg: 26 },   // (25 → 26)
+      lavkaplumbaga: { per: 165, lo: 26, hi: 60, dmg: 20 },   // (QA 7 Kasım: 26 Feza'yı dövüşte 2-3 kez düşürüyordu)   // (25 → 26)
       // Round 5: Huysuz Şövalye, ~55–75 s for a button-masher. Feza meets him at lvl 12–14 with the volcano's treasure (dmg
       // 67–73 in every kid-bot run). SPEC's first guess per 230 (15 640 hp) took the bots 86–121 s (he gallops off across the
       // arena, rides his Berserker Charge and calls four sturdy guards); per 125 (8 625 hp): masher 52–76 s (avg 58), hold /
@@ -5214,6 +5214,9 @@ const GAME = (() => {
         C.mode = 'move'; C.drag = true; C.dragWinT = -1; C.route = null; C.routeTried = false; C.dragRoute = null;
         if (g1) { C.tx = g1.x; C.tz = g1.z; C.hasT = true; }
       }
+      // QA (takılma): parmak basılı (mode 'move') ama sürükleme bir sinematik/ışınlanma/Hala kaldırması/ölüm ile kesildi → kaldığı
+      // yerden sürer (çocuk parmağını kaldırıp yeniden basmayı bilmiyor; eskiden Feza parmak altında hiç yürümüyordu)
+      if (C.mode === 'move' && !C.drag && !C.targetE && !C.targetObj) { C.drag = true; C.dragWinT = -1; C.route = null; C.routeTried = false; C.dragRoute = null; }
       const tgt = C.targetE || C.targetObj;
       if (tgt !== C.tgtRef) { C.tgtRef = tgt; C.wandRoute = null; C.wandPlanAt = -99; C.tgtBest = 1e9; C.tgtStall = 0; C.waitT = 0; }
       if (C.targetE) {
@@ -6402,6 +6405,14 @@ const GAME = (() => {
     },
     move(sx, sy) {
       C.sx = sx; C.sy = sy;
+      // QA (takılma): parmak oyun yürümeye hazır değilken bastı (sinematik/yükleme/düşmüşken: down() yok saydı) ve hâlâ basılı
+      // sürüklüyor → şimdi yürümeye başlar (eskiden parmağı kaldırıp yeniden basmadıkça Feza hiç kıpırdamıyordu)
+      if (!C.mode) {
+        if (GAME.state !== 'play' || P.dead || GAME.paused) return;
+        C.downSx = sx; C.downSy = sy; C.mode = 'move'; C.drag = true; C.targetE = null; C.targetObj = null;
+        C.route = null; C.routeTried = false; C.dragRoute = null; C.dragWinT = -1; C.progGx = NaN; C.autoBrk = 0;
+        return;
+      }
       // a finger that follows a hopping enemy keeps attacking it; a real drag turns into walking — at once (≥ 22 px) when the
       // finger heads away from the tapped one (parent: "kaçmaya çalışınca Feza boss'un yanından ayrılmıyor"), else after 45 px
       if (C.mode && C.mode !== 'move') {

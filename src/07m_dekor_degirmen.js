@@ -66,7 +66,9 @@ const DEGIRMEN_DEKOR = (() => {
     const F = E.field(L), free = E.keepout(L, ctx.avoid || []);
     const st = { tree: 0, wind: 0, hay: 0, scare: 0, wheat: 0, barrel: 0, flo: 0, fence: 0 };
     const ok = (x, z, r = 0.5) => api.isFloor(x, z) && api.circleFree(x, z, r) && free(x, z, r);
-    const hides = (x, z, h) => { for (let t = 1.2; t < h * 0.8; t += 1.2) for (const o of [-1, -0.5, 0, 0.5, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * (1.5 + t * 0.7))]) return true; return false; };
+    // kameranın önü: kuzeyinde (h/1,1 + 6) m içinde yürünür alan varsa konmaz — dikey iPad'de ekranın altı ~6,5 m güneye
+    // kadar görünür; eski sınır (0,8·h) dev ağaç taçlarını alt yarıya, 8 m'lik kavakları Feza'nın önüne koyuyordu (QA)
+    const hides = (x, z, h) => { for (let t = 1.2; t < h / 1.1 + 6; t += 1.2) for (const o of [-1, -0.5, 0, 0.5, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * (1.5 + t * 0.7))]) return true; return false; };
     const GOLD = [0xffffff, 0xfff0c8, 0xf4dc9a, 0xffe4a0], APPLE = [0x9cc45a, 0x8ab84e, 0xa8c860], WHEATT = [0xffffff, 0xffe9ae, 0xf6d884];
     // ── dış halka: elma bahçesi ağaçları, kavaklar, uzak yel değirmenleri ──
     let wm = 0;
@@ -75,7 +77,7 @@ const DEGIRMEN_DEKOR = (() => {
       const x = i + 0.5, z = j + 0.5, d = F.dout(x, z), r0 = rnd();
       const px = x + (rnd() - 0.5) * 0.9, pz = z + (rnd() - 0.5) * 0.9, yaw = rnd() * TAU, k = (rnd() * 4) | 0;
       if (d >= 3.4 && d < 7 && rnd() < 0.045) {
-        const h = 3.4 + rnd() * 2.6; if (hides(px, pz, h * 1.1)) continue;
+        const h = 3.4 + rnd() * 2.6; if (hides(px, pz, r0 < 0.6 ? h : r0 < 0.8 ? h * 1.5 : h * 1.1)) continue;   // (gerçek boy: kavak 1,5·h)
         if (r0 < 0.6) E.placeSmall(api, 'apple', k, px, pz, h, { yaw, leaf: pick(APPLE), fruit: pick([0xe8503a, 0xf0a030, 0xe8503a]) });
         else if (r0 < 0.8) E.placeSmall(api, 'poplar', k, px, pz, h * 1.5, { yaw, leaf: pick([0x9cbc50, 0xb8c85a]) });
         else E.placeSmall(api, 'round', k, px, pz, h * 1.1, { yaw, leaf: pick(APPLE) });
@@ -84,7 +86,7 @@ const DEGIRMEN_DEKOR = (() => {
         const h = 6 + rnd() * 3; if (hides(px, pz, h)) continue;
         E.placeSmall(api, r0 < 0.5 ? 'round' : 'poplar', k, px, pz, h, { yaw, leaf: pick([0x8aae58, 0x9cbc62, 0x7aa050]), wood: 0xc0b098 }); st.tree++;
       } else if (d >= 12 && d < 30 && wm < 7 && rnd() < 0.012) {
-        const h = 8 + rnd() * 3; if (hides(px, pz, h * 0.9)) continue;
+        const h = 8 + rnd() * 3; if (hides(px, pz, h)) continue;
         const w = windmillFar(), a2 = rnd() * 0.5 - 0.25;
         put(w.body, px, 0, pz, h, h, h, 0xf2e6cc, a2, 0, 0, 'shinyNS'); put(w.roof, px, 0, pz, h, h, h, 0xc2693a, a2, 0, 0, 'shinyNS'); put(w.sails, px, 0, pz, h, h, h, 0xfff2d8, a2, 0, 0, 'shinyNS'); wm++; st.wind++;
       }
@@ -108,8 +110,11 @@ const DEGIRMEN_DEKOR = (() => {
           const n = 3 + ((rnd() * 3) | 0); for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 0.62, px = x - sa * o, pz = z + ca * o; if (ok(px, pz, 0.3)) wheatRowAt(px, pz, yaw, 1.15); if (ok(px + ca * 1.5, pz + sa * 1.5, 0.3)) wheatRowAt(px + ca * 1.5, pz + sa * 1.5, yaw, 1.1); }
           break;
         }
-        case 'hay': { const s = 1.2 + rnd() * 0.5; hayAt(x, z, s, yaw); if (ok(x + ca * 1.1, z + sa * 1.1, 0.5)) hayAt(x + ca * 1.1, z + sa * 1.1, s * 0.95, yaw + 0.1); if (rnd() < 0.7 && ok(x + ca * 0.5, z + sa * 0.5 + 0.1, 0.4)) put(E.hay(1), x + ca * 0.55, 0.78 * s, z + sa * 0.55, s * 0.9, s * 0.9, s * 0.9, 0xf4e4b0, yaw, 0, 0, 'shinyNS'); around(x, z, 2, 4, (px, pz) => tuftAt(px, pz, 1.2)); break; }
-        case 'stack': { const s = 1 + rnd() * 0.5; put(haystack((rnd() * 2) | 0), x, 0, z, s, s, s, pick([0xffffff, 0xf4e4b0]), yaw, 0, 0, 'shinyNS'); st.hay++; around(x, z, 1.8, 4, (px, pz) => tuftAt(px, pz, 1.1)); if (rnd() < 0.5) sackAt(x + 1, z + 0.5, 1); break; }
+        // (yürünür alanda engel yok — Feza içinden geçer: balya alçak (~0,85 m), üst üste balya yok; QA: 1,4-2,2 m'lik balya yığınının içinden yürüyordu)
+        case 'hay': { const s = 0.9 + rnd() * 0.2; hayAt(x, z, s, yaw); if (ok(x + ca * 1.1, z + sa * 1.1, 0.5)) hayAt(x + ca * 1.1, z + sa * 1.1, s * 0.95, yaw + 0.1); around(x, z, 2, 4, (px, pz) => tuftAt(px, pz, 1.2)); break; }
+        case 'stack': {   // konik saman yığını (1,2 m): yalnız yoldan uzakta, kendi engeliyle (içinden geçilmez)
+          if (dp < 3.5 || !ok(x, z, 1.6)) break;
+          const s = 0.85 + rnd() * 0.25; put(haystack((rnd() * 2) | 0), x, 0, z, s, s, s, pick([0xffffff, 0xf4e4b0]), yaw, 0, 0, 'shinyNS'); api.solid(x, z, 0.62 * s, 'scare'); st.hay++; around(x, z, 1.8, 4, (px, pz) => tuftAt(px, pz, 1.1)); break; }
         case 'scare': {   // korkuluk bahçesi: korkuluk + etrafında buğday + karga yok (korkuluk huysuz değil)
           const sc = scarecrow((rnd() * 2) | 0), s = 1.0 + rnd() * 0.2;
           put(sc.wood, x, 0, z, s, s, s, 0xffffff, yaw, 0, 0, 'shinyNS'); put(sc.cloth, x, 0, z, s, s, s, pick([0x4a78c8, 0xc8503a, 0x3a9a6a, 0xd89a2a]), yaw, 0, 0, 'shinyNS');
@@ -121,7 +126,7 @@ const DEGIRMEN_DEKOR = (() => {
         case 'barrels': { barrelAt(x, z, 1.1); if (ok(x + 0.8, z + 0.2, 0.4)) barrelAt(x + 0.8, z + 0.2, 1.0); if (rnd() < 0.7 && ok(x + 0.3, z + 0.9, 0.4)) sackAt(x + 0.3, z + 0.9, 1.1); if (ok(x - 0.7, z + 0.5, 0.4)) sackAt(x - 0.7, z + 0.5, 0.9); if (rnd() < 0.5) put(P.stonePath(0), x, 0, z + 0.2, 1.2, 0.5, 1.2, 0xc8b898, 0, 0, 0, 'shinyNS'); around(x, z, 1.6, 3, (px, pz) => tuftAt(px, pz, 1)); break; }
         case 'fence': { const n = 3 + ((rnd() * 2) | 0); for (let i = 0; i < n; i++) { const t = (i - (n - 1) / 2) * 1.6, px = x + ca * t, pz = z + sa * t; if (ok(px, pz, 0.3)) { put(P.fenceSeg(0), px, 0, pz, 1, 1, 1, 0xffffff, yaw, 0, 0, 'shinyNS'); st.fence++; } }
           for (const sg of [-1, 1]) around(x - sa * sg * 0.55, z + ca * sg * 0.55, 1.6, 4, (px, pz) => { if (rnd() < 0.6) flowerAt(px, pz, 1.1); else tuftAt(px, pz, 1.2); }); break; }
-        default: { const s = 0.7 + rnd() * 0.8; stoneAt(x, z, s); around(x, z, 1.7, 3, (px, pz) => { if (rnd() < 0.5) stoneAt(px, pz, 0.25 + rnd() * 0.25); else tuftAt(px, pz, 1.3); }); }
+        default: { const s = 0.5 + rnd() * 0.3; stoneAt(x, z, s); /* (alçak taş: içinden geçilir; eskiden 1,4 m'lik kaya) */ around(x, z, 1.7, 3, (px, pz) => { if (rnd() < 0.5) stoneAt(px, pz, 0.25 + rnd() * 0.25); else tuftAt(px, pz, 1.3); }); }
       }
     }
     for (let t = 0, made = 0; t < nCl * 20 && made < nCl; t++) {

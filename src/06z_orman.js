@@ -36,6 +36,13 @@ const ORMAN = (() => {
   const burst = (k, x, y, z, o) => { try { if (typeof FX !== 'undefined' && FX.burst) FX.burst(k, x, y, z, o); } catch (e) { /* yok */ } };
   const pirilGit = (x, z) => { try { if (typeof PIRIL_GUC !== 'undefined' && PIRIL_GUC && PIRIL_GUC.pointTo) PIRIL_GUC.pointTo(x, z); } catch (e) { /* yok */ } };
 
+  // ana yola (L.path çizgisi) en kısa uzaklık: yol üstüne engel/oyuncak konmasın
+  function yolD(L, x, z) {
+    const PT = L.path || []; let d = 1e9;
+    for (let i = 1; i < PT.length; i++) { const a = PT[i - 1], b = PT[i], ux = b.x - a.x, uz = b.z - a.z, l2 = ux * ux + uz * uz || 1, t = clamp(((x - a.x) * ux + (z - a.z) * uz) / l2, 0, 1); d = Math.min(d, hyp(a.x + ux * t - x, a.z + uz * t - z)); }
+    return d;
+  }
+
   // ════════════════ Yerleşim (saf veri) ════════════════
   function yerlesim(L, api) {
     // köy meydanı yok (kamp açıklığı var)
@@ -72,7 +79,7 @@ const ORMAN = (() => {
     // kamp ateşi: başlangıcın yakınında (Baba yanında)
     const st = L.start || { x: rm0.x, z: rm0.z };
     L.orKamp = null;
-    for (const [dx, dz] of [[3.8, -3.6], [-3.8, -3.6], [4.2, 1.5], [-4.2, 1.5], [0, -5]]) { const x = st.x + dx, z = st.z + dz; if (!L.orKamp && api.isFloor(x, z) && api.circleFree(x, z, 1.6)) L.orKamp = { x, z }; }
+    for (const yd of [2.6, 0]) for (const [dx, dz] of [[3.8, -3.6], [-3.8, -3.6], [4.2, 1.5], [-4.2, 1.5], [0, -5]]) { const x = st.x + dx, z = st.z + dz; if (!L.orKamp && api.isFloor(x, z) && api.circleFree(x, z, 1.6) && yolD(L, x, z) >= yd) L.orKamp = { x, z }; }   // (önce yolun kenarında: Feza ateşin içinden yürümesin)
     if (!L.orKamp) L.orKamp = spot(st.x, st.z, 3.2, 5.2, 1.6) || { x: st.x + 3, z: st.z - 3 };
     // dinlenme ateşi: Baykuş'un ağacı alanında (4. alan)
     { const rm = L.rooms[mainRooms(3)[0]]; L.orKamp2 = rm ? spot(rm.x, rm.z, 2.5, Math.max(3, rm.r * 0.5), 1.8) : null; }
@@ -88,11 +95,21 @@ const ORMAN = (() => {
       L.orF.push({ x: p.x, z: p.z, area: a, gate: { x: gate.x, z: gate.z } });
     }
     // zıplatan mantarlar: 3. alan (Mantar Çayırı) odalarında üçlü halka
+    // (QA takılma: mantar halkası yolun üstündeydi; Feza yürürken mantara basıp GERİYE fırlıyor, dönünce yine basıp sonsuz döngüde
+    //  kalıyordu. Artık mantarlar ana yoldan ≥ 3.4 m uzakta, oda kenarında küçük bir oyun köşesinde; yoldan geçen çocuk hiç basmaz.)
     L.orPads = [];
+    const yolUzak = (x, z, m) => yolD(L, x, z) >= m;
+    const padOk = (x, z) => api.isFloor(x, z) && api.circleFree(x, z, 1.1) && yolUzak(x, z, 3.4) && !L.orF.some(f => hyp(f.x - x, f.z - z) < 3.5) &&
+      !(L.areas || []).some(a => a.gate && hyp(a.gate.x - x, a.gate.z - z) < 4.5);
     for (const k of [0, 1]) {
       const rm = L.rooms[mainRooms(2)[k]]; if (!rm) continue;
-      const a0 = api.rnd() * TAU, R = Math.min(4.2, rm.r * 0.55), grp = [];
-      for (let i = 0; i < 3; i++) { const a = a0 + i / 3 * TAU, x = rm.x + Math.sin(a) * R, z = rm.z + Math.cos(a) * R; if (api.isFloor(x, z) && api.circleFree(x, z, 1.1) && !L.orF.some(f => hyp(f.x - x, f.z - z) < 3)) grp.push({ x, z }); }
+      let grp = [];
+      for (let t = 0; t < 24 && grp.length < 3; t++) {   // halka merkezi: oda içinde yoldan uzak bir köşe; yarıçap küçük
+        const c = t ? spot(rm.x, rm.z, 1.5, Math.max(2.5, rm.r * 0.75), 1.5, 20) : { x: rm.x, z: rm.z }; if (!c) continue;
+        const a0 = api.rnd() * TAU, R = 2.6, g = [];
+        for (let i = 0; i < 3; i++) { const a = a0 + i / 3 * TAU, x = c.x + Math.sin(a) * R, z = c.z + Math.cos(a) * R; if (padOk(x, z)) g.push({ x, z }); }
+        if (g.length > grp.length) grp = g;
+      }
       if (grp.length >= 2) grp.forEach((p, i) => L.orPads.push({ x: p.x, z: p.z, to: grp[(i + 1) % grp.length], g: k }));
     }
     // Kral'ın bahçesi: kenarda minik kamp ateşi (Baba ve Kartal oradan izler)
@@ -170,6 +187,7 @@ const ORMAN = (() => {
   }
 
   // sis duvarı: koridoru kapatan inci beyazı pamuk bulutları (tek Points çizimi); uOpen 0..1 alçalıp erir
+  // (QA: engel 0.25'te kalkıyor ama bulut 0.6'ya dek koyu kalıyordu → Feza beyaz bulutun içinde kayboluyordu; artık ~1.3 sn'de tümüyle erir)
   function sisDuvari(api, L, gate) {
     const THREE_ = api.THREE;
     let dx = 0, dz = -1;
@@ -191,7 +209,7 @@ const ORMAN = (() => {
       vertexShader: `attribute float aPh; attribute float aSz; uniform float uOpen, uTime, uScale; varying float vA; varying float vS;
         void main() { vec3 p = position; p.y = p.y * (1.0 - uOpen * 0.9) - uOpen * 0.2; p.x += sin(uTime * 0.7 + aPh * 6.28) * 0.12; p.z += cos(uTime * 0.6 + aPh * 5.0) * 0.12;
           vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSz * uScale / max(0.5, -mv.z);
-          vA = 0.9 * (1.0 - smoothstep(0.3, 1.0, uOpen)); vS = 0.93 + 0.07 * sin(aPh * 20.0); }`,
+          vA = 0.9 * (1.0 - smoothstep(0.0, 0.4, uOpen)); vS = 0.93 + 0.07 * sin(aPh * 20.0); }`,
       fragmentShader: `varying float vA; varying float vS; void main() { vec2 d = gl_PointCoord - 0.5; float r = length(d) * 2.0; float a = (1.0 - smoothstep(0.35, 1.0, r)) * vA;
           if (a < 0.01) discard; gl_FragColor = vec4(vec3(0.97, 0.97, 0.93) * vS, a); }`,
       transparent: true, depthWrite: false });
@@ -281,7 +299,7 @@ const ORMAN = (() => {
       try {
         const av = []; const ad = (o, r) => { if (o) av.push({ x: o.x, z: o.z, r }); };
         ad(L.orKamp, 7.5); ad(L.orKamp2, 4.5); ad(L.orArenaKamp, 3); (L.orF || []).forEach(f => { ad(f, 3.2); ad(f.gate, 4); }); (L.orPads || []).forEach(p => ad(p, 2.4)); (L._orGates || []).forEach(g => ad(g, 4.5));
-        if (L.orArena) ad(L.orArena, 0);
+        if (L.orArena) ad(L.orArena, L.orArena.r * 0.8);   // (QA: arenada koca kütükler Kral Jöle'nin içinden geçiyordu) dövüş alanı açık, yalnız kenar süslü
         ORMAN_DEKOR.olustur(L, api, { avoid: av });
       } catch (e) { console.warn('ORMAN_DEKOR', e); }
     }
@@ -293,7 +311,8 @@ const ORMAN = (() => {
       const tent = api.tmp(new THREE.ConeGeometry(1, 1, 4)), sp = L.start || K;
       for (const [dx, dz] of [[-5.2, -2.4], [-5.2, 1.8], [5.2, -2.4], [0.5, -6.0], [-6.5, 0]]) {
         const x = K.x + dx, z = K.z + dz;
-        if (api.circleFree(x, z, 1.6) && hyp(x - sp.x, z - sp.z) > 4.5 && hyp(x - K.x, z - K.z) > 4) { api.put(tent, x, 0.8, z, 1.6, 1.6, 1.6, 0xd9622e, PI / 4); api.box(x, 0.45, z + 0.78, 0.55, 0.9, 0.05, 0x5a2e18, 0); api.solid(x, z, 1.2, 'tent'); break; }
+        // (QA takılma: çadır yolun üstüne düşüyordu, Feza ona dayanıp kalıyordu → yoldan ≥ 3.6 m uzak; yer yoksa çadır yok)
+        if (api.isFloor(x, z) && api.circleFree(x, z, 1.6) && hyp(x - sp.x, z - sp.z) > 4.5 && hyp(x - K.x, z - K.z) > 4 && yolD(L, x, z) > 3.6) { api.put(tent, x, 0.8, z, 1.6, 1.6, 1.6, 0xd9622e, PI / 4); api.box(x, 0.45, z + 0.78, 0.55, 0.9, 0.05, 0x5a2e18, 0); api.solid(x, z, 1.2, 'tent'); break; }
       }
     }
     // ── fener fidanları + sis duvarları ──
@@ -309,9 +328,10 @@ const ORMAN = (() => {
       const M = zipMantar(api, p.x, p.z, [0xff6a5a, 0xffa23a][p.g % 2]);
       api.glow(p.x, p.z, 1.6, 0xffe8a0, 0.14);
       let sq = 9;
-      const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.7 }, line: p.g === 0 ? 'b03_mantar_zipla' : null, near: 7, cd: 0.6, repeat: true,
+      // (cümle yok: 'b03_mantar_zipla' dere diyordu, dere yok. can: bir zıplamadan sonra 2.5 sn hiçbir mantar fırlatmaz → zincirleme döngü olmaz)
+      const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.7 }, line: null, near: 7, cd: 0.6, repeat: true, can: () => S.t - (S.padAt ?? -99) > 2.5,
         use: () => {
-          sq = 0; sfx('bounce', { x: p.x, z: p.z, pitch: 0.95 }); burst('sparkle', p.x, 0.8, p.z, { color: '#ffe9a0', count: 6 });
+          sq = 0; S.padAt = S.t; sfx('bounce', { x: p.x, z: p.z, pitch: 0.95 }); burst('sparkle', p.x, 0.8, p.z, { color: '#ffe9a0', count: 6 });
           const tx = p.to.x, tz = p.to.z, D = hyp(tx - p.x, tz - p.z);
           T.ride({ pts: [[p.x, p.z], [tx, tz]], speed: D / 0.95, y: u => 4 * (2.0 + D * 0.12) * u * (1 - u), end: () => burst('dust', tx, 0.1, tz, { count: 3 }) });
         },
@@ -362,7 +382,7 @@ const ORMAN = (() => {
       const P = hero(); if (!P || S.lift) return;
       const sx = P.pos.x, sz = P.pos.z, f = F[1], w = W[1];
       let ex = sx + w.dx * 4.5, ez = sz + w.dz * 4.5;
-      if (!api.isFloor(ex, ez)) { ex = sx; ez = sz; }
+      if (!api.isFloor(ex, ez) || !api.circleFree(ex, ez, 0.6)) { ex = sx; ez = sz; }   // (ağaç/kaya içine inmesin)
       S.lift = { t: 0, T: 5.2, sx, sz, ex, ez, skip: false, h: 3.2 };
       E.mode = 'carry'; say('b03_kartal_kaldir', { force: true, once: false }); sfx('whoosh', { x: sx, z: sz });
       if (lines) { lines.visible = true; } sea.visible = true;
@@ -409,7 +429,10 @@ const ORMAN = (() => {
       // ─ sis duvarları ─
       for (let i = 0; i < W.length; i++) {
         const w = W[i]; w.u.uTime.value = S.t;
-        if (w.state === 'opening') { w.open = Math.min(1, w.open + dt / 3.2); w.u.uOpen.value = w.open; if (w.open >= 1) { w.state = 'open'; for (const so of w.solids) so.alive = false; L._sh = null; w.pts.visible = false; } }
+        if (w.state === 'opening') { w.open = Math.min(1, w.open + dt / 3.2); w.u.uOpen.value = w.open;
+          // (QA: sis gözle ~1 sn'de eriyor ama görünmez engel 3.2 sn kalıyordu → Feza boş yolda takılı gibi duruyordu) yol hemen açılır
+          if (w.open >= 0.25 && w.solids[0] && w.solids[0].alive) { for (const so of w.solids) so.alive = false; L._sh = null; }
+          if (w.open >= 1) { w.state = 'open'; for (const so of w.solids) so.alive = false; L._sh = null; w.pts.visible = false; } }
       }
       // ─ fenerler ─
       for (let i = 0; i < F.length; i++) {
@@ -445,7 +468,8 @@ const ORMAN = (() => {
         if (S.campStep === 0) {
           if (!S.started && S.t > 0.9) { S.started = true; say('b03_giris', { force: true }); }
           if (S.t > 7.5 && B.mode === 'fire') say('b03_baba_selam');
-          if (hyp(P.pos.x - fire.x, P.pos.z - fire.z) < 5.2) { S.campStep = 1; S.campT = 0; B.pose = 'kneel'; B.face = Math.atan2(fire.x - B.x, fire.z - B.z); say('b03_baba_selam', { force: true }); }
+          // (Feza ateşe gelmese de ~12 sn sonra Baba ateşi yine yakar ve peşine düşer: Baba ateş başında takılı kalmaz)
+          if (hyp(P.pos.x - fire.x, P.pos.z - fire.z) < 6.5 || S.t > 12) { S.campStep = 1; S.campT = 0; B.pose = 'kneel'; B.face = Math.atan2(fire.x - B.x, fire.z - B.z); say('b03_baba_selam', { force: true }); }
         } else if (S.campStep < 5) {
           S.campT += dt;
           if (S.campStep === 1 && S.campT > 2.8) { S.campStep = 2; fire.set(true); sfx('unlock', { x: fire.x, z: fire.z, pitch: 0.7 }); burst('sparkle', fire.x, 0.7, fire.z, { color: '#ffb050', count: 12 }); say('b03_kamp1', { force: true }); }
@@ -468,7 +492,7 @@ const ORMAN = (() => {
         if (f0 && flatDist(f0, P.pos.x, P.pos.z) < 11) say('b03_fener');
         if (f0 && act === 0 && flatDist(f0, P.pos.x, P.pos.z) < 20) say('b03_kartal_yon');
         if (act === 2 && F[2] && flatDist(F[2], P.pos.x, P.pos.z) < 18) { if (!S.owl) { S.owl = 1; say('b03_baykus', { force: true }); } }
-        if (act === 3 && F[3] && flatDist(F[3], P.pos.x, P.pos.z) < 16) say('b03_kopru');
+        // ('b03_kopru' susturuldu: "Köprüyü geç" diyordu, bölümde köprü yok)
         if (arenaMode && !S.arenaSeen) { S.arenaSeen = true; say('b03_kral_giris', { force: true, once: false }); }
         // boss hamle cümleleri
         const b = g0.boss;
@@ -527,10 +551,11 @@ const ORMAN = (() => {
       const needArrow = playing && !lifting && act < F.length && act >= 0 && P.area >= 1 && S.t - S.arrowAt > 15 && flatDist(F[act], P.pos.x, P.pos.z) > 7 && B.mode === 'follow' && arrowT < 0;
       if (needArrow) {
         const p0 = pathAhead(L, hx, hz, F[act].x, F[act].z, 2.4), p1 = pathAhead(L, hx, hz, F[act].x, F[act].z, 5.0), p2 = pathAhead(L, hx, hz, F[act].x, F[act].z, 7.6);
-        if (p0 && p1 && p2) { arrowPts = [p0, p1, p2]; arrowT = 0; S.arrowAt = S.t; say('b03_baba_ok', { force: false }); B.mode = 'arrow'; B.tx = p0.x - p0.dz * 1.6; B.tz = p0.z + p0.dx * 1.6; B.arrowDir = Math.atan2(p0.dx, p0.dz); }
+        if (p0 && p1 && p2) { arrowPts = [p0, p1, p2]; arrowT = 0; S.arrowAct = act; S.arrowAt = S.t; say('b03_baba_ok', { force: false }); B.mode = 'arrow'; B.tx = p0.x - p0.dz * 1.6; B.tz = p0.z + p0.dx * 1.6; B.arrowDir = Math.atan2(p0.dx, p0.dz); }
       }
       if (arrowT >= 0) {
         arrowT += dt; arrow.visible = true;
+        if (S.arrowAct !== act || lifting) arrowT = Math.max(arrowT, 5.6);   // fener yandı (ya da Kartal kaldırdı): eski ok geriyi göstermesin, hemen solar
         arrowPts.forEach((p, i) => { chev[i].position.set(p.x, 0.03, p.z); chev[i].rotation.y = Math.atan2(p.dx, p.dz); chev[i].visible = arrowT > 1.0 + i * 0.35; });
         arrowM.opacity = 0.85 * sstep(1.0, 1.5, arrowT) * (1 - sstep(5.0, 6.5, arrowT));
         if (arrowT > 3.2 && B.mode === 'arrow') { B.mode = 'follow'; }

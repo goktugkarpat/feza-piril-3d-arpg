@@ -227,7 +227,8 @@ const HZ_MAGARA = (() => {
         case 'peek': {
           b.bur = 0.55; b.phTM = 0.4;
           if (!A.P.dead && Math.hypot(A.P.pos.x - h.x, A.P.pos.z - h.z) < 1.5) { tap(b, S, A); break; }
-          if (K.t >= 3.0) { K.peeks++; K.stage = 'sink'; K.t = 0; if (K.peeks >= 6) { K.stage = 'out'; K.t = 0; K.win = false; } else next(); }
+          if (K.t >= 3.0) { K.peeks++;   // QA: 4 kez başını çıkarır (6 idi: yakalayamayan çocuk ~40 sn vuramadan bekliyordu)
+            K.stage = 'sink'; K.t = 0; if (K.peeks >= 4) { K.stage = 'out'; K.t = 0; K.win = false; } else next(); }
           break;
         }
         case 'out':

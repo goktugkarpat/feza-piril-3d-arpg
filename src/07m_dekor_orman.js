@@ -95,6 +95,7 @@ const ORMAN_DEKOR = (() => {
       if (centers.some(c => hyp(c.x - x, c.z - z) < 3.4)) continue;
       centers.push({ x, z, kind: null }); made++;
       let kind = pick(kinds); if (din < 3 && rnd() < 0.5) kind = pick(['bushes', 'rocks', 'logs', 'ferns']);
+      if (dp < 2.4) kind = pick(['flowers', 'ferns']);   // (QA: yolun üstüne kütük/kaya/çalı düşüyordu; Feza içinden geçiyordu) yolda yalnız alçak süs
       centers[centers.length - 1].kind = kind; cluster(kind, x, z, dp);
     }
     // ── yol kenarı: tabelalar (4 adet) ve yolun iki yanında yaprak serpintisi + alçak çiçek ──

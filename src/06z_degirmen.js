@@ -517,6 +517,9 @@ const DEGIRMEN = (() => {
     const put = api.put, isF = (x, z) => api.isFloor(x, z), D = L.dg || {};
     resetR(); registerMini(); hudMake();
     const coneH = (x, z) => { for (let d = 0.5; d <= 14; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return 0.5 + d * 0.85; } return 99; };
+    // ekranın alt kenarı (dikey iPad'de Feza'nın ~6,5 m güneyi): yürünür alanın güneyindeki tepe/ağaç bu çizgiyi aşmasın
+    // (QA: dev sarı tepe / yeşil ağaç tacı alt yarıyı kaplıyordu, 8 m kavak Feza'yı örtüyordu)
+    const lowH = (x, z) => { for (let d = 0.5; d <= 22; d += 0.75) { const w = Math.min(5, d * 0.5 + 1); for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return Math.max(0.2, 1.1 * (d - 6)); } return 99; };
     const fD = (x, z, m = 8) => (K ? K.floorDist(L, x, z, m) : 9);
     const sph = api.tmp(new THREE.SphereGeometry(1, 12, 8)), sphL = api.tmp(new THREE.SphereGeometry(1, 7, 5)), cyl = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 12)), cylLo = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 6));
     const pyr = api.tmp(new THREE.ConeGeometry(0.7071, 1, 4)), cone = api.tmp(new THREE.ConeGeometry(1, 1, 14)), taper = api.tmp(new THREE.CylinderGeometry(0.72, 1, 1, 16)), dode = api.tmp(new THREE.DodecahedronGeometry(1, 0));
@@ -527,7 +530,7 @@ const DEGIRMEN = (() => {
     api.dreamEdge();
 
     // ── yapı taşları ──
-    function hill(x, z, s, c) { put(sph, x, -s * 0.35, z, s * 1.7, s * 0.95, s * 1.4, c || pick(HILL), rnd() * TAU); }
+    function hill(x, z, s, c, ky = 1) { put(sph, x, -s * 0.35 * ky, z, s * 1.7, s * 0.95 * ky, s * 1.4, c || pick(HILL), rnd() * TAU); }
     function tree(x, z, h) {
       put(cylLo, x, h * 0.3, z, 0.14, h * 0.6, 0.14, 0x7a5230, 0);
       put(sph, x, h * 0.72, z, h * 0.34, h * 0.3, h * 0.34, pick(TREEG), rnd() * TAU); put(sphL, x + 0.2, h * 0.9, z - 0.1, h * 0.22, h * 0.2, h * 0.22, 0xa8c46c, 0);
@@ -574,10 +577,10 @@ const DEGIRMEN = (() => {
     // ── kenar dolgusu: yürünür alanın dışı (kamera önünde alçak, kuzeyde yüksek) ──
     const wheat = []; let nW = 0;
     if (K) K.fill(L, rnd, ids, (x, z, maxH0, fd) => {
-      const maxH = Math.min(maxH0, coneH(x, z)), r = rnd();
+      const maxH = Math.min(maxH0, coneH(x, z)), r = rnd(), lim = Math.min(maxH, lowH(x, z));
       if (fd > 0.8 && nW < 1000 && r < 0.78) { const hh = Math.min(maxH * 0.9, 0.85 + rnd() * 0.45); if (hh > 0.3) { wheat.push({ x, z, h: hh, s: 0.9 + rnd() * 0.6, c: pick([0xffffff, 0xf4e8c8, 0xfff0d0]), yaw: rnd() * TAU }); nW++; } }
-      else if (maxH >= 3 && fd > 3 && r < 0.9) tree(x, z, Math.min(maxH, 2.8 + rnd() * 2.2));
-      else if (maxH >= 1) hay(x, z, 0.7 + rnd() * 0.4);
+      else if (lim >= 3 && fd > 3 && r < 0.9) tree(x, z, Math.min(lim, 2.8 + rnd() * 2.2));
+      else if (lim >= 1) hay(x, z, 0.7 + rnd() * 0.4);
     }, { step: 2.5, d0: 1.0, d1: 9, margin: 10 });
     wheatField(api, wheat);
     // (E234) çevre süsleri: buğday sıraları, balyalar, korkuluk, fıçılar, bahçe ağaçları, uzak yel değirmenleri (src/07m_dekor_degirmen.js)
@@ -593,8 +596,12 @@ const DEGIRMEN = (() => {
     yield;
     // uzak dolgu: altın tepeler
     if (K) K.fill(L, rnd, ids, (x, z, maxH0, fd) => {
-      const maxH = Math.min(maxH0, coneH(x, z));
-      if (maxH >= 8) hill(x, z, 4 + rnd() * 4); else if (maxH > 1.6) hill(x, z, 1.5 + rnd() * 1.5); else hill(x, z, 0.6 + rnd() * 0.5);
+      const maxH = Math.min(maxH0, coneH(x, z), lowH(x, z));
+      // tepe: tepesi 0,6·s, yerdeki yarıçapı ~1,3·s → yürünür alana uzanmasın ve ekranın altını kaplamasın
+      let s = maxH >= 8 ? 4 + rnd() * 4 : maxH > 1.6 ? 1.5 + rnd() * 1.5 : 0.6 + rnd() * 0.5;
+      s = Math.min(s, fd / 1.5);
+      const lo = lowH(x, z - s), ky = Math.min(1, maxH / (0.6 * s), lo / (0.6 * s));   // (kuzey ucu yürünür alana yakınsa: yassı höyük)
+      if (s >= 0.5 && ky > 0.08) hill(x, z, s, undefined, ky);
     }, { step: 5.5, d0: 9, d1: 24, margin: 24 });
     yield;
     // oda kenarları: çit (tarla), taş duvar (tepeler), ev (kasaba)
@@ -606,7 +613,7 @@ const DEGIRMEN = (() => {
         if (ai === 0 || rm.kind === 'side') { if (k % 2 === 0) fence(p.x, p.z, yaw + PI / 2, 2.2); else if (hmax > 1.2) hay(p.x + Math.sin(p.a) * 0.5, p.z + Math.cos(p.a) * 0.5, 0.8); }
         else if (ai === 1) { if (k % 3 === 0) fence(p.x, p.z, yaw + PI / 2, 2.2); else if (k % 3 === 1 && hmax > 1.5) sack(p.x, p.z, 0.8); }
         else if (ai === 2) { wall(p.x, p.z, yaw + PI / 2, 2.4 + rnd()); if (k % 3 === 0 && hmax > 2) put(dode, p.x + Math.sin(p.a) * 1.2, 0.5, p.z + Math.cos(p.a) * 1.2, 0.8, 0.6, 0.7, pick(STONE), rnd() * TAU); }
-        else if (ai === 3 && hmax >= 2.4 && k % 2 === 0) house(p.x + Math.sin(p.a) * 2.3, p.z + Math.cos(p.a) * 2.3, p.a + PI, 3.0 + rnd(), 2.6, Math.min(hmax - 0.2, 2.4 + rnd() * 0.8));
+        else if (ai === 3 && k % 2 === 0 && Math.min(hmax, lowH(p.x + Math.sin(p.a) * 2.3, p.z + Math.cos(p.a) * 2.3 + 1.3)) >= 3.2) house(p.x + Math.sin(p.a) * 2.3, p.z + Math.cos(p.a) * 2.3, p.a + PI, 3.0 + rnd(), 2.6, Math.min(hmax - 0.2, 2.4 + rnd() * 0.8));   // (ev + çatı ~3,2 m: kameranın önüne konmaz)
         else if (ai === 3) wall(p.x, p.z, yaw + PI / 2, 2.2, 0.5);
       });
     }
@@ -816,7 +823,7 @@ const DEGIRMEN = (() => {
     });
 
     // ── 4) Kasaba: Hala (fırıncı), tezgâh, fırın, yoğurma + pişirme ──
-    let hala = null, haI = { st: 'ters', yaw: PI, t: 0, said: false, heart: 0 };
+    let hala = null, haSolid = null, haI = { st: 'ters', yaw: PI, t: 0, said: false, heart: 0 };
     const tbl = D.table, ov = D.oven;
     let doughM = null, bowlM = null;
     if (tbl) {   // tezgâh: masa, hamur kasesi, oklava, ekmek sepeti
@@ -831,7 +838,7 @@ const DEGIRMEN = (() => {
     if (D.hala) {
       hala = (typeof HALA !== 'undefined' && HALA && HALA.firinciModel) ? (() => { try { return HALA.firinciModel(api); } catch (e) { return halaStandIn(api); } })() : halaStandIn(api);
       hala.position.set(D.hala.x, 0, D.hala.z); hala.rotation.y = PI; api.add(hala);
-      api.solid(D.hala.x, D.hala.z, 0.45, 'hala');
+      haSolid = api.solid(D.hala.x, D.hala.z, 0.45, 'hala');
     }
     // masa: malzemeler tamamsa teslim al ve yoğurmayı başlat; eksikse neyin eksik olduğunu söyle
     const missingHint = () => { if (R.un < R.unN) say('b04_un', { once: false, gap: 14 }); else if (R.su < 1) say('b04_dere', { once: false, gap: 14 }); else if (R.kor < R.korN) say('b04_kor', { once: false, gap: 14 }); };
@@ -899,15 +906,20 @@ const DEGIRMEN = (() => {
       const p = GAME.P;
       if (help) {
         help.t += dt; const u = Math.min(1, help.t / 0.7);
-        const tx = p.pos.x + Math.sin(p.face + 2.2) * 0.9, tz = p.pos.z + Math.cos(p.face + 2.2) * 0.9;
+        const tx = p.pos.x + (haI.side || -1) * 1.0, tz = p.pos.z - 0.3;   // (yanına sarılır; önüne geçip Feza'yı örtmez)
         hala.position.x = lerp(hala.position.x, tx, 1 - Math.exp(-9 * dt)); hala.position.z = lerp(hala.position.z, tz, 1 - Math.exp(-9 * dt));
         haI.yaw = dampAngle(haI.yaw, Math.atan2(p.pos.x - hala.position.x, p.pos.z - hala.position.z), 10, dt);
         hala.position.y = (u >= 1 ? 0.06 * Math.sin(help.t * 8) : Math.abs(Math.sin(help.t * 14)) * 0.12);
         if (help.t > 0.75 && !help.heal) { help.heal = true; burst('hearts', p.pos.x, 1.6, p.pos.z, { count: 7 }); burst('sparkle', p.pos.x, 1.0, p.pos.z, { color: '#ffd9a0', count: 12 }); sfx('heal', { x: p.pos.x, z: p.pos.z }); ring(p.pos.x, p.pos.z, 3.4, '#ffd9a0'); }
         if (help.t > 2.6) { help = null; }
       } else if (R.pisti && haI.said) {   // pişirdikten sonra Feza'nın arkasından gelir (arenaya kadar)
-        const tx = p.pos.x + Math.sin(p.face + 2.6) * 1.7, tz = p.pos.z + Math.cos(p.face + 2.6) * 1.7;
+        // yanında yürür (ekranda sol/sağ), arkasında değil: Feza hep kuzeye (kameradan öteye) yürüyor; "arkası" kameranın önü
+        // demekti ve Hala Feza'yı tümüyle örtüyordu (QA). Yan duvar/çukur varsa öbür yana geçer.
+        const sd = haI.side || (haI.side = -1);
+        if (!api.isFloor(p.pos.x + sd * 1.8, p.pos.z - 0.5) && api.isFloor(p.pos.x - sd * 1.8, p.pos.z - 0.5)) haI.side = -sd;
+        const tx = p.pos.x + haI.side * 1.8, tz = p.pos.z - 0.5;
         const d = hyp(tx - hala.position.x, tz - hala.position.z);
+        if (haSolid && haSolid.alive) { haSolid.alive = false; L._sh = null; }   // (yerinden ayrıldı: tezgâh yanında görünmez engel kalmasın)
         if (d > 0.4) { const k = Math.min(1, (3.6 * dt + d * 1.6 * dt)); hala.position.x += (tx - hala.position.x) * k; hala.position.z += (tz - hala.position.z) * k; haI.yaw = dampAngle(haI.yaw, Math.atan2(tx - hala.position.x, tz - hala.position.z), 6, dt); haI.follow = true; hala.position.y = Math.abs(Math.sin(t * 9)) * 0.05; }
         else { haI.yaw = dampAngle(haI.yaw, Math.atan2(p.pos.x - hala.position.x, p.pos.z - hala.position.z), 4, dt); hala.position.y = 0; }
       }
@@ -1032,7 +1044,7 @@ const DEGIRMEN = (() => {
         tick: dt => {
           if (st === 1) { open = Math.min(1, open + dt * 0.6); crank.rotation.x += dt * 5; lid.position.x = w.x + open * 1.6; lid.rotation.y = open * 0.8; if (open >= 1) { st = 2; sfxAt('unlock', w.x, w.z); burst('sparkle', w.x, 0.8, w.z, { color: '#ffe08a', count: 14 }); say('b04_kuyu_acildi', { gap: 0, force: true });
             const gk = new Kit(); for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; gk.add(G.cone(3), 0xe8b830, [Math.sin(a) * 0.1, 0.45, Math.cos(a) * 0.1], [Math.cos(a) * 0.2, 0, -Math.sin(a) * 0.2], [0.07, 0.9, 0.07]); gk.add(G.octa(), 0xffd860, [Math.sin(a) * 0.2, 0.95, Math.cos(a) * 0.2], null, [0.07, 0.24, 0.07]); }
-            K.treasure(api, T, w.x, w.z, api.dispose(gk.build()), { y: 0.2, sc: 1.4, r: 1.6, gold: 12, n: 7, gs: true, sticker: 'degirmen_basak', hintY: 2.0, cast: true }); } }
+            K.treasure(api, T, w.x, w.z, api.dispose(gk.build()), { y: 0.2, sc: 1.4, r: 2.3, gold: 12, n: 7, gs: true, sticker: 'degirmen_basak', hintY: 2.0, cast: true }); } }   // (r 2,3: kuyunun engeli 1,1 — 1,6'da Feza ödüle zar zor yetişiyordu)
         } });
     }
     yield;
@@ -1089,7 +1101,13 @@ const DEGIRMEN = (() => {
       }
       // boss neşelenince: ekmek ikramı, çarklar döner, çanlar çalar
       const bs = GAME.boss;
-      if (bs && bs.type === 'degirmenBekcisi' && bs.dead && cheerT < 0) { cheerT = 0; R.bekci = true; ikram = { t: 0, bx: bs.x, bz: bs.z, fx: p.pos.x, fz: p.pos.z }; }
+      if (bs && bs.type === 'degirmenBekcisi' && bs.dead && cheerT < 0) {
+        cheerT = 0; R.bekci = true;
+        // (tarif yok: ışık ekmeğini Hala getirir — yanındaysa ondan, değilse Feza'dan uçar; Bekçi ısırır, b04_bitti "ışık ekmeğinden" der)
+        const hn = hala && haI.said && hyp(hala.position.x - p.pos.x, hala.position.z - p.pos.z) < 6;
+        ikram = { t: 0, bx: bs.x, bz: bs.z, fx: hn ? hala.position.x : p.pos.x, fz: hn ? hala.position.z : p.pos.z };
+        if (TARIFYOK) R.tutan = 'ekmek';
+      }
       if (cheerT >= 0) {
         cheerT += dt;
         if (ikram && R.tutan === 'ekmek' && cheerT < 3.5) {   // ekmek Feza'dan Bekçi'ye uçar
@@ -1111,7 +1129,7 @@ const DEGIRMEN = (() => {
         if (!said.has('pp_degirmen_ilk_nese')) say('pp_degirmen_ilk_nese', { gap: 1 });
         else if (Math.random() < 0.1) say(['pp_degirmen_aferin1', 'pp_degirmen_aferin2', 'pp_degirmen_aferin3'][(Math.random() * 3) | 0], { once: false, gap: 25 });
       });
-      GAME.on('boss', o => { if (inZone() && o && o.on && o.type === 'degirmenBekcisi') say('pp_degirmen_boss', { gap: 4 }); });
+      // (pp_degirmen_boss "Ekmeği unutma!" artık yok: tarif/ekmek taşıma kalktı, Feza'dan imkânsız bir şey istemesin)
     }
   }
   const bump01 = (t, a, b, c, d) => smooth01((t - a) / (b - a)) * (1 - smooth01((t - c) / (d - c)));

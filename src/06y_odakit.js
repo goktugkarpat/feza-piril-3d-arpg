@@ -694,7 +694,7 @@ const ODAKIT = (() => {
     GS = null;
     const A = L.areas; if (!A || A.length < 2) return;
     const areaOf = {}; A.forEach((a, k) => a.rooms.forEach(ri => { areaOf[ri] = k; }));
-    const total = A.map(() => 0); for (const sp of L.spawns || []) { const k = areaOf[sp.room]; if (k !== undefined && !isBossT(sp.type)) total[k]++; }
+    const total = A.map(() => 0); for (const sp of L.spawns || []) { const k = areaOf[sp.room]; const df = typeof EDEF !== 'undefined' && EDEF && EDEF[sp.type]; if (k !== undefined && !isBossT(sp.type) && !(df && df.stats && df.stats.speed === 0)) total[k]++; }   // (yerinden kıpırdamayanlar — uykulu mantarlar — sayılmaz)
     const st = GS = { L, areaOf, total, cheered: A.map(() => 0), gates: [], t: 0 };
     const post = G.cyl(1, 1, 12), ball = G.sphere(12, 8);
     for (let k = 1; k < A.length; k++) {

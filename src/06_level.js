@@ -5869,6 +5869,10 @@ const LEVEL = (function () {
   }
   // Reserve the travelling stall before decorative props are placed; keep its approach reachable on every seed.
   function placeMerchant(L) {
+    // QA (takılma, 7 Kasım): tezgâh başlangıcın 4–6 m yanında, çoğu zaman yolun üstündeydi; ilk sürüklemede parmak tezgâha değince
+    // okuma isteyen fiyatlı alışveriş ekranı açılıp oyun duruyordu (Feza okuyamıyor) ve tezgâh yakınında kılıç/Pırıl düğmesi
+    // çalışmıyordu. Yetenek/güçlendirme sistemi kaldırıldığı gibi gezgin tüccar da artık kurulmaz (iksirler zaten çantada).
+    if (!window.__tuccarAc) return;
     if (!['kefir', 'yanardag', 'kale'].includes(L.Z.id)) return;
     const st = L.start;
     let spot = null;

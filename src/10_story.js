@@ -786,10 +786,30 @@ const STORY = (() => {
     if (END.cloud) { scene.remove(END.cloud.g); END.cloud = null; }
     restoreWeapon();
   }
+  // finalin ilk karesi Feza'nın önünden çekilir: orada toplanmış dostlar (Baba, kartal…) Feza'yı örtüp mavi gölge gibi gösteriyordu.
+  // Kamera ile Feza arasındaki küçük nesneler final boyunca gizlenir (endingCleanup geri açar); büyük zemin/yapılar dokunulmaz.
+  function clearFront(g) {
+    const bx = new THREE.Box3(), sz = new THREE.Vector3(), ce = new THREE.Vector3(), keep = [g.H && g.H.root, g.Bilbo && g.Bilbo.root];
+    const look = (list, depth) => {   // büyük gruplar (bölüm sahnesi) içine 4 kat iner: Baba gibi karakterler orada durur
+      for (const c of list.slice()) {
+        if (!c.visible || c.isLight || c.isCamera || keep.includes(c)) continue;
+        if (keep.some(k => k && k.parent && (() => { for (let q = k.parent; q; q = q.parent) if (q === c) return true; return false; })())) continue;
+        try { bx.setFromObject(c); } catch (e) { continue; }
+        if (bx.isEmpty()) continue;
+        bx.getSize(sz); bx.getCenter(ce);
+        if (Math.max(sz.x, sz.z) > 4.5) { if (depth < 4 && c.children.length) look(c.children, depth + 1); continue; }
+        if (bx.max.y < 0.3) continue;
+        const dx = ce.x - origin.x, dz = ce.z - origin.z;
+        if ((dz > 0.3 && dz < 10.5 && dx > -2.8 && dx < 3.4) || Math.hypot(dx, dz) < 1.8) { END.hidden.push(c); c.visible = false; }   // (+ Feza'nın hemen arkasındaki pembe kristal: yüzünü pembe boyuyordu)
+      }
+    };
+    look(scene.children, 0);
+  }
   function ending() {
     const g = G_(); if (!g || !g.P) { line('pr_final_5', 'Tatlı rüyalar Feza!'); return true; }
     if (CINE.on) return true;
     const P = g.P; origin = { x: P.pos.x, z: P.pos.z };
+    try { clearFront(g); } catch (e) { /* yok */ }
     CH.noWeapon = false; hideWeapon(); STORY.endingDone = false;
     overlay(true, { skip: true });
     runCine('ending', endingBeats()).then(() => { endingCleanup(); STORY.endingDone = true; });
@@ -840,7 +860,7 @@ const STORY = (() => {
     if (!zid || (Z.def && Z.def.hub)) return;
     staleCut(zid);
     const k = zid + ':' + (a.boss ? 'arena' : a.index); if (seen.area[k]) return; seen.area[k] = 1;
-    if (a.boss) { line('pr_' + zid + '_arena', null, 3, { interrupt: true }); return; }
+    if (a.boss) { const gb = G_() && G_().boss; if (!(gb && (gb.aggro || gb.awake || gb.woke))) line('pr_' + zid + '_arena', null, 3, { interrupt: true }); return; }   // (boss uyandıysa 'uyukluyor' denmez)
     if (a.index === 2) later(0.4, () => { if (!speaking()) line(Math.random() < 0.5 && hasLine('pp_' + zid + '_orta') ? 'pp_' + zid + '_orta' : 'pr_' + zid + '_orta', null, 1); });
   }
   // Işık geri geldi (07: boss neşelenince 2,5 s sonra; PIRIL_GUC.ac(n) 07'de çağrıldı): anlatım + Pırıl'ın gücü + uyku molası
@@ -938,6 +958,9 @@ const STORY = (() => {
     s.textContent = `
 .st-cinema #uiHud,.st-cinema #ui>:not(.u-sub){opacity:0!important;visibility:hidden!important;pointer-events:none!important;transition:opacity .3s}
 @media (orientation:portrait){.st-cinema #ui .u-sub{left:6vw!important;right:6vw!important;top:auto!important;bottom:calc(env(safe-area-inset-bottom,0px) + 3vh)!important}}   /* dikey sinematik: altyazı alt %20'de, karakterlerin üstüne binmez */
+.st-cinema #ui.hud-on .u-sub{left:9vw!important;right:9vw!important;top:auto!important;bottom:calc(env(safe-area-inset-bottom,0px) + 3vh)!important}   /* (final: düğmeler gizli, altyazı geniş; dar kutuda 5 satır oluyordu) */
+body.st-cinema>button:not([id]):not([class]){display:none!important}   /* oyunun kendi "Geç ▸" düğmesi masalın "Geç" düğmesiyle üst üste binmesin (tek Geç) */
+@media (max-aspect-ratio:1/1){.st-card{top:calc(env(safe-area-inset-top,0px) + 104px)!important}}   /* dikey: kart "Geç" düğmesinin altında, üstüne binmez */
 .st-ov{position:fixed;inset:0;z-index:40;touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}
 .st-white{position:absolute;inset:0;background:radial-gradient(circle at 45% 62%,#fff 0,#fff7e2 38%,#ffe2a0 100%);opacity:0;pointer-events:none}
 .st-skip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);right:calc(env(safe-area-inset-right,0px) + 16px);min-width:120px;height:72px;padding:0 22px;border-radius:40px;border:4px solid #ffe38a;

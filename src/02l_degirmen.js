@@ -62,7 +62,7 @@ if (typeof AUD !== 'undefined' && AUD && AUD.LINES) Object.assign(AUD.LINES, {
   pr_degirmen_giris: 'Altın Değirmen Vadisi\'ne geldik! Ama burada her şey durmuş.',
   pp_degirmen_giris: 'Pırıl ışığın kokusunu aldı. Ekmek kokusuna benziyor!',
   pr_degirmen_orta: 'Durmuş kasabaya geldik. Fırından duman çıkıyor!',
-  pp_degirmen_orta: 'Pırıl\'ın karnı guruldadı. Haydi, ekmek yapalım!',
+  // (pp_degirmen_orta "Haydi, ekmek yapalım!" kaldırıldı: ekmek yapma yok; 10_story.js yerine pr_degirmen_orta söyler)
   pr_degirmen_arena: 'Dev değirmen karşımızda. Pırıl\'ın ışığı çarklarda parlıyor!',
   pr_degirmenBekcisi_yarim: 'Bekçi biraz gülümsedi. Devam et Feza!',
   // ── huysuzlar: ilk görüş ──

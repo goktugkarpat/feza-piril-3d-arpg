@@ -45,7 +45,7 @@ const SEHIR = (() => {
     const areaOf = {}; A.forEach((a, k) => { if (!a.boss) a.rooms.forEach(ri => { areaOf[ri] = k; }); });
     // düşman az: alan 1 yok, 2 yok, 3 yok; alan 4'te (sur yolu) 1–2 sersem nöbetçi/süpürgeci; kule içi yok
     const LIST = [null, null, null, ['sehirNobetci', 'sisCocugu', 'sehirSupurgeci'], null];
-    const CAP = [0, 0, 0, 2, 0], packN = {}, keep = [];
+    const CAP = [0, 0, 0, 1, 0], packN = {}, keep = [];   // sur yolunda grup başına 1 (QA: eşya taşırken 4 düşman Feza'yı iki kez düşürüyordu)
     for (const sp of L.spawns || []) {
       const ai = areaOf[sp.room];
       if (sp.room === 0) continue;
@@ -60,10 +60,13 @@ const SEHIR = (() => {
       keep.push(sp);
     }
     L.spawns.length = 0; L.spawns.push(...keep);
-    const spot = (cx, cz, rmin, rmax, r = 1.2, avoid = [], gap = 3.5, tries = 120) => {
-      for (let t = 0; t < tries; t++) {
+    // ana yol (L.path) üstüne katı bir şey konmasın: Feza parmakla dümdüz çekince çeşmeye/tabelaya takılıp kalıyordu (QA: tohum 1, çeşme yolun ortasında)
+    const PATH = (L.path && L.path.length ? L.path : []).concat(L.start ? [L.start] : []);
+    const offPath = (x, z, d) => PATH.every(p => hyp(p.x - x, p.z - z) > d);
+    const spot = (cx, cz, rmin, rmax, r = 1.2, avoid = [], gap = 3.5, tries = 120, pd = r + 1.6) => {
+      for (const pdd of [pd, pd * 0.7, 0]) for (let t = 0; t < tries; t++) {
         const a = api.rnd() * TAU, d = rmin + api.rnd() * (rmax - rmin), x = cx + Math.sin(a) * d, z = cz + Math.cos(a) * d;
-        if (api.isFloor(x, z) && api.circleFree(x, z, r) && avoid.every(q => hyp(q.x - x, q.z - z) > gap)) return { x, z };
+        if (api.isFloor(x, z) && api.circleFree(x, z, r) && avoid.every(q => hyp(q.x - x, q.z - z) > gap) && (!pdd || offPath(x, z, pdd))) return { x, z };
       }
       return null;
     };
@@ -88,7 +91,7 @@ const SEHIR = (() => {
         let sh = null;
         if (g) { const dx = a.x - g.x, dz = a.z - g.z, l = hyp(dx, dz) || 1, nx = -dz / l, nz = dx / l; for (const s of [1, -1]) for (const d of [4.6, 5.4, 3.8]) { const x = g.x + dx / l * d + nx * s * 3.2, z = g.z + dz / l * d + nz * s * 3.2; if (!sh && api.isFloor(x, z) && api.circleFree(x, z, 1.0)) sh = { x, z, yaw: Math.atan2(nx * s, nz * s) }; } }
         sh = sh || spot(a.x, a.z, R * 0.3, R * 0.6, 1.0) || { x: a.x, z: a.z, yaw: 0 };
-        const key = spot(b.x, b.z, 0, (b.r || 8) * 0.25, 1.0) || { x: b.x, z: b.z };
+        const key = spot(b.x, b.z, 0, (b.r || 8) * 0.25, 1.0, [], 3.5, 120, 0) || { x: b.x, z: b.z };
         Z.tower = { a: { x: a.x, z: a.z, r: R }, b: { x: b.x, z: b.z, r: b.r || 8 }, shelf: sh, key };
       } }
     { const ar = L.rooms.filter(r => r.kind !== 'side').pop(); if (ar) Z.arena = { x: ar.x, z: ar.z, r: ar.r || 11 }; }
@@ -269,10 +272,12 @@ const SEHIR = (() => {
     });
     // çeşme (başlangıç meydanı)
     if (Z.fountain && !yeni) { const f = Z.fountain; P(cyl, f.x, 0.25, f.z, 1.7, 0.5, 1.7, 0xe0d6c0); P(cyl, f.x, 0.4, f.z, 1.45, 0.2, 1.45, 0x9fd0e8); P(cyl, f.x, 1.0, f.z, 0.22, 1.2, 0.22, 0xe0d6c0); P(cyl, f.x, 1.65, f.z, 0.7, 0.14, 0.7, 0xe0d6c0); api.solid(f.x, f.z, 1.7, 'cesme'); }
-    // tabela direkleri
+    // tabela direkleri. Direkler yürünen zeminde durur: güney-gizleme süzgecinden geçmesin (QA: direk gizlenince tabela/bayrak havada
+    // asılı kalıyor, görünmez katı direk Feza'yı durduruyordu). İnce oldukları için kamerayı kapatmazlar.
+    const PO = (g, x, y, z, sx, sy, sz, c) => origPut.call(api, g, x, y, z, sx, sy, sz, c, 0, 0, 0, 'shiny');
     const boards = [];
     (Z.boards || []).forEach((b, i) => {
-      P(cyl, b.x - 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a); P(cyl, b.x + 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a);
+      PO(cyl, b.x - 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a); PO(cyl, b.x + 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a);
       const mt = new THREE.MeshBasicMaterial({ map: tabelaTex(i, false) }); api.dispose(mt);
       const m = new THREE.Mesh(geo('bd', () => kp(new THREE.PlaneGeometry(1.9, 1.2))), mt); m.position.set(b.x, 1.6, b.z + 0.05); api.add(m); boards.push({ m, mt, i });
       api.solid(b.x, b.z, 0.9, 'tabela');
@@ -280,7 +285,7 @@ const SEHIR = (() => {
     // bayrak direkleri (gri → renkli)
     const flags = [], flagCols = [0xe8554a, 0x4f86d8, 0xffd23f, 0x5ab870, 0xe8884a, 0x6ab8e8];
     (Z.poles || []).forEach((p, i) => {
-      P(cyl, p.x, 1.6, p.z, 0.07, 3.2, 0.07, 0xe8d8b8); P(sph, p.x, 3.25, p.z, 0.1, 0.1, 0.1, 0xffd24a);
+      PO(cyl, p.x, 1.6, p.z, 0.07, 3.2, 0.07, 0xe8d8b8); PO(sph, p.x, 3.25, p.z, 0.1, 0.1, 0.1, 0xffd24a);
       const mt = new THREE.MeshBasicMaterial({ color: 0xb9b4b0, side: THREE.DoubleSide }); api.dispose(mt);
       const m = new THREE.Mesh(geo('fl', () => kp(new THREE.PlaneGeometry(1.1, 0.7))), mt); m.position.set(p.x + 0.58, 2.85, p.z); api.add(m); flags.push({ m, mt, col: flagCols[i % flagCols.length], ph: i });
       api.solid(p.x, p.z, 0.4, 'bayrak');
@@ -450,7 +455,7 @@ const SEHIR = (() => {
       try { n.m.setTint(null); n.m.setMood('happy'); } catch (e) { /* yok */ }
       n.joy = 1.6; n.mt.map = balonTex(n.w.esya, true); n.mt.needsUpdate = true; n.hearted = true;
       burst('heart', n.p.x, (n.m.height || 1.3) + 0.4, n.p.z, { count: 4 }); sfx('heart', { x: n.p.x, z: n.p.z });
-      say(n.w.hat, { force: true, once: false }); setTimeout(() => say(n.w.adi, { force: true, once: false }), 3600);
+      say(n.w.hat, { force: true, once: false }); setTimeout(() => { if (g0 && g0.L === L) say(n.w.adi, { force: true, once: false }); }, 3600);
       trails[i].grp.visible = false;
       if (i === 2) V.boards.forEach(b => { b.mt.map = tabelaTex(b.i, true); b.mt.needsUpdate = true; });
       if (i === 3) V.flags.forEach(f => f.mt.color.setHex(f.col));
@@ -476,8 +481,10 @@ const SEHIR = (() => {
     });
     on('happy', e => {
       if (!e || !e.boss || e.type !== 'huysuzSovalye') return; S.happy = true;
-      V.flags.forEach(f => f.mt.color.setHSL(((f.ph * 0.17) % 1), 0.75, 0.6)); setTimeout(() => say('b08_son', { force: true, once: false }), 6000);
-      setTimeout(() => say('b08_pirilkale', { force: true, once: false }), 11500);
+      // (gecikmeli sözler yalnız hâlâ bu bölümdeysek: yolculuk başladıysa sonraki bölümde şehirden söz etmesin)
+      const burada = () => g0 && g0.L === L && g0.state === 'play';
+      V.flags.forEach(f => f.mt.color.setHSL(((f.ph * 0.17) % 1), 0.75, 0.6)); setTimeout(() => { if (burada()) say('b08_son', { force: true, once: false }); }, 6000);
+      setTimeout(() => { if (burada()) say('b08_pirilkale', { force: true, once: false }); }, 11500);
     });
     const hero = () => g0 && g0.P;
     let senlik = null;   // (ebeveyn: bölüm içinde mini oyun yok; şenlik istasyonları kurulmaz)
@@ -533,6 +540,8 @@ const SEHIR = (() => {
         if (w.t > 0.6 && !S.lit) { S.lit = 1; V.lampM && V.lampM.color.setHex(0xffe08a); npcs.forEach(n => { try { n.m.setTint(null); } catch (e) { /* yok */ } n.joy = 2.5; }); V.flags.forEach(f => f.mt.color.setHex(f.col)); V.boards.forEach(b => { b.mt.map = tabelaTex(b.i, true); b.mt.needsUpdate = true; }); setLook(); say('b08_pirilhatirladi', { force: true, once: false }); }
         if (u >= 1) { wave.visible = false; S.wave = null; S.bell = 3; }
       }
+      // kule kadranı HUD'u: arenada, sinematikte/duraklatmada ve başka bölümde gizli (QA: boss girişinde arenada açık kalıyordu)
+      if (hud) { hud.style.top = innerHeight > innerWidth ? '162px' : '92px'; const sh = playing && g0.L === L && P.area >= 0 && P.area < A.length - 1 && !(typeof MINIGAME !== 'undefined' && MINIGAME.active); hud.style.opacity = sh ? '1' : '0'; }
       // konuşmalar ve akış
       if (playing) {
         const ar = P.area;
@@ -547,13 +556,11 @@ const SEHIR = (() => {
           if (o && !it.shown && T - it.at > 12 && !o.tut && !o.yerlesik && hyp(P.pos.x - o.x, P.pos.z - o.z) < 16) { it.shown = 1; pirilGit(o.x, o.z); } }
         if (ar !== S.area) {
           S.area = ar;
-          if (ar === 1) say('b08_pirilruzgar', { force: true });
-          if (ar === 3) { say('b08_bilbobin', { force: true }); }
+          // (b08_pirilruzgar söylenmez: alanlar arası sis perdesi kaldırıldı; olmayan perdeden söz etmesin)
+          // (b08_bilbobin söylenmez: binme düğmesi bu oyunda gizli — Feza'dan yapamayacağı bir şey istenmesin)
           if (ar === 4) say('b08_kuleici', { force: true });
           if (ar === A.length - 1) say('b08_arena', { force: true, once: false });
         }
-        if (hud) hud.style.top = innerHeight > innerWidth ? '162px' : '92px';
-        if (hud) hud.style.opacity = ar >= 0 && ar < A.length - 1 && !(typeof MINIGAME !== 'undefined' && MINIGAME.active) ? '1' : '0';
         if (ar === 4 && !S.shelf && shelfAt && hyp(P.pos.x - shelfAt.x, P.pos.z - shelfAt.z) < 6) { S.shelf = 1; S.shelfT = T; say('b08_raf', { force: true }); }
         if (S.shelf === 1 && T - S.shelfT > 6.5) { S.shelf = 2; say('b08_raf_p', { force: true }); }
         if (ar === 4 && !S.keySaid && Z.tower && hyp(P.pos.x - Z.tower.b.x, P.pos.z - Z.tower.b.z) < 8) { S.keySaid = 1; say('b08_anahtar', { force: true }); pirilGit(Z.tower.key.x, Z.tower.key.z); }

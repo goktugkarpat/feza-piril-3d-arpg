@@ -73,8 +73,33 @@ const YANARDAG = (() => {
     { const mr = mainRooms(3), rm = L.rooms[mr[0]], g = A[3] && A[3].gate;
       if (rm) {
         const R = rm.r || 8;
-        M.dragon = { x: rm.x, z: rm.z - R * 0.28, r: Math.min(3.4, R * 0.42) };
-        const sp = spot(rm.x + R * 0.30, rm.z + R * 0.1, 0, R * 0.2, 1.0) || { x: rm.x + R * 0.3, z: rm.z + R * 0.1 };
+        // QA: ejderha odanın ortasındaydı, ana yol tam içinden geçiyordu → Feza ejderhaya takılıyordu. Artık yoldan en uzak boş köşeye yatar.
+        const Pth = (L.path || []).filter(q => hyp(q.x - rm.x, q.z - rm.z) < R + 4);
+        const pd = (x, z) => { let b = 1e9; for (const q of Pth) { const d = hyp(q.x - x, q.z - z); if (d < b) b = d; } return b; };
+        let dr = Math.min(3.0, R * 0.38), best = null;
+        for (let t = 0; t < 2 && !best; t++, dr *= 0.8) {
+          let bs = -1;
+          for (let i = 0; i < 24; i++) for (const f of [0.62, 0.5, 0.38]) {
+            const a = i * TAU / 24, x = rm.x + Math.sin(a) * R * f, z = rm.z + Math.cos(a) * R * f;
+            if (!api.isFloor(x, z) || !api.circleFree(x, z, dr * 0.8 + 0.2)) continue;
+            const s = pd(x, z) - dr * 0.8 + (z < rm.z ? 0.4 : 0);   // (eşitse kuzey: kamera arkadan görür)
+            if (s > bs) { bs = s; best = { x, z }; }
+          }
+          if (best && bs < 1.8) best = null;
+        }
+        if (!best) { dr = Math.min(2.2, R * 0.3); best = { x: rm.x, z: rm.z - R * 0.45 }; }
+        M.dragon = { x: best.x, z: best.z, r: dr };
+        // kabuk parçası: ana yolun hemen yanında (Feza yürürken üstünden geçsin), ejderhadan uzak
+        let sp = null, sb = 1e9;
+        for (const q of Pth) {
+          if (hyp(q.x - rm.x, q.z - rm.z) > R * 0.8) continue;
+          for (const o of [[1.3, 0], [-1.3, 0], [0, 1.3], [0, -1.3]]) {
+            const x = q.x + o[0], z = q.z + o[1];
+            if (hyp(x - best.x, z - best.z) < dr + 1.6 || !api.isFloor(x, z) || !api.circleFree(x, z, 0.8)) continue;
+            const s = Math.abs(hyp(x - rm.x, z - rm.z) - R * 0.25); if (s < sb) { sb = s; sp = { x, z }; }
+          }
+        }
+        sp = sp || spot(rm.x, rm.z, 0, R * 0.4, 1.0) || { x: rm.x, z: rm.z };
         M.shell = sp; M.room = { x: rm.x, z: rm.z, r: R };
         if (g) { const d = dirTo(g.x, g.z, rm.x, rm.z); for (let i = 0; i < 6; i++) { const t = 3 + i * 1.6; M.prints.push({ x: g.x + d[0] * t + (i % 2 ? 0.35 : -0.35) * -d[1], z: g.z + d[1] * t + (i % 2 ? 0.35 : -0.35) * d[0], yaw: Math.atan2(d[0], d[1]) }); } }
       } }
@@ -129,9 +154,13 @@ const YANARDAG = (() => {
     const pm = new THREE.MeshBasicMaterial({ color: 0xff9440, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, fog: false });
     const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 3.4, 1); panel.position.set(cx, 1.8, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
     const steps = [], stepM = new THREE.MeshStandardMaterial({ color: 0xd8a070, roughness: 0.8, emissive: 0x803010, emissiveIntensity: 0.25 }); api.dispose(stepM);
+    // QA: basamaklar kapı çizgisine paralel diziliyordu, yarısı kaya/lav kenarına taşıp havada turuncu diskler gibi duruyordu.
+    // Artık kapıya giden yolda sırayla yassı taşlar (üstü zeminden 8 cm: Feza'nın ayağı içine girmez); zemin olmayan yere konmaz.
     for (let i = 0; i < 3; i++) {
-      const s = new THREE.Mesh(geo('kStep', () => kp(new THREE.CylinderGeometry(1, 1.05, 0.3, 12))), stepM); s.visible = false; s.scale.set(0.9, 1, 0.9);
-      s.position.set(cx + (i - 1) * (wd / 3.4), -0.4, 1.6 + (i % 2) * 0.4); grp.add(s); steps.push(s);
+      const lx = cx + (i % 2 ? 0.45 : -0.45), lz = 0.9 + i * 1.25;
+      if (!api.isFloor(gate.x + nx * lx - dx * lz, gate.z + nz * lx - dz * lz)) continue;
+      const s = new THREE.Mesh(geo('kStep', () => kp(new THREE.CylinderGeometry(1, 1.05, 0.3, 12))), stepM); s.visible = false; s.scale.set(0.62, 1, 0.62);
+      s.position.set(lx, -0.4, lz); s.receiveShadow = true; grp.add(s); steps.push(s);
     }
     const solids = [];
     for (let o = w0 + 0.2; o <= w1 - 0.2 + 0.01; o += 0.8) { const so = { x: gate.x + nx * o, z: gate.z + nz * o, r: 0.7, alive: true, tag: 'yanKapi' }; L.solids.push(so); solids.push(so); }
@@ -224,6 +253,7 @@ const YANARDAG = (() => {
   // ════════════════ kurSon: kapılar, çarklar, ejderha, kabuk, taşıma, konuşmalar ════════════════
   function kurSon(L, api) {
     const g0 = G_(), A = L.areas || [], M = L.yd || {};
+    said.clear();   // (bölüm ikinci kez oynanınca cümleler yine söylensin; yoksa kabuk hikâyesi "b07_kabuk" bekleyip takılıyordu)
     const gates = [];
     const gatePts = A.map(a => a.gate); for (let k = 1; k < A.length; k++) A[k].gate = null;
     for (const k of [1, 2, 3]) { const gp = gatePts[k]; if (gp) gates.push(Object.assign(kapi(api, L, gp, 'g' + k), { k })); }
@@ -273,7 +303,7 @@ const YANARDAG = (() => {
     on('nesne', e => {
       if (!e || !/^cark\d$/.test(e.id)) return; const k = +e.id.slice(4);
       if (S.btn[k]) S.btn[k].done = true;
-      unlock('g' + k, k === 1 ? 'b07_nehir2' : k === 2 ? 'b07_kopru' : 'b07_kapi_acildi');
+      unlock('g' + k, k === 1 ? 'b07_kopru' : k === 2 ? 'kapi_acildi' : 'b07_kapi_acildi');   // (b07_nehir2 "köprü yükseldi" kullanılmıyor: köprü yok, basamaklar çıkıyor)
     });
     on('happy', e => {
       if (!e || !e.boss || e.type !== 'kocaLavKaplumbagasi') return;
@@ -289,27 +319,32 @@ const YANARDAG = (() => {
     on('zone', () => { pirilDurum('takip'); for (const f of offs) { try { f(); } catch (e) { /* yok */ } } });
     function pirilUyan() {
       pirilDurum('takip'); S.carry = false;
-      try { if (S.saved && PIRIL_GUC.ac) for (const n of (Array.isArray(S.saved) ? S.saved : Object.keys(S.saved))) PIRIL_GUC.ac(typeof n === 'string' ? n : n.id || n.ad); } catch (e) { /* yok */ }
+      // (gucler() {nefes:true, ucus:false…} döner: yalnız açık olanlar geri açılsın; önceden Object.keys hepsini, kazanılmamış güçleri de açıyordu)
+      try { if (S.saved && PIRIL_GUC.ac) for (const n of (Array.isArray(S.saved) ? S.saved : Object.keys(S.saved).filter(k => S.saved[k]))) PIRIL_GUC.ac(typeof n === 'string' ? n : n.id || n.ad); } catch (e) { /* yok */ }
       say('b07_isik', { force: true, once: false });
-      setTimeout(() => say('b07_pirilacildi', { force: true, once: false }), 4800);
+      later(() => say('b07_pirilacildi', { force: true, once: false }), 4.8);
     }
     const orbMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe08a).multiplyScalar(1.4), transparent: true, opacity: 0.95, fog: false });
     const orbM = new THREE.Mesh(geo('orb', () => kp(new THREE.SphereGeometry(1, 12, 10))), orbMat);
     orbM.visible = false; orbM.scale.setScalar(0.3); api.add(orbM); api.dispose(orbMat);
 
     const hero = () => g0 && g0.P;
+    const Q = [];   // oyun saatiyle gecikmeli cümleler (setTimeout yerine: duraklatınca beklesin, başka bölüme taşmasın)
+    const later = (fn, s) => Q.push({ t: T + s, fn });
     let T = 0;
     api.anim((dt, hx, hz) => {
       dt = Math.min(dt, 0.05); T += dt; S.t = T;
       const P = hero(); if (!P) return;
       const playing = live();
+      if (g0.L !== L) { Q.length = 0; return; }
+      for (let i = Q.length - 1; i >= 0; i--) if (playing && T >= Q[i].t) { const f = Q[i].fn; Q.splice(i, 1); try { f(); } catch (e) { /* yok */ } }
       if (dragon) dragon.update(dt);
       for (const k of [1, 2, 3]) { const b = S.btn[k]; if (!b) continue; b.C.spokes.rotation.y += dt * (b.done ? 0.4 : 1.4); b.C.ring.material.opacity = b.done ? 0.25 : 0.55 + 0.25 * Math.sin(T * 3); b.C.top.material.emissiveIntensity = b.done ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + k); }   // (b.done: motor nesneyi kopyalar, b.o değişmez)
       for (const gt of gates) {
         if (gt.open) {
           if (gt.anim < 1) {
             gt.anim = Math.min(1, gt.anim + dt / 1.4); gt.pm.opacity = 0.55 * (1 - gt.anim); gt.panel.position.y = 1.8 - gt.anim * 1.8;
-            gt.steps.forEach((s, i) => { s.position.y = -0.4 + 0.55 * clamp(gt.anim * 1.6 - i * 0.2, 0, 1); });
+            gt.steps.forEach((s, i) => { s.position.y = -0.4 + 0.33 * clamp(gt.anim * 1.6 - i * 0.2, 0, 1); });
             if (gt.anim >= 1) { gt.panel.visible = false; for (const so of gt.solids) so.alive = false; L._sh = null; }
           }
         } else {
@@ -330,21 +365,31 @@ const YANARDAG = (() => {
         if (T > 16 && S.started === 2 && S.btn[1] && !S.btn[1].done) { S.started = 3; say('b07_nehir1'); pirilGit(S.btn[1].o.x, S.btn[1].o.z); }
         if (ar !== S.area) {
           S.area = ar;
-          if (ar === 1) { say('b07_pirilsicak', { force: true }); setTimeout(() => say('b07_goller'), 7000); }
+          if (ar === 1) say('b07_pirilsicak', { force: true });   // (b07_goller "taş atlayalım mı?" kaldırıldı: taş atlama oyunu yok)
           if (ar === 2) say('b07_yamac', { force: true });
-          if (ar === 3) { say('b07_yuva_giris', { force: true }); setTimeout(() => say('b07_ejderha', { force: true }), 4500); setTimeout(() => say('b07_dede_p', { force: true }), 10000); }
-          if (ar === 4) { say('b07_yamac_sessiz', { force: true }); setTimeout(() => say('b07_kaplumbagayolgoster'), 6000); }
-          if (ar === A.length - 1) say('b07_arena', { force: true, once: false });
+          if (ar === 3) { say('b07_yuva_giris', { force: true }); S.a3T = T; if (shell) pirilGit(M.shell.x, M.shell.z); }
+          // QA: kabuğu bulmadan yamaca geçerse taşıma yine başlasın (yoksa "Feza onu taşıyor" denir ama Pırıl uçuyordu). "Kaplumbağalar yolu gösteriyor" cümlesi
+          // kaldırıldı: yamaçta yol gösteren kaplumbağa yok.
+          if (ar === 4) { if (!S.shell) { S.shell = 3; S.shellT = T - 12.2; } if (S.carry) say('b07_yamac_sessiz', { force: true }); }
+          if (ar === A.length - 1) { say('b07_arena', { force: true, once: false }); if (S.shell < 6) { S.shell = 6; if (!S.carry) { pirilDurum('kucak'); S.carry = true; } } }   // (hikâye arenaya taşmasın: kalan cümleler atlanır)
         }
-        if (ar === 3 && M.prints && M.prints.length > 2 && !S.prints && hyp(P.pos.x - M.prints[2].x, P.pos.z - M.prints[2].z) < 3.5) { S.prints = 1; say('b07_pirilizler', { force: true }); }
-        if (ar === 3 && shell && !S.shell && hyp(P.pos.x - M.shell.x, P.pos.z - M.shell.z) < 1.8) {
-          S.shell = 1; S.shellT = T; say('b07_kabuk', { force: true }); sfx('unlock', { x: M.shell.x, z: M.shell.z, pitch: 1.6 }); dot.material.opacity = 1;
+        // yuva cümleleri sırayla, biri bitmeden öteki başlamaz (önceden kabuk cümleleri araya girince ejderha cümlesi hiç söylenmiyordu)
+        if (ar === 3 && !S.ej && T - (S.a3T || 0) > 4.5 && say('b07_ejderha', { gap: 3.6 })) S.ej = 1;
+        if (ar === 3 && S.ej === 1 && say('b07_dede_p', { gap: 3.6 })) S.ej = 2;
+        if (ar === 3 && M.prints && M.prints.length > 2 && !S.prints && hyp(P.pos.x - M.prints[2].x, P.pos.z - M.prints[2].z) < 3.5) S.prints = 1;
+        if (ar === 3 && S.prints === 1 && say('b07_pirilizler', { gap: 3.6 })) S.prints = 2;
+        if (ar === 3 && shell && !S.shell && hyp(P.pos.x - M.shell.x, P.pos.z - M.shell.z) < 2.4) {
+          S.shell = 1; S.shellT = T; S.kb = 1; sfx('unlock', { x: M.shell.x, z: M.shell.z, pitch: 1.6 }); dot.material.opacity = 1;
         }
-        if (S.shell === 1 && T - S.shellT > 3.5) { S.shell = 2; say('b07_pirildogdum', { force: true }); }
-        if (S.shell === 2 && T - S.shellT > 8) { S.shell = 3; say('b07_kabukyari', { force: true }); }
-        if (S.shell === 3 && T - S.shellT > 12.5) { S.shell = 4; say('b07_pirilyorgun', { force: true }); }
-        if (S.shell === 4 && T - S.shellT > 17) { S.shell = 5; say('b07_pirilsoz', { force: true }); pirilDurum('kucak'); S.carry = true; }
-        if (S.shell === 5 && T - S.shellT > 22) { S.shell = 6; say('b07_pirilulus', { force: true }); }
+        // kabuk hikâyesi: her cümle bir öncekinin bitmesini bekler (üst üste binip kesilmesin); cümle yoksa / söylendiyse geçer
+        const sira = (n, key, dt0) => { if (S.shell === n - 1 && T - S.shellT > dt0 && (!AUD.LINES[key] || said.has(key) || say(key, { gap: 3.6 }))) { S.shell = n; S.shellT2 = T; return true; } return false; };
+        if (S.kb === 1 && S.shell === 1 && say('b07_kabuk', { gap: 3 })) { S.kb = 2; S.shellT = T; }
+        if (S.shell >= 1 && S.shell < 6 && S.kb !== 1) {
+          sira(2, 'b07_pirildogdum', 3.5); sira(3, 'b07_kabukyari', 7); sira(4, 'b07_pirilyorgun', 11);
+          if (sira(5, 'b07_pirilsoz', 15)) { pirilDurum('kucak'); S.carry = true; }
+          sira(6, 'b07_pirilulus', 19);
+        }
+        if (S.shell === 6 && ar === 4 && !S.ys && T - (S.shellT2 || 0) > 3.6 && say('b07_yamac_sessiz', { gap: 3.6 })) S.ys = 1;
         if (S.orb) {
           const o = S.orb; o.t += dt; orbM.visible = true;
           const k = clamp(o.t / 2.2, 0, 1), tx = P.pos.x, tz = P.pos.z, y0 = 2.6, y1 = 1.1;
@@ -352,11 +397,13 @@ const YANARDAG = (() => {
           if (k >= 1) { orbM.visible = false; S.orb = null; burst('sparkle', tx, 1.2, tz, { color: '#ffe08a', count: 8 }); pirilUyan(); }
         }
       }
-      if (S.carry && !S.happy) {
+      if (S.carry && !S.happy && !S.bossOn) {   // (boss savaşında yavaşlatma yok: Feza kaçabilsin)
         P.slowT = Math.max(P.slowT || 0, 0.2); P.slowK = 0.82;
         const mov = hyp(hx - (S._hx ?? hx), hz - (S._hz ?? hz)); S._hx = hx; S._hz = hz;
         if (mov < 0.002 && playing) S.still += dt; else S.still = 0;
-        if (S.still > 1.4 && !S.hug) { S.hug = 1; burst('heart', hx, 1.5, hz, { count: 3 }); say('b07_fezasarilma', { force: true }); setTimeout(() => say('b07_pirilsarilma', { force: true }), 4500); }
+        if (S.still > 1.4 && !S.hug) { S.hug = 1; burst('heart', hx, 1.5, hz, { count: 3 }); }
+        if (S.hug === 1 && playing && say('b07_fezasarilma', { gap: 3.6 })) S.hug = 2;   // (Pırıl'ın cümlesini kesmesin: sırasını bekler)
+        else if (S.hug === 2 && playing && say('b07_pirilsarilma', { gap: 3.6 })) S.hug = 3;
       }
       if (S.carry && P.area === 4 && !S.kiv && T - (S.shellT || 0) > 40) { S.kiv = 1; say('b07_kivilcim'); }
     });

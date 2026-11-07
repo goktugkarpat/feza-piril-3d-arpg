@@ -62,9 +62,11 @@ const KALE = (() => {
     for (let a = 1; a <= 3; a++) {
       const rm = L.rooms[mainRooms(a)[0]]; if (!rm) continue;
       const R = rm.r || Math.max(rm.hw || 6, rm.hh || 6);
-      const e = spot(rm.x, rm.z, R * 0.2, R * 0.5, 1.4) || { x: rm.x + 1.5, z: rm.z };
+      const e = spot(rm.x, rm.z, R * 0.2, R * 0.5, 1.4) || spot(rm.x, rm.z, 0.5, R * 0.8, 1.2, 160) || { x: rm.x, z: rm.z };
       let n = null; for (let t = 0; t < 30 && !n; t++) { const c = spot(rm.x, rm.z, R * 0.3, R * 0.65, 1.3); if (c && hyp(c.x - e.x, c.z - e.z) > 5) n = c; }
-      K.eggs.push(e); K.nests.push(n || { x: rm.x - 4, z: rm.z + 2 }); K.rooms[a] = { x: rm.x, z: rm.z, r: R };
+      // yedek: küçük odada 5 m bulunamazsa 3 m yeter; körlemesine nokta YOK (seed 4: yuva bir eşyanın içine düşüyordu, yumurta elde kalıyordu)
+      for (let t = 0; t < 40 && !n; t++) { const c = spot(rm.x, rm.z, 1, R * 0.85, 1.2); if (c && hyp(c.x - e.x, c.z - e.z) > 3) n = c; }
+      K.eggs.push(e); K.nests.push(n || { x: e.x + (rm.x > e.x ? 3 : -3), z: e.z }); K.rooms[a] = { x: rm.x, z: rm.z, r: R };
     }
     { const rm = L.rooms[mainRooms(0)[0]]; if (rm) K.bridge = { x: rm.x, z: rm.z, r: rm.r || 8 }; }
     { const rm = L.rooms[mainRooms(2)[0]]; if (rm) K.galeri = { x: rm.x, z: rm.z, r: rm.r || 8 }; }
@@ -209,16 +211,23 @@ const KALE = (() => {
     bridgeFlags(api, K);
     // galeri: eski resimler
     if (K.galeri) {
-      const R = K.galeri.r; let n = 0;
-      for (let k = 0; k < 14 && n < 5; k++) {
+      const R = K.galeri.r; let n = 0; K.frames = [];
+      // kuzeyi (≤4 m, ±2,5 m) zemin olan yer = salona giden koridorun ağzı: resim yola dikiliyor, salondan bakınca ekranı kapatıyordu (seed 8 dikey)
+      const yolAgzi = (x, z) => { for (let dz = 0; dz <= 4; dz += 0.5) for (let dx = -2.5; dx <= 2.5; dx += 0.5) if (flGrid(x + dx, z - dz)) return true; return false; };
+      for (let pass = 0; pass < 2 && n < 2; pass++) for (let k = 0; k < 14 && n < 5; k++) {
         const a = -PI * 0.9 + k * (PI * 1.8 / 13), x = K.galeri.x + Math.sin(a) * (R + 1.1), z = K.galeri.z + Math.cos(a) * (R + 1.1);
         if (api.isFloor(x, z) || z > K.galeri.z - 1) continue;   // yalnız kuzey kenar: kamerayı kapatmaz
-        frame(api, x, 2.2, z, Math.atan2(K.galeri.x - x, K.galeri.z - z), n++);
+        if (K.frames.some(f => hyp(f.position.x - x, f.position.z - z) < 1)) continue;
+        if (pass === 0 && yolAgzi(x, z)) continue;   // 2. tur (resim az kaldıysa): yine konur, Feza kuzeyine geçince söner (kurSon)
+        K.frames.push(frame(api, x, 2.2, z, Math.atan2(K.galeri.x - x, K.galeri.z - z), n++));
       }
     }
     // salon: ateş yuvası + hala'nın fırını (basit)
     if (K.salon) {
-      const x = K.salon.x + K.salon.r * 0.55, z = K.salon.z - K.salon.r * 0.35;
+      // fırın yumurta/yuvanın üstüne binmesin (görsel kutu, katı değil): dört köşeden ilk uygun olan
+      const near = (x, z) => [...(K.eggs || []), ...(K.nests || [])].some(q => hyp(q.x - x, q.z - z) < 2.6);
+      let x = K.salon.x + K.salon.r * 0.55, z = K.salon.z - K.salon.r * 0.35;
+      for (const [sx, sz] of [[0.55, -0.35], [-0.55, -0.35], [0.55, 0.35], [-0.55, 0.35]]) { const cx = K.salon.x + K.salon.r * sx, cz = K.salon.z + K.salon.r * sz; if (api.isFloor(cx, cz) && !near(cx, cz)) { x = cx; z = cz; break; } }
       api.box(x, 0.45, z, 1.6, 0.9, 1.0, 0xb08a6a, 0); api.box(x, 1.0, z, 1.4, 0.3, 0.8, 0x6b4a36, 0);
       api.glow(x, z + 0.4, 2.4, 0xffa040, 0.28); K.oven = { x, z };
     }
@@ -239,7 +248,15 @@ const KALE = (() => {
     // kırık kabuk + beşik (arena)
     let cr = null;
     if (K.arena) { cr = cradle(api, K.arena.x - K.arena.r * 0.55, K.arena.z + K.arena.r * 0.2); K.shell = { x: cr.shellX, z: cr.shellZ }; K.shellGlow = sn => { cr.glow.t = 0; cr.glow.d = sn; }; if (K.arena) S.golge = golge(api, K.arena.x, K.arena.z - K.arena.r - 7); }
-    // yumurtalar ve yuvalar
+    // yumurtalar ve yuvalar — son kontrol: bütün eşyalar konduktan sonra yer hâlâ boş mu? (değilse en yakın boş zemine kaydır; Feza yuvaya varamazsa yumurta elde kalırdı)
+    const HA0 = g0 && g0.halaApi;
+    const bosYer = (p, r) => {
+      if (!HA0 || !HA0.isFloor || !HA0.circleFree || !p) return p;
+      if (HA0.isFloor(p.x, p.z) && HA0.circleFree(p.x, p.z, r)) return p;
+      for (let d = 0.5; d <= 6; d += 0.5) for (let k = 0; k < 16; k++) { const a = k * TAU / 16, x = p.x + Math.sin(a) * d, z = p.z + Math.cos(a) * d; if (HA0.isFloor(x, z) && HA0.circleFree(x, z, r)) { p.x = x; p.z = z; return p; } }
+      return p;
+    };
+    try { (K.eggs || []).forEach(p => bosYer(p, 0.9)); (K.nests || []).forEach(p => bosYer(p, 1.0)); } catch (e) { /* yok */ }
     const YC = ['#ffb4cc', '#ffc2a0', '#ffd3a8'];
     (K.eggs || []).forEach((p, i) => {
       let egg = null;
@@ -247,14 +264,14 @@ const KALE = (() => {
       const mesh = new THREE.Group(); if (egg) { egg.root.scale.setScalar(1.7); mesh.add(egg.root); }
       const ring = new THREE.Mesh(geo('er', () => kp(new THREE.RingGeometry(0.9, 1.1, 32).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.85, depthWrite: false })); ring.position.y = 0.06; mesh.add(ring); api.dispose(ring.material);
       const o = { id: 'yum' + i, tur: 'tasinir', x: p.x, z: p.z, r: 1.3, y: 0, mesh, kucakY: 1.05, kabulId: 'yuva', ringM: ring, egg, renk: YC[i % 3] };
-      o.aldi = () => { ring.visible = false; if (i === 0) say('b09_yumurta_p', { force: true }); S.hintN = 0; };
+      o.aldi = () => { ring.visible = false; if (i === 0) say('b09_yumurta_p', { force: true }); S.hint = 0; };   // (ipucu sayacı sıfırlanır: yoksa yumurtayı alır almaz "Yuvaya götür" denirdi)
       L.nesneler.push(o); S.eggs.push(o);
       const n = K.nests[i]; const nm = nestMesh(api, n.x, n.z); S.nests.push(nm);
       L.hedefler.push({ id: 'yuva', x: n.x, z: n.z, r: 1.7, y: 0.1, yerlesti: (eo) => { eggWarm(eo); } });
       api.glow(p.x, p.z, 1.6, 0xffe08a, 0.1);
     });
     function eggWarm(o) {
-      S.delivered++; burst('hearts', o.x, 1.4, o.z, { count: 6 });
+      S.delivered++; S.hint = 0; burst('hearts', o.x, 1.4, o.z, { count: 6 });
       if (o.egg && o.egg.mesh && o.egg.mesh.material) { const m = o.egg.mesh.material; m.emissive = new THREE.Color(0xff9ab8); m.emissiveIntensity = 0.45; try { m.color.lerp(new THREE.Color(0xffc8d8), 0.45); } catch (e) { /* yok */ } }
       try { if (o.egg) o.egg.kir(); } catch (e) { /* yok */ }
       if (S.delivered === 1) say('b09_yuva_tamam', { force: true, once: false });
@@ -280,8 +297,10 @@ const KALE = (() => {
     try {
       if (typeof KARTAL !== 'undefined' && KARTAL.kur && HA) kartal = KARTAL.kur({ scene, hero, enemies: () => g0.enemies.filter(e => !e.dead), it: (e, dx, dz) => { try { g0.pushEnemy(e, e.x + dx * 4, e.z + dz * 4, 1); } catch (er) { /* yok */ } }, sfx });
     } catch (e) { console.warn('[kale] Kartal', e); kartal = null; }
-    try { if (typeof HALA !== 'undefined' && HALA.firinciModel) { hala = HALA.firinciModel(api); hala.visible = false; api.add(hala); } } catch (e) { hala = null; }
-    let halaPos = { x: 0, z: 0 };
+    try { if (typeof HALA !== 'undefined' && HALA.firinciModel) { hala = HALA.firinciModel(api); api.add(hala); } } catch (e) { hala = null; }
+    // Hala baştan beri yanımızda (cümleler "Hala köprüde bekliyordu / sepetini gösterdi" diyor; eskiden yalnız salonda beliriyordu)
+    let halaPos = { x: (L.start ? L.start.x : 0) - 2, z: (L.start ? L.start.z : 0) + 1 };
+    if (hala) hala.position.set(halaPos.x, 0, halaPos.z);
     api.dispose({ dispose() { try { if (baba) baba.dispose(); if (kartal) kartal.dispose(); } catch (e) { /* yok */ } for (const f of offs) { try { f(); } catch (e) { /* yok */ } } } });
     // otomatik yardım kuyruğu: Baba + Kartal (B9–B10 ayarlı), Hala (ekmek)
     try {
@@ -318,15 +337,17 @@ const KALE = (() => {
       S.nests.forEach((n, i) => { const full = L.hedefler[i] && L.hedefler[i].dolu; n.ring.material.opacity = full ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + i); });
       // kabuk parlaması
       if (cr) { const gl = cr.glow; if (gl.d > 0) { gl.t += dt; const u = gl.t / gl.d; cr.sm.emissiveIntensity = u < 1 ? 1.2 * Math.sin(u * PI) : 0; if (u >= 1) gl.d = 0; } }
+      // galeri resimleri: Feza resmin kuzeyine geçince (kamera güneyden bakar) resim önünde ekranı kapatmasın → yavaşça söner
+      if (K.frames) for (const f of K.frames) { const on = !(P.pos.z < f.position.z - 0.5 && Math.abs(P.pos.x - f.position.x) < 14); const s = f.scale.y + ((on ? 1 : 0) - f.scale.y) * Math.min(1, dt * 6); f.scale.set(1, Math.max(0.001, s), 1); f.visible = s > 0.02; }
       // sis perdesi
       if (S.perde) {
         const pd = S.perde;
         if (!pd.open) pd.pm.opacity = 0.5 + 0.08 * Math.sin(T * 2);
         else if (pd.anim < 1) { pd.anim = Math.min(1, pd.anim + dt / 1.8); pd.pm.opacity = 0.5 * (1 - pd.anim); pd.panel.position.y = 1.9 + pd.anim * 2.4; if (pd.anim >= 1) { pd.panel.visible = false; for (const so of pd.solids) so.alive = false; L._sh = null; } }
-        // perde önünde (≤6 m) toplam süre birikir (durmak da, geri gelmek de sayılır): ~1 sn'de tek ipucu (en yakın yumurtayı gösterir), 4 sn'de Pırıl perdeyi açar
+        // perde önünde (≤6 m) toplam süre birikir (durmak da, geri gelmek de sayılır): 4 sn'de Pırıl perdeyi açar.
+        // (Eski "yumurtayı yuvaya taşı" ipucu kaldırıldı: Feza'yı geri gönderiyor, 3 sn sonra kapı zaten açılıyordu → kafa karışıklığı.)
         if (!pd.open && playing && pd.solids.some(so => hyp(P.pos.x - so.x, P.pos.z - so.z) < 6)) {   // perdenin herhangi bir yerine yakın (kapı noktası perdenin ucunda kalabilir)
           S.perdeNear = (S.perdeNear || 0) + dt;
-          if (S.perdeNear > 1 && !S.perdeIpucu && S.delivered < 3) { S.perdeIpucu = 1; let nx = null, nd = 1e9; for (const o of S.eggs) { if (o.yerlesik || o.tut) continue; const d = hyp(o.x - P.pos.x, o.z - P.pos.z); if (d < nd) { nd = d; nx = o; } } if (nx) pirilGit(nx.x, nx.z); say('b09_yumurta_p', { force: true, once: false }); }
           if (S.perdeNear >= 4) perdeYedekAc();
         }
         if (!pd.open && (S.stuck = (S.stuck || 0) + (playing && P.area === arenaK - 1 ? dt : 0)) > 150) perdeYedekAc();   // yedek: çok uzun takılırsa perde kendiliğinden açılır
@@ -336,31 +357,37 @@ const KALE = (() => {
       const ar = P.area;
       if (T > 1 && !S.started) { S.started = 1; say('b09_giris_a', { force: true }); }
       if (T > 8 && S.started === 1) { S.started = 2; say('b09_giris_p'); }
-      if (T > 15 && S.started === 2) { S.started = 3; say('b09_dostlar'); }
+      // (Hala modeli yoksa — HALA.firinciModel bu sürümde tanımlı değil — "Hala köprüde / sepetini gösterdi" denmez: görünmeyen birinden söz edilmesin)
+      if (T > 15 && S.started === 2) { S.started = 3; if (hala) say('b09_dostlar'); }
       if (T > 21 && S.started === 3) { S.started = 4; say('b09_baba_a'); }
-      if (T > 27 && S.started === 4) { S.started = 5; say('b09_hala_a'); if (baba && baba.yolGoster && K.eggs[0]) { try { baba.yolGoster(K.eggs[0].x, K.eggs[0].z); } catch (e) { /* yok */ } } }
+      if (T > 27 && S.started === 4) { S.started = 5; if (hala) say('b09_hala_a'); if (baba && baba.yolGoster && K.eggs[0]) { try { baba.yolGoster(K.eggs[0].x, K.eggs[0].z); } catch (e) { /* yok */ } } }
       if (ar !== S.area) {
         S.area = ar;
-        if (ar === 1) { say('b09_avlu', { force: true }); later(8, () => { const e0 = S.eggs[0]; if (e0 && !e0.yerlesik) { say('b09_yumurta1', { force: true }); if (e0) pirilGit(e0.x, e0.z); } }); }
-        if (ar === 2) { say('b09_galeri_a', { force: true }); later(8, () => say('b09_galeri_p', { force: true })); later(16, () => { const e1 = S.eggs[1]; if (e1 && !e1.yerlesik) say('b09_yumurta2', { force: true }); }); }
-        if (ar === 3) { say('b09_salon_a', { force: true }); later(8, () => say('b09_baba_ates', { force: true })); later(14, () => say('b09_baba_ani', { force: true })); KALE._halaOn = true; if (hala) { hala.visible = true; halaPos = { x: K.oven ? K.oven.x : P.pos.x, z: K.oven ? K.oven.z + 1.2 : P.pos.z }; hala.position.set(halaPos.x, 0, halaPos.z); } if (baba && baba.kampYak && K.salon) { try { baba.kampYak(K.salon.x - 2, K.salon.z - 1); } catch (e) { /* yok */ } } }
+        if (ar === 1) { say('b09_avlu', { force: true }); later(8, () => { const e0 = S.eggs[0]; if (e0 && !e0.yerlesik && !e0.tut && g0.P && g0.P.area === 1 && !g0.nesne.tasinan) { say('b09_yumurta1', { force: true }); pirilGit(e0.x, e0.z); } }); }
+        if (ar === 2) { say('b09_galeri_a', { force: true }); later(8, () => { if (g0.P && g0.P.area === 2) say('b09_galeri_p', { force: true }); }); }   // ("resme baktı" yalnız galerideyken)   // (b09_yumurta2 "resmin altında" dendi ama yumurta resmin altında değil: kaldırıldı; 25 sn ipucu yumurtayı gösterir)
+        // salon: "Baba yumurtayı kucağına aldı / sevgiyle tuttu" cümleleri kaldırıldı — yumurtayı Feza taşıyor, Baba tutmuyor (ve merdivende kavga ortasında çalıyordu)
+        if (ar === 3) { say('b09_salon_a', { force: true }); KALE._halaOn = true; if (baba && baba.kampYak && K.salon) { try { baba.kampYak(K.salon.x - 2, K.salon.z - 1); } catch (e) { /* yok */ } } }
         if (ar === 4) say('b09_merdiven', { force: true });
         if (ar === arenaK) { say('b09_boss_giris', { force: true, once: false }); later(7, () => say('b09_boss_p', { force: true, once: false })); }
       }
-      // Hala: salondan sonra Feza'nın yanında yürür
-      if (hala && hala.visible && ar >= 3) {
-        const tx = P.pos.x - Math.sin(P.face) * 2.2 + Math.cos(P.face) * 1.6, tz = P.pos.z - Math.cos(P.face) * 2.2 - Math.sin(P.face) * 1.6, dx = tx - halaPos.x, dz = tz - halaPos.z, d = hyp(dx, dz);
-        if (d > 1.2 && ar >= 4) { const st = Math.min(d, 4.0 * dt), nx = halaPos.x + dx / d * st, nz = halaPos.z + dz / d * st; if (g0.halaApi.isFloor(nx, nz)) { halaPos.x = nx; halaPos.z = nz; } hala.rotation.y = Math.atan2(dx, dz); }
-        else if (ar === 3) hala.rotation.y = Math.atan2(P.pos.x - halaPos.x, P.pos.z - halaPos.z);
+      // Hala: Feza'nın yanında yürür (geride kalırsa — duvar arkası — sessizce arkasına gelir)
+      if (hala && hala.visible) {
+        // hedef: Feza'nın SOLU, biraz kuzeyi (kamera güneyden bakar; "arkası" kameraya doğru olunca Hala ekranda Feza'yı kapatıyordu)
+        let tx = P.pos.x - 2.0, tz = P.pos.z - 0.4; if (HA && !HA.isFloor(tx, tz)) { tx = P.pos.x + 2.0; }
+        const dx = tx - halaPos.x, dz = tz - halaPos.z, d = hyp(dx, dz);
+        if (d > 14 && HA && HA.isFloor(tx, tz)) { halaPos.x = tx; halaPos.z = tz; }
+        else if (d > 1.2) { const st = Math.min(d, (d > 5 ? 6.0 : 4.0) * dt), nx = halaPos.x + dx / d * st, nz = halaPos.z + dz / d * st; if (HA && HA.isFloor(nx, nz)) { halaPos.x = nx; halaPos.z = nz; } hala.rotation.y = Math.atan2(dx, dz); }
+        else hala.rotation.y = Math.atan2(P.pos.x - halaPos.x, P.pos.z - halaPos.z);
         hala.position.set(halaPos.x, 0, halaPos.z);
       }
       // yumurta ipuçları: Feza uzun süre yumurtaya gitmezse Pırıl gösterir
       if (ar >= 1 && ar <= 3 && !g0.nesne.tasinan) { const e = S.eggs[ar - 1]; if (e && !e.yerlesik && !e.tut) { S.hint += dt; if (S.hint > 25) { S.hint = 0; pirilGit(e.x, e.z); say('b09_ipucu_yumurta', { force: true, once: false, gap: 10 }); } } }
-      else if (g0.nesne.tasinan) { S.hint += dt; if (S.hint > 25) { S.hint = 0; const nn = S.nests[ar - 1]; const h = L.hedefler.find(q => !q.dolu); if (h) pirilGit(h.x, h.z); say('b09_ipucu_yuva', { force: true, once: false, gap: 10 }); } }
+      // (taşıma ipucu yalnız yumurta odalarında: merdivende/boss savaşında "yuvaya götür" deyip Pırıl'ı geri uçurmasın — yumurtalar isteğe bağlı)
+      else if (g0.nesne.tasinan && ar >= 1 && ar <= 3) { S.hint += dt; if (S.hint > 25) { S.hint = 0; let h = null, hd = 1e9; for (const q of L.hedefler) { if (q.dolu || q.id !== 'yuva') continue; const d = hyp(q.x - P.pos.x, q.z - P.pos.z); if (d < hd) { hd = d; h = q; } } if (h) pirilGit(h.x, h.z); say('b09_ipucu_yuva', { force: true, once: false, gap: 10 }); } }   // en yakın boş yuva
       // boss sonrası: gölge (adı yok), anne sözü
       if (S.endStep) {
         const el = T - S.endT;
-        if (S.golge) { const u = clamp((el - 7) / 3, 0, 1); S.golge.m.opacity = 0.5 * u; }
+        if (S.golge) { const u = clamp((el - 2.5) / 2.5, 0, 1); S.golge.m.opacity = 0.5 * u; }
         sayAt2(5, 'b09_kule_a'); sayAt2(11, 'b09_golge'); sayAt2(17, 'b09_anne_son'); sayAt2(23, 'b09_son_p');
         if (hala && el > 3 && !S.e_hala) { S.e_hala = 1; say('b09_hala_son', { force: true, once: false }); }
       }

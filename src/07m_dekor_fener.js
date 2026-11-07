@@ -91,7 +91,10 @@ const FENER_DEKOR = (() => {
     const claim = (x, z, r) => { const k = (Math.floor(x / 6) + 500) * 1000 + Math.floor(z / 6) + 500; let q = cell.get(k); if (!q) cell.set(k, q = []); q.push({ x, z, r }); };
     const floorAt = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && grid[j * L.W + i] > 0; };
     const southFront = (x, z) => { for (let t = 2; t <= 10; t += 2) for (const o of [0, -3, 3]) if (floorAt(x + o, z - t)) return true; return false; };
-    const keep = (x, z, r) => (L.start && hyp(x - L.start.x, z - L.start.z) < r + 2) || (L.exit && hyp(x - L.exit.x, z - L.exit.z) < r + 3);
+    // QA: final sahnesindeki uyuyan ejderhaların (F.uyku) çevresi ve kameraya bakan tarafı (yaw yönünde ~16 m) boş kalır — kaya/çam ejderhayı örtmesin
+    const uyku = (F && F.uyku) || [];
+    const ejdBos = (x, z, r) => uyku.some(u => { const ex = Math.sin(u.yaw), ez = Math.cos(u.yaw), dx = x - u.x, dz = z - u.z, t = Math.max(0, Math.min(14, dx * ex + dz * ez)); return hyp(dx - ex * t, dz - ez * t) < r + 4.5 + t * 0.15; });
+    const keep = (x, z, r) => (L.start && hyp(x - L.start.x, z - L.start.z) < r + 2) || (L.exit && hyp(x - L.exit.x, z - L.exit.z) < r + 3) || ejdBos(x, z, r);
     const pick = a => a[(rnd() * a.length) | 0];
     const toward = (x, z, f) => Math.atan2(f.fx - x, f.fz - z);
     const pr = (g, x, y, z, sx, sy, sz, yaw, col = 0xffffff, mk = 'shinyNS') => put(g, x, y, z, sx, sy, sz, col, yaw || 0, 0, 0, mk);
@@ -133,7 +136,7 @@ const FENER_DEKOR = (() => {
     // ── denizde uzak taş köprü silüetleri (adacıklar arası) ──
     for (const c of cands) {
       if (st.kopru >= 4) break; const d = c.f.d; if (d < 7 || d > 18 || rnd() > 0.01) continue;
-      if (!free(c.x, c.z, 6)) continue; const yaw = rnd() * TAU;
+      if (!free(c.x, c.z, 6) || keep(c.x, c.z, 6)) continue; const yaw = rnd() * TAU;
       pr(Y.tasKopru(9, 2.6).m, c.x, 0.25, c.z, 1, 1, 1, yaw); for (const sg of [-1, 1]) { pr(Y.kayalik(1).m, c.x + Math.sin(yaw) * sg * 5.4, -0.4, c.z + Math.cos(yaw) * sg * 5.4, 2.4, 1.3, 2.4, rnd() * TAU, 0xe8f0ff); }
       claim(c.x, c.z, 6); st.kopru++;
     }
