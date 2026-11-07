@@ -175,38 +175,46 @@ const ZEMIN = (() => {
     float zN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
       return mix(mix(zh(i), zh(i + vec2(1., 0.)), f.x), mix(zh(i + vec2(0., 1.)), zh(i + vec2(1., 1.)), f.x), f.y); }
     float zF(vec2 p){ return zN(p) * .55 + zN(p * 2.03 + 7.1) * .3 + zN(p * 4.1 + 3.7) * .15; }
+    // titreme önleyici: zPx = bir pikselin zeminde kapladığı metre (x, z ayrı). Ekranın gösteremeyeceği kadar ince desen (bir hücre < ~2,5 piksel)
+    // ortalamasına (0,5) doğru yumuşar; yoksa kamera kayınca karıncalanır. (zMat'tan önce map_fragment'ta bir kez hesaplanır)
+    vec2 zPx = vec2(.02);
+    float zAA(vec2 f){ vec2 q = f * zPx; return 1. - smoothstep(.3, .7, max(q.x, q.y)); }
     vec3 zV(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8., id = 0.;
       for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)); vec2 o = vec2(zh(i + g), zh(i + g + 17.3));
         vec2 r = g + .12 + .76 * o - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; id = zh(i + g + 5.1); } else if (d < d2) d2 = d; }
       return vec3(sqrt(d1), sqrt(d2), id); }
     void zMat(int t, vec2 p, vec3 c0, vec3 c1, vec3 c2, out vec3 col, out float h) {
       if (t == 0) {
-        float n = zF(p * 5.), a = zN(p * 31.), b = zN(p * 62. + n * 3.); h = .5 * a + .5 * b;
+        float n = zF(p * 5.), a = mix(.5, zN(p * 31.), zAA(vec2(31.))), b = mix(.5, zN(p * 62. + n * 3.), zAA(vec2(62.))), c = mix(.5, zN(p * 17. + 4.3), zAA(vec2(17.))); h = .2 * a + .2 * b + .6 * c;   // (c: ekranda görünen çimen tanesi)
         col = mix(c0, c1, smoothstep(.2, .85, n * .6 + h * .5)); col = mix(col, c2, smoothstep(.62, .9, zF(p * 1.3 + 3.)) * .38); col *= .78 + .42 * h;
       } else if (t == 1) {
         vec3 v = zV(p * 4.6); h = smoothstep(.62, .12, v.x); float k = fract(v.z * 7.3);
-        col = mix(c0, c1, v.z); col = mix(col, c2, step(.82, k) * .8); col *= .66 + .5 * h; col *= .92 + .16 * zN(p * 40.);
+        col = mix(c0, c1, v.z); col = mix(col, c2, step(.82, k) * .8); col *= .66 + .5 * h; col *= .92 + .16 * mix(.5, zN(p * 40.), zAA(vec2(40.)));
       } else if (t == 2) {
-        vec3 v = zV(p * 1.05 + vec2(zN(p * .8) * .25)); float e = v.y - v.x; h = smoothstep(0., .13, e) * .75 + zF(p * 11.) * .25;
-        col = mix(c0, c1, v.z * .85 + zN(p * 3.) * .15); col = mix(col, c2, step(.86, fract(v.z * 9.1)) * .6); col *= (.5 + .5 * smoothstep(0., .1, e)) * (.88 + .24 * zN(p * 22.));
+        vec3 v = zV(p * 1.05 + vec2(zN(p * .8) * .25)); float e = v.y - v.x; h = smoothstep(0., .13, e) * .75 + mix(.5, zF(p * 11.), zAA(vec2(16.))) * .25;
+        col = mix(c0, c1, v.z * .85 + zN(p * 3.) * .15); col = mix(col, c2, step(.86, fract(v.z * 9.1)) * .6); col *= (.5 + .5 * smoothstep(0., .1, e)) * (.88 + .24 * mix(.5, zN(p * 22.), zAA(vec2(22.))));
         col = mix(col, col * vec3(.72, .85, .6), smoothstep(.05, .0, e) * .5 * zN(p * 9.));
       } else if (t == 3) {
-        float r = zF(p * .9) * 5.; float s = sin((p.x * .6 + p.y * 1.1 + r) * 7.); h = .5 + .22 * s + .2 * zN(p * 50.);
-        col = mix(c0, c1, smoothstep(.2, .8, h * .6 + zF(p * 3.) * .4)); col = mix(col, c2, step(.972, zh(floor(p * 55.))) * .9); col *= .9 + .2 * zN(p * 18.);
+        float r = zF(p * .9) * 5.; float s = sin((p.x * .6 + p.y * 1.1 + r) * 7.); h = .5 + .22 * s + .2 * mix(.5, zN(p * 50.), zAA(vec2(50.)));
+        col = mix(c0, c1, smoothstep(.2, .8, h * .6 + zF(p * 3.) * .4)); col = mix(col, c2, step(.972, zh(floor(p * 55.))) * .9 * zAA(vec2(55.))); col *= .9 + .2 * mix(.5, zN(p * 18.), zAA(vec2(18.)));
       } else if (t == 4) {
-        float n = zF(p * 7.), g = zN(p * 41.); h = .5 * n + .5 * g; col = mix(c0, c1, smoothstep(.2, .8, h)); vec3 v = zV(p * 6.5);
+        float n = zF(p * 7.), g = mix(.5, zN(p * 41.), zAA(vec2(41.))); h = .5 * n + .5 * g; col = mix(c0, c1, smoothstep(.2, .8, h)); vec3 v = zV(p * 6.5);
         col = mix(col, c2, smoothstep(.22, .1, v.x) * step(.62, v.z)); col *= .85 + .3 * zN(p * 2.3); h += smoothstep(.22, .1, v.x) * step(.62, v.z) * .5;
       } else if (t == 5) {
-        vec3 v = zV(p * 6.2); float k = fract(v.z * 3.7); h = smoothstep(0., .5, v.y - v.x) * .6 + .2 * zN(p * 30.);
+        vec3 v = zV(p * 6.2); float k = fract(v.z * 3.7); h = smoothstep(0., .5, v.y - v.x) * .6 + .2 * mix(.5, zN(p * 30.), zAA(vec2(30.)));
         col = k < .4 ? mix(c0, c1, k / .4) : mix(c1, c2, (k - .4) / .6); col *= .55 + .6 * h; col *= .85 + .3 * zF(p * 3.);
       } else if (t == 6) {
-        vec3 v = zV(p * 2.1); float e = v.y - v.x; h = zF(p * 9.) * .5 + smoothstep(0., .1, e) * .5;
-        col = mix(c0, c1, zF(p * 3. + v.z * 4.)); col = mix(col, c2, smoothstep(.55, .9, zN(p * 1.3)) * .35); col *= (.5 + .55 * smoothstep(0., .08, e)) * (.85 + .3 * zN(p * 26.));
+        vec3 v = zV(p * 2.1); float e = v.y - v.x; h = mix(.5, zF(p * 9.), zAA(vec2(13.))) * .5 + smoothstep(0., .1, e) * .5;
+        col = mix(c0, c1, zF(p * 3. + v.z * 4.)); col = mix(col, c2, smoothstep(.55, .9, zN(p * 1.3)) * .35); col *= (.5 + .55 * smoothstep(0., .08, e)) * (.85 + .3 * mix(.5, zN(p * 26.), zAA(vec2(26.))));
       } else if (t == 7) {
         vec3 v = zV(p * 2.5 * vec2(1., 1.25)); h = smoothstep(.62, .18, v.x); col = mix(c0, c1, v.z * .8 + .1 * zN(p * 10.)); col = mix(col, c2, step(.85, fract(v.z * 5.3)) * .6);
-        float eg = v.y - v.x; col = mix(col, col * vec3(.7, .95, .55), smoothstep(.2, .0, eg) * smoothstep(.4, .75, zF(p * 3. + 2.)) * .5); col *= .42 + .7 * pow(h, .7); col *= .9 + .2 * zN(p * 35.);
+        float eg = v.y - v.x; col = mix(col, col * vec3(.7, .95, .55), smoothstep(.2, .0, eg) * smoothstep(.4, .75, zF(p * 3. + 2.)) * .5); col *= .42 + .7 * pow(h, .7); col *= .9 + .2 * mix(.5, zN(p * 35.), zAA(vec2(35.)));
       } else {
-        float s = zN(vec2(p.x * 95., p.y * 9.)), n = zF(p * 4.); h = s; col = mix(c0, c1, s * .55 + n * .55); col = mix(col, c2, smoothstep(.7, .95, zN(p * 2.7)) * .5); col *= .8 + .35 * zN(p * 30.);
+        // saman: ince lif (yalnız çok yakında) + ekranda görünebilen saman çizgileri (küçük saman taneleri ~3 cm × 9 cm + hafif iri saman bantları)
+        float sF = mix(.5, zN(vec2(p.x * 95., p.y * 9.)), zAA(vec2(95., 9.)));
+        float sM = mix(.5, zN(vec2(p.x * 24., p.y * 9.)), zAA(vec2(24., 9.)));
+        float sL = zN(vec2(p.x * 7., p.y * 2.2) + 9.);
+        float s = .5 + (sM - .5) * .9 + (sL - .5) * .3 + (sF - .5) * .6, n = zF(p * 4.); h = s; col = mix(c0, c1, s * .55 + n * .55); col = mix(col, c2, smoothstep(.7, .95, zN(p * 2.7)) * .5); col *= .8 + .35 * mix(.5, zN(p * 30.), zAA(vec2(30.)));
       }
     }`;
 
@@ -268,6 +276,7 @@ const ZEMIN = (() => {
         ` + sh.fragmentShader
         .replace('#include <map_fragment>', `
           vec2 p = vZW.xz; vec4 M = texture2D(tLay, (p + uLay.xy) * uLay.zw);
+          zPx = vec2(length(vec2(dFdx(p.x), dFdy(p.x))), length(vec2(dFdx(p.y), dFdy(p.y))));
           if (uCut > .5 && texture2D(tGlowM, p * uGInv).a < .9) discard;
           float w1 = zF(p * .31) * 2. - 1., w2 = zN(p * 2.7), m1 = zF(p * .045 + 5.), m2 = zF(p * .16 + 11.);
           vec3 cB, cA, cP; float hB, hA, hP;
