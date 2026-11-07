@@ -81,10 +81,9 @@ const MABET_DEKOR = (() => {
     const placed = [];
     const spaced = (x, z, r) => { for (const q of placed) if (hyp(q.x - x, q.z - z) < r + q.r) return false; placed.push({ x, z, r }); return true; };
     const pools = [];
-    let shafts = 0;
-    const shaftG = api.dispose(new THREE.CylinderGeometry(0.7, 1.7, 6.5, 10, 1, true));
-    const shaftM = api.dispose(new THREE.MeshBasicMaterial({ color: 0xdfeaff, transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-    const shaft = (x, z) => { if (shafts >= 10) return; shafts++; const m = new THREE.Mesh(shaftG, shaftM); m.position.set(x + 1.2, 3.1, z + 0.6); m.rotation.z = 0.2; m.renderOrder = 3; api.add(m); };
+    // ay ışığı huzmeleri KALDIRILDI (7 Kasım): oyun kamerasından sütunların üstüne yatmış soluk, kenarlı bir şerit gibi görünüp
+    // çiçekleri/taşları bulandırıyordu (çift yüzlü saydam silindir; iPad'de "karışık görüntü"). 10 saydam çizim de azaldı.
+    const shaft = () => {};
 
     // ── bileşenler ──
     const vines = (x, y, z, w, n) => { for (let i = 0; i < n; i++) { const a = rnd() * TAU, hh = 0.6 + rnd() * 1.1; put(P.vine((rnd() * 4) | 0), x + Math.sin(a) * w, y, z + Math.cos(a) * w, 1, Math.min(hh, y - 0.3), 1, pick(T.ivy), a, 0, 0, 'shinyNS'); } };

@@ -330,7 +330,7 @@ const ZEMIN = (() => {
     api.dispose(M.tex); api.dispose(mat);
     const g = new THREE.PlaneGeometry(L.W + 150, L.H + 150); g.rotateX(-Math.PI / 2); g.translate(L.W / 2, 0, L.H / 2); api.dispose(g);
     let mesh = z.ust ? null : api.floor;
-    if (mesh) { mesh.geometry = g; mesh.material = mat; } else { mesh = new THREE.Mesh(g, mat); mesh.name = 'zemin'; if (z.ust) mesh.position.y = 0.004; api.add(mesh); }
+    if (mesh) { mesh.geometry = g; mesh.material = mat; } else { mesh = new THREE.Mesh(g, mat); mesh.name = 'zemin'; if (z.ust) { mesh.position.y = 0.004; mat.polygonOffset = true; mat.polygonOffsetFactor = 0; mat.polygonOffsetUnits = -2; } api.add(mesh); }   // (iPad: 4 mm üstteki kat alttaki lav zeminiyle titreşmesin)
     mesh.receiveShadow = true;
     L._zemin = { id, z, M, mesh, mat };
     return L._zemin;

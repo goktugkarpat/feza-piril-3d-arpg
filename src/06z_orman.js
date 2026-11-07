@@ -79,7 +79,7 @@ const ORMAN = (() => {
     // kamp ateşi: başlangıcın yakınında (Baba yanında)
     const st = L.start || { x: rm0.x, z: rm0.z };
     L.orKamp = null;
-    for (const yd of [2.6, 0]) for (const [dx, dz] of [[3.8, -3.6], [-3.8, -3.6], [4.2, 1.5], [-4.2, 1.5], [0, -5]]) { const x = st.x + dx, z = st.z + dz; if (!L.orKamp && api.isFloor(x, z) && api.circleFree(x, z, 1.6) && yolD(L, x, z) >= yd) L.orKamp = { x, z }; }   // (önce yolun kenarında: Feza ateşin içinden yürümesin)
+    for (const yd of [2.6, 0]) for (const [dx, dz] of [[2.7, -3.9], [-2.7, -3.9], [3.3, -2.4], [-3.3, -2.4], [3.8, -3.6], [-3.8, -3.6], [4.2, 1.5], [-4.2, 1.5], [0, -5]]) { const x = st.x + dx, z = st.z + dz; if (!L.orKamp && api.isFloor(x, z) && api.circleFree(x, z, 1.6) && yolD(L, x, z) >= yd && (!L.npc || hyp(L.npc.x - x, L.npc.z - z) > 3.8)) L.orKamp = { x, z }; }   // (önce yolun kenarında: Feza ateşin içinden yürümesin; QA dikey ekran: önce ileride ve ortaya yakın → ateş ve Baba ekranda kalır)
     if (!L.orKamp) L.orKamp = spot(st.x, st.z, 3.2, 5.2, 1.6) || { x: st.x + 3, z: st.z - 3 };
     // dinlenme ateşi: Baykuş'un ağacı alanında (4. alan)
     { const rm = L.rooms[mainRooms(3)[0]]; L.orKamp2 = rm ? spot(rm.x, rm.z, 2.5, Math.max(3, rm.r * 0.5), 1.8) : null; }
@@ -128,13 +128,14 @@ const ORMAN = (() => {
     const rnd = api.rnd, sc = o.scale || 1;
     for (let i = 0; i < 9; i++) { const a = i / 9 * TAU, s = 0.2 * sc * (0.8 + rnd() * 0.5); api.ball(x + Math.sin(a) * 0.72 * sc, s * 0.6, z + Math.cos(a) * 0.72 * sc, s * 1.2, s * 0.8, s, i % 2 ? 0x9a968c : 0x7d7a72); }
     for (let i = 0; i < 3; i++) api.box(x, 0.14 * sc, z, 1.2 * sc, 0.2 * sc, 0.2 * sc, i % 2 ? 0x6a4526 : 0x7b5430, i / 3 * PI + 0.3);
-    api.box(x, 0.03, z, 1.15 * sc, 0.05, 1.15 * sc, 0x3b2e24, 0);
+    // (iPad titreme: kare kül plakası 0.055'te, ışık diski 0.045'te üst üsteydi → yuvarlak kül tümseği; ışık diski açıkça üstünde)
+    api.ball(x, 0.0, z, 0.62 * sc, 0.06, 0.62 * sc, 0x3b2e24);
     const fg = new THREE.Group(); fg.position.set(x, 0.18 * sc, z); fg.visible = false; api.add(fg);
     // yumuşak damla şekilli 4 katmanlı alev (dışta turuncu, içte sarı-krem)
     const drop = geo('flDrop', () => new THREE.LatheGeometry([[0, 0], [0.2, 0.03], [0.3, 0.18], [0.29, 0.38], [0.2, 0.6], [0.1, 0.78], [0.03, 0.9], [0, 0.96]].map(p => new THREE.Vector2(p[0], p[1])), 14));
     const cols = [0xff7a22, 0xff9e30, 0xffc548, 0xfff0a8], flames = [];
     for (let i = 0; i < 4; i++) {
-      const m = mbasic('fl' + i, { color: cols[i], transparent: true, opacity: 0.88 });
+      const m = mbasic('fl' + i, { color: cols[i], transparent: true, opacity: [0.62, 0.72, 0.86, 0.95][i], depthWrite: false });   // (katmanlar derinlik yazmaz: içteki sarı çekirdek görünür)
       const q = new THREE.Mesh(drop, m), a0 = i * 1.7;
       q.userData = { sx: (1.15 - i * 0.22) * sc, sy: (1.0 - i * 0.14) * sc, a0, ox: i === 0 ? 0 : Math.sin(a0) * 0.1 * sc, oz: i === 0 ? 0 : Math.cos(a0) * 0.1 * sc };
       q.position.set(q.userData.ox, 0, q.userData.oz); q.renderOrder = 3 + i; fg.add(q); flames.push(q);
@@ -142,7 +143,7 @@ const ORMAN = (() => {
     api.light(x, 1.3 * sc, z, 0xffa245, 0, 9, 1);
     const le = api.B.lights[api.B.lights.length - 1];
     const disc = new THREE.Mesh(geo('disc', () => new THREE.PlaneGeometry(1, 1).rotateX(-PI / 2)), new THREE.MeshBasicMaterial({ map: haloTex(), color: 0xffa850, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    disc.position.set(x, 0.045, z); disc.scale.setScalar(9 * sc); disc.renderOrder = 1; api.add(disc); api.dispose(disc.material);
+    disc.position.set(x, 0.11, z); disc.scale.setScalar(9 * sc); disc.renderOrder = 1; api.add(disc); api.dispose(disc.material);
     const h = { x, z, lit: false, k: 0, set(on) { h.lit = on; } };
     api.anim((dt) => {
       h.k += ((h.lit ? 1 : 0) - h.k) * Math.min(1, dt * 3.2);
@@ -158,17 +159,25 @@ const ORMAN = (() => {
     const wood = mstd('fWood', { color: 0x8a5a32 }), leafM = mstd('fLeaf', { color: 0x4f9a46 }), orange = mstd('fOr', { color: 0xe0762a, roughness: 0.5 });
     const add = (gm, m, px, py, pz, s, r) => { const q = new THREE.Mesh(gm, m); q.position.set(px, py, pz); if (s) q.scale.set(s[0], s[1], s[2]); if (r) q.rotation.set(r[0], r[1], r[2]); q.castShadow = true; g.add(q); return q; };
     const cyl = geo('cyl8', () => new THREE.CylinderGeometry(1, 1, 1, 8)), sph = geo('sph10', () => new THREE.SphereGeometry(1, 10, 8)), box = geo('box1', () => new THREE.BoxGeometry(1, 1, 1));
-    add(cyl, wood, 0, 1.0, 0, [0.09, 2.0, 0.09]);
-    add(cyl, wood, 0.18, 2.0, 0, [0.04, 0.5, 0.04], [0, 0, PI / 2]);
-    for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.5; add(sph, leafM, Math.sin(a) * 0.2, 0.2 + 0.08 * i, Math.cos(a) * 0.2, [0.17, 0.09, 0.1], [0, a, 0.4]); }   // fidan filizleri
-    const cage = new THREE.Group(); cage.position.set(0.34, 2.0, 0); g.add(cage);
-    const glassM = new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.15, transparent: true, opacity: 0.4, emissive: 0xffb030, emissiveIntensity: 0 });
+    // PERF+güzellik: direk, kol, filizler, kafes çubukları, çatı ve taban artık birleşik süs (fener başına 16 → 4 çizim); yalnız cam, ampul,
+    // halka ve hale ayrı (onlar yanınca değişir). Direğin dibinde küçük toprak tümseği ve iki yaprak; çatıda minik tepelik.
+    void add; void wood; void leafM; void orange;
+    const P = (gm, px, py, pz, sx, sy, sz, c, ry = 0, rx = 0, rz = 0) => api.put(gm, x + px, py, z + pz, sx, sy, sz, c, ry, rx, rz);
+    P(cyl, 0, 1.0, 0, 0.09, 2.0, 0.09, 0x8a5a32);
+    P(cyl, 0.18, 2.0, 0, 0.04, 0.5, 0.04, 0x8a5a32, 0, 0, PI / 2);
+    for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.5; P(sph, Math.sin(a) * 0.2, 0.2 + 0.08 * i, Math.cos(a) * 0.2, 0.17, 0.09, 0.1, 0x4f9a46, a, 0, 0.4); }   // fidan filizleri
+    for (let i = 0; i < 2; i++) { const a = i * PI + 1.1; P(sph, Math.sin(a) * 0.1, 1.15 + 0.35 * i, Math.cos(a) * 0.1, 0.16, 0.05, 0.09, 0x5aae4c, a, 0, 0.5); }   // direkten çıkan iki yaprak
+    P(sph, 0, 0, 0, 0.42, 0.1, 0.42, 0x6a5232);   // dipte toprak tümseği
+    const cx = 0.34, cy = 2.0;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) P(box, cx + sx * 0.17, cy, sz * 0.17, 0.045, 0.56, 0.045, 0xe0762a);
+    P(geo('cone8', () => new THREE.ConeGeometry(1, 1, 8)), cx, cy + 0.38, 0, 0.27, 0.2, 0.27, 0xe0762a);
+    P(sph, cx, cy + 0.5, 0, 0.05, 0.05, 0.05, 0xffc548);   // çatı tepeliği
+    P(box, cx, cy - 0.3, 0, 0.4, 0.06, 0.4, 0xe0762a);
+    const cage = new THREE.Group(); cage.position.set(cx, cy, 0); g.add(cage);
+    const glassM = new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.15, transparent: true, opacity: 0.4, emissive: 0xffb030, emissiveIntensity: 0, depthWrite: false });
     const bulbM = new THREE.MeshStandardMaterial({ color: 0x6a5a44, roughness: 0.5, emissive: 0xffb030, emissiveIntensity: 0 });
-    const q1 = new THREE.Mesh(box, glassM); q1.scale.set(0.34, 0.52, 0.34); cage.add(q1);
+    const q1 = new THREE.Mesh(box, glassM); q1.scale.set(0.32, 0.5, 0.32); q1.renderOrder = 2; cage.add(q1);   // (cam çubukların biraz içinde: kenarlar çakışıp titremesin)
     const q2 = new THREE.Mesh(sph, bulbM); q2.scale.setScalar(0.15); cage.add(q2);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = new THREE.Mesh(box, orange); p.scale.set(0.045, 0.56, 0.045); p.position.set(sx * 0.17, 0, sz * 0.17); cage.add(p); }
-    const roof = new THREE.Mesh(geo('cone8', () => new THREE.ConeGeometry(1, 1, 8)), orange); roof.scale.set(0.27, 0.2, 0.27); roof.position.y = 0.38; cage.add(roof);
-    const base = new THREE.Mesh(box, orange); base.scale.set(0.4, 0.06, 0.4); base.position.y = -0.3; cage.add(base);
     const ring = new THREE.Mesh(geo('ring', () => new THREE.RingGeometry(0.95, 1.2, 40).rotateX(-PI / 2)), new THREE.MeshBasicMaterial({ color: 0xffcf4a, transparent: true, opacity: 0.6, depthWrite: false, fog: false }));
     ring.position.set(0, 0.06, 0); g.add(ring);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex(), color: 0xffd070, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
@@ -197,9 +206,11 @@ const ORMAN = (() => {
     for (let o = 0; o <= 7; o += 0.5) { if (api.isFloor(gate.x + nx * o, gate.z + nz * o)) hi = o; else break; }
     for (let o = 0; o <= 7; o += 0.5) { if (api.isFloor(gate.x - nx * o, gate.z - nz * o)) lo = o; else break; }
     const w0 = -lo - 0.8, w1 = hi + 0.8, rnd = api.rnd, pos = [], ph = [], sz = [];
-    for (let o = w0; o <= w1 + 0.01; o += 0.55) for (let r = 0; r < 4; r++) {
+    // (iPad/QA: alttaki iri bulut topları yerin içine giriyordu → bulutun altı cetvelle kesilmiş gibi düz çizgiydi. Artık 5 sıra;
+    //  alttakiler küçük, boyut yüksekliğe göre sınırlı (gölgelendiricide); bulut yere yumuşakça oturur)
+    for (let o = w0; o <= w1 + 0.01; o += 0.55) for (let r = 0; r < 5; r++) {
       const jx = (rnd() - 0.5) * 0.5, jd = (rnd() - 0.5) * 0.8;
-      pos.push(gate.x + nx * (o + jx) + dx * jd, 0.25 + r * 0.5 + rnd() * 0.3, gate.z + nz * (o + jx) + dz * jd); ph.push(rnd()); sz.push(1.5 + rnd() * 0.9);
+      pos.push(gate.x + nx * (o + jx) + dx * jd, 0.22 + r * 0.42 + rnd() * 0.25, gate.z + nz * (o + jx) + dz * jd); ph.push(rnd()); sz.push(1.5 + rnd() * 0.9);
     }
     const g = new THREE_.BufferGeometry();
     g.setAttribute('position', new THREE_.Float32BufferAttribute(pos, 3)); g.setAttribute('aPh', new THREE_.Float32BufferAttribute(ph, 1)); g.setAttribute('aSz', new THREE_.Float32BufferAttribute(sz, 1));
@@ -208,7 +219,7 @@ const ORMAN = (() => {
       uniforms: u,
       vertexShader: `attribute float aPh; attribute float aSz; uniform float uOpen, uTime, uScale; varying float vA; varying float vS;
         void main() { vec3 p = position; p.y = p.y * (1.0 - uOpen * 0.9) - uOpen * 0.2; p.x += sin(uTime * 0.7 + aPh * 6.28) * 0.12; p.z += cos(uTime * 0.6 + aPh * 5.0) * 0.12;
-          vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSz * uScale / max(0.5, -mv.z);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aSz * clamp((p.y + 0.12) / 1.2, 0.3, 1.0) * uScale / max(0.5, -mv.z);
           vA = 0.9 * (1.0 - smoothstep(0.0, 0.4, uOpen)); vS = 0.93 + 0.07 * sin(aPh * 20.0); }`,
       fragmentShader: `varying float vA; varying float vS; void main() { vec2 d = gl_PointCoord - 0.5; float r = length(d) * 2.0; float a = (1.0 - smoothstep(0.35, 1.0, r)) * vA;
           if (a < 0.01) discard; gl_FragColor = vec4(vec3(0.97, 0.97, 0.93) * vS, a); }`,
@@ -306,13 +317,17 @@ const ORMAN = (() => {
     // ── kamp (1. alan): ateş, çadır, kütük oturaklar ──
     const K = L.orKamp, fire = K ? campfire(api, K.x, K.z) : null;
     if (K) {
-      for (const [dx, dz, c] of [[-1.9, 0.3, 0x7b5430], [1.5, 1.2, 0x6a4526], [0.2, 1.9, 0x7b5430]]) { const x = K.x + dx, z = K.z + dz; api.cyl(x, 0.2, z, 0.28, 0.4, c); api.ball(x, 0.4, z, 0.28, 0.04, 0.28, 0xb98a55); }
+      for (const [dx, dz, c] of [[-1.9, 0.3, 0x7b5430], [1.5, 1.2, 0x6a4526], [0.2, 1.9, 0x7b5430]]) { const x = K.x + dx, z = K.z + dz; api.cyl(x, 0.2, z, 0.28, 0.4, c); api.ball(x, 0.405, z, 0.25, 0.035, 0.25, 0xb98a55); }   // (kesik yüz kenarı silindir kapağıyla çakışmasın)
       // çadır: dört yüzlü piramit, kenarda
       const tent = api.tmp(new THREE.ConeGeometry(1, 1, 4)), sp = L.start || K;
       for (const [dx, dz] of [[-5.2, -2.4], [-5.2, 1.8], [5.2, -2.4], [0.5, -6.0], [-6.5, 0]]) {
         const x = K.x + dx, z = K.z + dz;
         // (QA takılma: çadır yolun üstüne düşüyordu, Feza ona dayanıp kalıyordu → yoldan ≥ 3.6 m uzak; yer yoksa çadır yok)
-        if (api.isFloor(x, z) && api.circleFree(x, z, 1.6) && hyp(x - sp.x, z - sp.z) > 4.5 && hyp(x - K.x, z - K.z) > 4 && yolD(L, x, z) > 3.6) { api.put(tent, x, 0.8, z, 1.6, 1.6, 1.6, 0xd9622e, PI / 4); api.box(x, 0.45, z + 0.78, 0.55, 0.9, 0.05, 0x5a2e18, 0); api.solid(x, z, 1.2, 'tent'); break; }
+        if (api.isFloor(x, z) && api.circleFree(x, z, 1.6) && hyp(x - sp.x, z - sp.z) > 4.5 && hyp(x - K.x, z - K.z) > 4 && yolD(L, x, z) > 3.6) { api.put(tent, x, 0.8, z, 1.6, 1.6, 1.6, 0xd9622e, PI / 4);
+          // (kapı dik kutuydu: yarısı çadırın içinde, üstü havada → artık çadır yüzüne yaslı, eğik ince kapı)
+          { const dg = api.tmp(new THREE.BoxGeometry(1, 1, 1)), R = 1.6 * Math.SQRT1_2, H = 1.6, l = hyp(H, R), yc = 0.42, zf = R * (1 - yc / H);
+            api.put(dg, x, yc + 0.06 * R / l, z + zf + 0.06 * H / l, 0.55, 0.9, 0.04, 0x5a2e18, 0, Math.atan2(-R / l, H / l), 0); }
+          api.solid(x, z, 1.2, 'tent'); break; }
       }
     }
     // ── fener fidanları + sis duvarları ──
@@ -343,7 +358,13 @@ const ORMAN = (() => {
     let baba = null, kartal = null;
     try { if (typeof BABA !== 'undefined' && BABA.model) { baba = BABA.model(); api.add(baba.root); if (baba.setGear) baba.setGear({ tool: 'none', backpack: true }); } } catch (e) { console.warn('[orman] Baba', e); baba = null; }
     try { if (typeof KARTAL !== 'undefined' && KARTAL.model) { kartal = KARTAL.model(); kartal.root.scale.setScalar(2.0); api.add(kartal.root); } } catch (e) { console.warn('[orman] Kartal', e); kartal = null; }
-    const st0 = K ? { x: K.x + 1.5, z: K.z - 0.5 } : { x: L.rooms[0].x, z: L.rooms[0].z };
+    // (QA dikey: Baba ateşin Feza tarafında, ekranın içinde el sallar; baykuşun kütüğüne ve oturak kütüklere basmaz)
+    const st0 = (() => { if (!K) return { x: L.rooms[0].x, z: L.rooms[0].z }; const sg = (L.start || K).x > K.x ? 1 : -1, nc = L.npc;
+      for (const [dx, dz] of [[sg * 1.6, -0.9], [sg * 1.0, 1.0], [sg * 1.8, 0.1], [0, -1.7], [-sg * 1.6, -0.9], [1.5, -0.5]]) { const x = K.x + dx, z = K.z + dz; if (api.isFloor(x, z) && (!nc || (hyp(nc.x - x, nc.z - z) > 2.1 && !(Math.abs(nc.x - x) < 1.5 && z - nc.z > -0.8 && z - nc.z < 4)))) return { x, z }; }
+      return { x: K.x + 1.5, z: K.z - 0.5 }; })();
+    // (Baba'nın takip yerleri ve dolu yerler: kare başına dizi kurulmasın diye bir kez; Feza'nın tam önü en sonda → Baba'nın başı Feza'yı örtmez)
+    const B_OFFS = [[-2.3, 1.5], [2.3, 1.5], [-2.3, -1.5], [2.3, -1.5], [0, -2.7], [0, 2.7]], B_FIRES = [fire, fire2, fireA].filter(Boolean);
+    const dolu = (x, z) => { for (const f of F) if (hyp(f.x - x, f.z - z) < 1.9) return true; for (const q of B_FIRES) if (hyp(q.x - x, q.z - z) < 1.7) return true; return false; };
     const B = { x: st0.x, z: st0.z, face: 2.4, speed: 0, mode: 'fire', pose: 'wave', poseT: 0, modeT: 0, tx: st0.x, tz: st0.z };
     const E = { x: st0.x, y: 9, z: st0.z - 6, face: 0, mode: 'circle', ang: 0, bank: 0, passT: -1, px0: 0, pz0: 0, px1: 0, pz1: 0 };
     if (baba) { baba.root.position.set(B.x, 0, B.z); baba.root.rotation.y = B.face; }
@@ -440,7 +461,6 @@ const ORMAN = (() => {
         f.bulbM.emissiveIntensity = 2.0 * f.k; f.glassM.emissiveIntensity = 0.9 * f.k; f.glassM.opacity = 0.4 + 0.2 * f.k; f.le.int = 2.4 * f.k; f.halo.material.opacity = 0.75 * f.k;
         f.bulbM.color.setHex(f.lit ? 0xffe9a0 : 0x6a5a44);
         f.ring.visible = !f.lit && i === act; if (f.ring.visible) { const s = 1 + 0.12 * Math.sin(S.t * 3); f.ring.scale.set(s, 1, s); f.ring.material.opacity = 0.45 + 0.2 * Math.sin(S.t * 3); }
-        f.g.children[1].rotation.z = PI / 2;
         // Pırıl yaklaşınca sönük feneri yakar: Feza dokunur → Pırıl nefes üfler
         if (playing && !f.lit && !S.lighting && i === act && !S.lift && flatDist(f, P.pos.x, P.pos.z) < 2.7) { S.lighting = { i, t: 0 }; pirilGit(f.x, f.z); sfx('whoosh', { x: f.x, z: f.z, pitch: 1.4 }); }
       }
@@ -522,7 +542,8 @@ const ORMAN = (() => {
       // ─ Baba ─
       if (baba) {
         let pose = B.pose, tx = B.x, tz = B.z, vmax = 3.6;
-        const fol = () => { const offs = [[-2.3, 1.5], [2.3, 1.5], [0, 2.7], [-2.3, -1.5]]; for (const o of offs) if (api.isFloor(hx + o[0], hz + o[1])) return [hx + o[0], hz + o[1]]; return [hx, hz]; };
+        // (QA: Baba fener fidanının/ateşin tam içinde duruyordu, Pırıl da üstüne konunca üçü iç içe görünüyordu) dolu yerlere durmaz
+        const fol = () => { for (const o of B_OFFS) if (api.isFloor(hx + o[0], hz + o[1]) && !dolu(hx + o[0], hz + o[1])) return [hx + o[0], hz + o[1]]; return [hx, hz]; };
         if (B.mode === 'fire') { tx = B.x; tz = B.z; }
         else if (B.mode === 'follow') { [tx, tz] = fol(); if (arenaMode && L.orArenaKamp) { tx = L.orArenaKamp.x + 1.4; tz = L.orArenaKamp.z - 0.8; vmax = 4.5; } pose = null; if (hyp(tx - B.x, tz - B.z) > 14) { B.x = tx; B.z = tz; } }
         else if (B.mode === 'cozy') { tx = B.tx; tz = B.tz; pose = S.camp2 === 1 && hyp(B.x - tx, B.z - tz) < 0.4 ? 'stick' : null; }
@@ -531,7 +552,8 @@ const ORMAN = (() => {
           B.modeT += dt; vmax = 7; pose = null;
           const tg = B.target && !B.target.dead ? B.target : null;
           tx = tg ? tg.x : hx; tz = tg ? tg.z : hz;
-          if (hyp(tx - B.x, tz - B.z) < 1.5 && !B.hit) {
+          if (tg && !B.hit) { const ddx = B.x - tg.x, ddz = B.z - tg.z, dl = hyp(ddx, ddz) || 1; if (dl < 3.2) { tx = tg.x + ddx / dl * 2.3; tz = tg.z + ddz / dl * 2.3; } }   // (QA: Baba düşmanın gövdesinin içine giriyordu → yanında durur)
+          if (tg ? hyp(tg.x - B.x, tg.z - B.z) < 2.6 && !B.hit : (hyp(tx - B.x, tz - B.z) < 1.5 && !B.hit)) {
             B.hit = true; B.hitT = 0;
             if (tg) { const dx = tg.x - B.x, dz = tg.z - B.z, l = hyp(dx, dz) || 1; tg.stun = Math.max(tg.stun || 0, 2.4); tg.kvx = (tg.kvx || 0) + dx / l * 6; tg.kvz = (tg.kvz || 0) + dz / l * 6; }
             burst('sparkle', B.x, 1.2, B.z, { color: '#ffe9a0', count: 8 }); sfx('pop', { x: B.x, z: B.z });

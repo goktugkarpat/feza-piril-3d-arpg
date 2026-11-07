@@ -3,7 +3,9 @@
    Katmanlar: ön bant (alçak: tezgâh, lamba, saksı, araba, fıçı, bank, ağaç) · evler (ahşap çerçeveli, 12 çeşit) · sur + kuleler (uzak kontur)
    · saat kulesi (kuzeyde uzak kahraman) · bayrak ipleri/sancaklar/tenteler (uyanan renk: gri → renkli, tek çizim).
    Yürünür alan ve oyun nesneleri açık kalır: yalnızca yürünmez alana, kamera önünde (güney) alçak. */
-if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.sehir) Object.assign(ZEMIN.TEMA.sehir, { out: 0x5a8c3e, outK: 0.45 });   // kenar zemini daha açık çimen (evlerin dibi çok karanlık kalmasın)
+if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.sehir) Object.assign(ZEMIN.TEMA.sehir, { out: 0x5a8c3e, outK: 0.45,   // kenar zemini daha açık çimen (evlerin dibi çok karanlık kalmasın)
+  // bal rengi kaldırım: taşların ortasındaki yeşil yosun lekeleri (alt=çimen yaması) karmaşık görünüyordu → sıcak bal tonlu taş yaması, az yosun
+  alt: [7, 0xa8865e, 0xf2d29e, 0xfae6c0], patch: 0.24, pmoss: 0.14 });
 const SEHIR_DEKOR = (() => {
   'use strict';
   const Y = YAPI, PI = Math.PI, TAU = PI * 2, hyp = Math.hypot;

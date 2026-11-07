@@ -174,7 +174,12 @@ const PIRIL_TAKIP = (() => {
       const lx = cz, lz = -cx;                       // ekranda yatay yön
       sideHold -= dt;
       const lat = hvx * lx + hvz * lz;
-      if (!yanKilit && Math.abs(lat) > .8 && sideHold <= 0) { const want = lat > 0 ? -1 : 1; if (want !== side) { side = want; sideHold = 2; } }
+      if (!yanKilit && Math.abs(lat) > .8 && sideHold <= 0) { const want = lat > 0 ? -1 : 1; if (want !== side && (!env.free || env.free(hero.x + lx * SIDE * want + cx * FRONT, hero.z + lz * SIDE * want + cz * FRONT, .3))) { side = want; sideHold = 2; } }   // dolu yana geçmez (duvar boyunca ileri-geri yan değiştirmesin)
+      // QA (çekirdek): bu yan bir ağacın/sütunun/duvarın içine düşüyorsa (Pırıl içinden yarım görünürdü) ve öbür yan boşsa yan değişir
+      if (!yanKilit && sideHold <= 0 && env.free) {
+        const px = hero.x + lx * SIDE * side + cx * FRONT, pz = hero.z + lz * SIDE * side + cz * FRONT;
+        if (!env.free(px, pz, .3) && env.free(px - lx * SIDE * 2 * side, pz - lz * SIDE * 2 * side, .3)) { side = -side; sideHold = 1.2; }
+      }
       const idle = Math.max(0, 1 - hs / 1.2);
       const w1 = Math.sin(time * .7) * .35 * idle, w2 = Math.sin(time * 1.4) * .22 * idle;
       const rx = lx, rz = lz;

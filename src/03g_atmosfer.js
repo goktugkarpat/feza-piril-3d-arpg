@@ -97,7 +97,7 @@ const ATMO = (() => {
       }`,
   });
   const gpl = new THREE.Mesh(new THREE.PlaneGeometry(56, 56, 1, 1).rotateX(-Math.PI / 2).translate(0, 0.045, 0), gmat);
-  gpl.frustumCulled = false; gpl.renderOrder = 1; gpl.visible = false; gpl.name = 'atmo-yer';
+  gpl.frustumCulled = false; gpl.renderOrder = -1; gpl.visible = false; gpl.name = 'atmo-yer';   // saydamların EN ALTI: uyarı halkası/su/iz hep üstünde (aynı sıra numarası kamera kayınca yer değiştirip titriyordu)
   gpl.onBeforeRender = () => { const t = CAM.target; GU.uC.value.set(Math.round(t.x), Math.round(t.z)); };
   scene.add(gpl);
 

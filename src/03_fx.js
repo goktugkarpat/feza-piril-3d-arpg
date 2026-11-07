@@ -1439,7 +1439,7 @@ const FX = (() => {
       uniforms: { uSize: { value: 1 }, uR: { value: 1 }, uP: { value: 0 }, uA: { value: 1 }, uHalf: { value: 4 }, uT: uTime, uFlash: { value: 0 }, uCol: { value: new THREE.Color() } },
       vertexShader: QUAD_VS, fragmentShader: TELE_FS, transparent: true, depthWrite: false,
     });
-    const obj = fxMesh(QUAD, mat, 10); obj.renderOrder = 1;   // (Pırıl: zemine çizilir — Feza ve huysuzlar her zaman önde)
+    const obj = fxMesh(QUAD, mat, 10); obj.renderOrder = 1.5;   // (Pırıl: zemine çizilir — Feza ve huysuzlar her zaman önde; 1.5: yer çıkartmalarının (1: gölge, su, arena ışığı) hep ÜSTÜNDE, 2'lerin (salyangoz izi, görev alanı, kefir camı) hep ALTINDA — sıra hiç değişmez, titremez)
     return { obj, mat, on: false, gen: 0, t: 0 };
   });
   // Friendlier danger colour: saturated reds/red-oranges (the classic '#ff4a3a' warning) become a bright candy pink —

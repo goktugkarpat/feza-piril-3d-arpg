@@ -151,7 +151,7 @@ const DEGIRMEN = (() => {
           c = mix(c, vec3(0.95, 0.97, 0.9), rim * 0.35);
           gl_FragColor = vec4(c, e * 0.88);
         }`,
-      transparent: true, depthWrite: false,
+      transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,   // (iPad: zeminle titreşmesin)
     });
     const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 1; mesh.name = 'degirmen-dere';
     api.add(mesh); api.dispose(m); api.dispose(g);
@@ -515,7 +515,7 @@ const DEGIRMEN = (() => {
     const THREE = api.THREE, rnd = api.rnd, K = OK() ? ODAKIT : null;
     if (K && K.lowShadow) K.lowShadow(api, 99);
     const put = api.put, isF = (x, z) => api.isFloor(x, z), D = L.dg || {};
-    resetR(); registerMini(); hudMake();
+    resetR(); registerMini(); if (!TARIFYOK) hudMake(); else hudHide();   // (tarif kalktı: eski un/su/ateş tahtası hiç kurulmasın)
     const coneH = (x, z) => { for (let d = 0.5; d <= 14; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return 0.5 + d * 0.85; } return 99; };
     // ekranın alt kenarı (dikey iPad'de Feza'nın ~6,5 m güneyi): yürünür alanın güneyindeki tepe/ağaç bu çizgiyi aşmasın
     // (QA: dev sarı tepe / yeşil ağaç tacı alt yarıyı kaplıyordu, 8 m kavak Feza'yı örtüyordu)
@@ -575,8 +575,12 @@ const DEGIRMEN = (() => {
     const spinners = [];   // { m, k (hız çarpanı) }
 
     // ── kenar dolgusu: yürünür alanın dışı (kamera önünde alçak, kuzeyde yüksek) ──
+    // dere çizgisine uzaklık (dolgu suyun üstüne binmesin: ağaç/balya/tepe derenin içindeydi)
+    const dSeg = []; for (const S of D.streams || []) for (let i = 0; i + 1 < S.pts.length; i++) dSeg.push([S.pts[i][0], S.pts[i][1], S.pts[i + 1][0], S.pts[i + 1][1], S.w]);
+    const dereUzak = (x, z, pad) => { for (const [x0, z0, x1, z1, w] of dSeg) { const vx = x1 - x0, vz = z1 - z0, u = clamp(((x - x0) * vx + (z - z0) * vz) / (vx * vx + vz * vz || 1), 0, 1); if (hyp(x - x0 - vx * u, z - z0 - vz * u) < w + 0.8 + pad) return false; } return true; };
     const wheat = []; let nW = 0;
     if (K) K.fill(L, rnd, ids, (x, z, maxH0, fd) => {
+      if (!dereUzak(x, z, 0.9)) return;
       const maxH = Math.min(maxH0, coneH(x, z)), r = rnd(), lim = Math.min(maxH, lowH(x, z));
       if (fd > 0.8 && nW < 1000 && r < 0.78) { const hh = Math.min(maxH * 0.9, 0.85 + rnd() * 0.45); if (hh > 0.3) { wheat.push({ x, z, h: hh, s: 0.9 + rnd() * 0.6, c: pick([0xffffff, 0xf4e8c8, 0xfff0d0]), yaw: rnd() * TAU }); nW++; } }
       else if (lim >= 3 && fd > 3 && r < 0.9) tree(x, z, Math.min(lim, 2.8 + rnd() * 2.2));
@@ -589,7 +593,8 @@ const DEGIRMEN = (() => {
         const av = [], ad = (o, r) => { if (o && Number.isFinite(o.x)) av.push({ x: o.x, z: o.z, r }); };
         for (const b of D.bundles || []) ad(b, 1.6); for (const b of D.stones || []) ad(b, 1.6); for (const b of D.lambs || []) ad(b, 1.6);
         ad(D.bucket, 2); ad(D.hala, 3); ad(D.table, 3.5); ad(D.oven, 4.5); ad(D.fountain, 3); ad(D.well, 3); ad(D.gate, 4.5); ad(D.pen, (D.pen && D.pen.r || 3) + 1.5);
-        for (const S of D.streams || []) for (let i = 0; i < S.pts.length; i++) ad(S.pts[i], S.w + 1.4);
+        for (const r of L.rooms || []) if (r.kind === 'boss') ad(r, Math.max(6, (r.r || 9) - 2.5));   // (arena ortası boş: Bekçi'nin yerdeki daire/üçgen işaretleri başak ve korkuluk altında kaybolmasın)
+        for (const S of D.streams || []) for (let i = 0; i < S.pts.length; i++) ad({ x: S.pts[i][0], z: S.pts[i][1] }, S.w + 1.4);   // (pts [x,z] dizisi: eskiden hiç kaçınılmıyordu → çit/balya derenin içinde)
         DEGIRMEN_DEKOR.olustur(L, api, { avoid: av });
       } catch (e) { console.warn('DEGIRMEN_DEKOR', e); }
     }
@@ -600,6 +605,7 @@ const DEGIRMEN = (() => {
       // tepe: tepesi 0,6·s, yerdeki yarıçapı ~1,3·s → yürünür alana uzanmasın ve ekranın altını kaplamasın
       let s = maxH >= 8 ? 4 + rnd() * 4 : maxH > 1.6 ? 1.5 + rnd() * 1.5 : 0.6 + rnd() * 0.5;
       s = Math.min(s, fd / 1.5);
+      if (!dereUzak(x, z, s * 1.3)) return;
       const lo = lowH(x, z - s), ky = Math.min(1, maxH / (0.6 * s), lo / (0.6 * s));   // (kuzey ucu yürünür alana yakınsa: yassı höyük)
       if (s >= 0.5 && ky > 0.08) hill(x, z, s, undefined, ky);
     }, { step: 5.5, d0: 9, d1: 24, margin: 24 });
@@ -654,7 +660,7 @@ const DEGIRMEN = (() => {
       const ax = Math.sin(ang + PI / 2), az = Math.cos(ang + PI / 2), fx = Math.sin(ang), fz = Math.cos(ang);   // (ax,az): yürüyüş yönü, (fx,fz): akış yönü
       if (S.k === 0) {
         for (let i = -4; i <= 4; i++) api.box(bx + ax * i * 0.62, 0.06, bz + az * i * 0.62, 0.58, 0.1, 2.9, i % 2 ? 0xb07a44 : 0xa06c3a, ang);   // ahşap tahtalar
-        for (const sd of [-1, 1]) { api.box(bx + fx * sd * 1.5, 0.45, bz + fz * sd * 1.5, 0.12, 0.08, 5.6, WOOD, ang + PI / 2 - PI / 2 + 0); for (let i = -2; i <= 2; i++) api.box(bx + ax * i * 1.2 + fx * sd * 1.5, 0.3, bz + az * i * 1.2 + fz * sd * 1.5, 0.12, 0.6, 0.12, WOOD, ang); }
+        for (const sd of [-1, 1]) { api.box(bx + fx * sd * 1.5, 0.62, bz + fz * sd * 1.5, 5.6, 0.1, 0.12, WOOD, ang);   /* korkuluk yürüyüş yönünde (eskiden derenin boyunca uzanıp köprüden taşıyordu) */ for (let i = -2; i <= 2; i++) api.box(bx + ax * i * 1.2 + fx * sd * 1.5, 0.34, bz + az * i * 1.2 + fz * sd * 1.5, 0.13, 0.68, 0.13, WOOD, ang); }
       } else {
         for (let i = -3; i <= 3; i++) api.box(bx + ax * i * 0.8, 0.08, bz + az * i * 0.8, 0.78, 0.14, 3.0, pick(STONE), ang);   // taş döşeme
         for (const sd of [-1, 1]) { for (let i = -3; i <= 3; i++) api.box(bx + ax * i * 0.8 + fx * sd * 1.62, 0.3, bz + az * i * 0.8 + fz * sd * 1.62, 0.78, 0.5, 0.26, pick(STONE), ang); api.box(bx + ax * 2.9 + fx * sd * 1.62, 0.45, bz + az * 2.9 + fz * sd * 1.62, 0.5, 0.8, 0.5, 0xd8d0be, ang); api.box(bx - ax * 2.9 + fx * sd * 1.62, 0.45, bz - az * 2.9 + fz * sd * 1.62, 0.5, 0.8, 0.5, 0xd8d0be, ang); }
@@ -1115,7 +1121,7 @@ const DEGIRMEN = (() => {
           loaf.visible = true; loaf.position.set(x, 1.1 + Math.sin(u * PI) * 1.4 + u * 1.2, z); loaf.rotation.y += dt * 6;
           if (u >= 1 && !ikram.done) { ikram.done = true; R.tutan = null; loaf.visible = false; sfx('pop', { x, z, pitch: 1.3 }); burst('hearts', x, 3, z, { count: 6 }); burst('sparkle', x, 2.8, z, { color: '#ffd060', count: 14 }); }
         }
-        if (cheerT > 1.6 && cheerT < 2.0) { sfx('bell', { x: ikram ? ikram.bx : hx_, z: ikram ? ikram.bz : hz_, pitch: 0.7 }); }
+        if (cheerT > 1.6 && !areaSaid.bell0) { areaSaid.bell0 = 1; sfx('bell', { x: ikram ? ikram.bx : hx_, z: ikram ? ikram.bz : hz_, pitch: 0.7 }); }   // (tek çan: eskiden 0,4 sn boyunca her karede çalıyordu)
         if (bigSailsSpin(c, cheerT, dt)) { /* döner */ }
         if (cheerT > 3 && (areaSaid.bell = (areaSaid.bell || 0) + dt) > 1.2) { areaSaid.bell = 0; sfx('bell', { x: hx_, z: hz_, pitch: 0.8 + Math.random() * 0.5, vol: 0.5 }); }
       }
@@ -1189,7 +1195,7 @@ const DEGIRMEN = (() => {
     malzeme: 'isik4',
     kayipEsya: null,
     final: false,
-    isik: { fog: [0xf0d898, 34, 95], hemiSky: 0xfff0c8, hemiGround: 0xa88a50, hemi: 0.82, sunColor: 0xffdc98, sun: 1.25, sunOffset: [-12, 26, 12],
+    isik: { fog: [0xf0d898, 42, 112], hemiSky: 0xfff0c8, hemiGround: 0x9c8a56, hemi: 0.82, sunColor: 0xffe0a4, sun: 1.25, sunOffset: [-12, 26, 12],   // (sis biraz geride: ekranın üstü sarı perdeye boğulmasın; yer ışığı daha az turuncu)
       env: [0xf0d89a, 0xffe8b8, 0xb89a60, 0.85], bloom: 0.18, exposure: 0.96, sat: 1.05, vig: 0.28, fezaLight: 1.4, fezaLightColor: 0xfff0d8, moss: [0xd8c070, 0], rim: [0xfff0c8, 0.2] },
     zemin: { tA: 0xe2c878, tB: 0xe8dcb0, tC: 0xf0e6c4, out: 0xb09a58, outAmt: 0.5, macro: 0xfff0c8 },
     minimap: { zemin: '#d8bd6a' },

@@ -140,6 +140,20 @@ const FENER = (() => {
       const tx = ar.x - 2.6, tz = ar.z - 2.2;
       api.box(tx, 0.55, tz, 2.2, 0.12, 1.2, 0xb88a5a, 0); for (const sx of [-0.9, 0.9]) for (const sz of [-0.45, 0.45]) api.box(tx + sx, 0.28, tz + sz, 0.1, 0.56, 0.1, 0x8f6a44, 0);
       F.masa = { x: tx, z: tz };
+      // QA (güzelleştirme; çizim sayısı artmaz: hepsi toplu dekor + zemine pişmiş ışık): masaya örtü, yanında yastık yığını;
+      // meydanın kenarında sıcak sokak fenerleri (yürünen alanın hemen dışında; kuzeyde Büyük Fener ve giriş yolları boş). Örtü masadan ≥5 cm yukarıda (iPad derinlik kavgası olmasın)
+      api.box(tx, 0.645, tz, 1.5, 0.04, 1.26, 0xfff2c4); for (const sz of [-1, 1]) api.box(tx, 0.53, tz + sz * 0.64, 1.5, 0.2, 0.02, 0xf08a5e);   // sıcak krem örtü + mercan saçak (ay ışığında morumsu görünmesin: mor yalnız Pırıl'da)
+      if (typeof YAPI !== 'undefined' && YAPI.fener) {
+        const fl = YAPI.fener();
+        const twz = ar.z - ar.r - 4.2; let n = 0;
+        for (let k = 0; k < 10 && n < 7; k++) {
+          const a = (k + 0.5) * TAU / 10, sa = Math.sin(a), ca = Math.cos(a); let rad = ar.r * 0.6; while (rad < ar.r + 4 && api.isFloor(ar.x + sa * rad, ar.z + ca * rad)) rad += 0.4; rad += 0.9;
+          const x = ar.x + sa * rad, z = ar.z + ca * rad; if (hyp(x - ar.x, z - twz) < 6 || api.linkDist(x, z) < 3.4 || api.isFloor(x, z)) continue;
+          api.put(fl.m, x, 0, z, 1.05, 1.05, 1.05, 0xffffff, a, 0, 0, 'shinyNS'); api.put(fl.g, x, 0, z, 1.05, 1.05, 1.05, 0xffffff, a, 0, 0, 'glow'); api.glow(x, z, 5.0, 0xffcf80, 0.3); n++;
+        }
+      }
+      api.glow(tx, tz, 2.4, 0xffd890, 0.16);
+      { const yx = tx - 1.9, yz = tz + 0.5; P(sph, yx, 0.17, yz, 0.55, 0.19, 0.46, 0xff9070); P(sph, yx + 0.1, 0.43, yz - 0.05, 0.42, 0.16, 0.36, 0x7fe0a8); P(sph, yx - 0.04, 0.64, yz + 0.02, 0.31, 0.13, 0.27, 0xffd65a); }
       if (!yeni) { rainbow(api, ar.x - ar.r - 9, ar.z + 2, 1.6, PI / 2); rainbow(api, ar.x + ar.r + 9, ar.z + 2, 1.6, -PI / 2); }
     }
     if (F.kopru && !yeni) { for (const sd of [-1, 1]) rainbow(api, F.kopru.x + sd * (F.kopru.r + 6), F.kopru.z, 1.0, sd * PI / 2); }
@@ -161,14 +175,20 @@ const FENER = (() => {
         const gp = new THREE.Group(); gp.position.set(x, 0, z);
         const pole = new THREE.Mesh(geo('pole', () => kp(new THREE.CylinderGeometry(0.05, 0.06, 2.8, 8))), kp(new THREE.MeshStandardMaterial({ color: 0xe9e1cf }))); pole.position.y = 1.4; gp.add(pole);
         const m = new THREE.MeshBasicMaterial({ color: 0x9aa2b0, side: THREE.DoubleSide }); api.dispose(m);
-        const f = new THREE.Mesh(geo('flag', () => kp(new THREE.PlaneGeometry(1.0, 0.65))), m); f.position.set(0.55, 2.35, 0); gp.add(f); api.add(gp); flags.push({ m, c: CAM[i], x, z, on: false });
+        // QA (güzelleştirme): düz dikdörtgen yerine şenlik flaması (üçgen), direğe bağlı; yanınca hafifçe dalgalanır
+        const f = new THREE.Mesh(geo('flag3', () => { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.4, 0, 0, -0.4, 0, 1.15, -0.04, 0], 3)); q.computeVertexNormals(); return kp(q); }), m); f.position.set(0.04, 2.35, 0); gp.add(f);
+        api.add(gp); flags.push({ m, c: CAM[i], x, z, on: false, f, ph: i * 0.7 });
       }
     }
     // dostlar (Baba, Kartal, Hala) + anne ejderha (mor; tanımadan sonra) — Bilbo motorun yoldaşı
     let baba = null, kartal = null, hala = null, halaPos = { x: 0, z: 0 }, anne = null, annePos = { x: 0, z: 0 };
     const HA = g0 && g0.halaApi, hero = () => ({ pos: g0.P.pos, face: g0.P.face });
     try { if (typeof BABA !== 'undefined' && BABA.kur && HA) baba = BABA.kur({ scene, hero, free: HA.circleFree, move: HA.moveXZ, route: (x, z, tx, tz) => HA.routeTo(tx, tz, { x, z }), enemies: () => g0.enemies.filter(e => !e.dead), sersemlet: (e, sn) => { try { g0.stunEnemy(e, sn); } catch (er) { /* yok */ } }, sfx, say: (k, p) => HA.say(k, p) }); } catch (e) { baba = null; }
-    try { if (typeof KARTAL !== 'undefined' && KARTAL.kur && HA) kartal = KARTAL.kur({ scene, hero, enemies: () => g0.enemies.filter(e => !e.dead), it: (e, dx, dz) => { try { g0.pushEnemy(e, e.x + dx * 4, e.z + dz * 4, 1); } catch (er) { /* yok */ } }, sfx }); } catch (e) { kartal = null; }
+    // QA (iPad turu): Kartal Feza'nın 4.6 m üstünde daire çiziyordu → ekranda tam Kral'ın ve oyuncakların önüne düşüyordu (dokunulacak oyuncak görünmüyordu).
+    // Kral savaşı sürerken Kartal arenanın doğu kenarında süzülür; savaş bitince yine Feza'nın üstüne döner. (kare başı nesne üretmez)
+    const KH = { pos: { x: 0, z: 0 }, face: 0 }, KP = { x: 0, z: 0 };
+    const kHero = () => { const ar = F.arena, b = g0.boss, P = g0.P; if (ar && b && !b.dead && !S.endStep && hyp(P.pos.x - ar.x, P.pos.z - ar.z) < ar.r + 3) { KP.x = ar.x + ar.r + 1; KP.z = ar.z + 2; KH.pos = KP; } else KH.pos = P.pos; KH.face = P.face; return KH; };
+    try { if (typeof KARTAL !== 'undefined' && KARTAL.kur && HA) kartal = KARTAL.kur({ scene, hero: kHero, enemies: () => g0.enemies.filter(e => !e.dead), it: (e, dx, dz) => { try { g0.pushEnemy(e, e.x + dx * 4, e.z + dz * 4, 1); } catch (er) { /* yok */ } }, sfx }); } catch (e) { kartal = null; }
     try { if (typeof HALA !== 'undefined' && HALA.firinciModel) { hala = HALA.firinciModel(api); api.add(hala); } } catch (e) { hala = null; }
     try { if (typeof EJDERHA !== 'undefined' && EJDERHA.anne) { anne = EJDERHA.anne({ renk: 1, durum: 'tanima' }); anne.root.scale.setScalar(0.42); api.add(anne.root); } } catch (e) { anne = null; }
     const sleepers = [];
@@ -245,6 +265,7 @@ const FENER = (() => {
         s.d.update(dt);
         if (s.t0 >= 0) { const u = (T - s.t0) / 4.2; const k = u < 0 ? 0 : u > 1 ? 0 : Math.sin(u * PI); s.d.root.position.y = 0.0 + k * 0.5; s.d.root.rotation.x = -k * 0.18; if (u > 1) { s.t0 = -1; s.d.root.rotation.x = 0; s.d.root.position.y = 0; } }
       }
+      for (const fl of flags) fl.f.rotation.y = fl.on ? Math.sin(T * 2.2 + fl.ph) * 0.32 : 0;   // yanan flama rüzgârda hafifçe dalgalanır
       // köprü bayrakları: Feza yürüdükçe renkleri sırayla yanar
       // QA: eskiden yalnız soldan sağa yürüyünce ve yanlış alan numarasında (P.area>=3; köprü 2. alan) yanıyordu → hiç yanmıyordu. Şimdi köprü adasındayken her 0.35 sn'de bir sonraki bayrak yanar.
       if (F.kopru && S.flags < flags.length && live() && hyp(P.pos.x - F.kopru.x, P.pos.z - F.kopru.z) < F.kopru.r + 1.5 && T - (S.flagT || 0) > 0.35) {

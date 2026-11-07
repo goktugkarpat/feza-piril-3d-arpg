@@ -4,7 +4,7 @@
    mangallar (sevimli, kor topu; ateş tehlikesi yok), ejderha heykelleri, sütunlar, ejderha yuvaları, çalı/ağaç; arkada Büyük Salon (vitray),
    uzak kule silüetleri (3 katman). Renk: krem taş + gül/turkuaz/altın sancaklar. Gün batımı ışığı: aşağıdaki ATMO + bölüm `isik` değerleri. */
 if (typeof ATMO !== 'undefined' && ATMO.P && ATMO.P.kale) Object.assign(ATMO.P.kale, { gl: [0, 0xffd49a, 0x7a5a50, 0.22, 0.08], sh: 0x7a96ea, hi: 0xffd8a0, con: 0.2, haze: [0xffc49c, 0.24, 0.45], rays: [0xffd29a, 0.3], fog: [0.6, 0.75], dust: { n: 90, col: 0xffe2b0, size: 0.09, mode: 'mote', a: 0.75, h: 5 } });
-if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.kale) Object.assign(ZEMIN.TEMA.kale, { out: 0x62784a, outK: 0.4, macro: [0xffe2b8, 0xf0e8d0], dapple: [0xffd9a0, 0.2] });
+if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.kale) Object.assign(ZEMIN.TEMA.kale, { out: 0x8db060, outK: 0.5, macro: [0xffe2b8, 0xf0e8d0], dapple: [0xffd9a0, 0.2] });   // out: yürünmeyen kenar açık çimen yeşili (eskisi koyu zeytindi; taş desenin üstünde avluya kara leke gibi yayılıyordu)
 const KALE_DEKOR = (() => {
   'use strict';
   const Y = YAPI, PI = Math.PI, TAU = PI * 2, hyp = Math.hypot;

@@ -70,7 +70,7 @@ const HZ_KALE = (() => {
     if (typeof scene === 'undefined') return null;
     const G = mkGeo(); let m = MK.pool.find(q => !q.on && q.kind === kind);
     if (!m) {
-      const mt = op => { const x2 = new THREE.MeshBasicMaterial({ transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide }); x2.userData.keep = true; return x2; };
+      const mt = op => { const x2 = new THREE.MeshBasicMaterial({ transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); x2.userData.keep = true; return x2; };   // (öne çekik: iPad'de yer işareti zeminle titreşmesin)
       const g = new THREE.Group(), fill = new THREE.Mesh(kind === 'sq' ? G.sq : kind === 'cone' ? G.cone : G.circ, mt(0.26)), edge = new THREE.Mesh(kind === 'sq' ? G.sqE : kind === 'cone' ? G.cone : G.ring, mt(0.85));
       fill.renderOrder = 2; edge.renderOrder = 3; g.add(fill, edge); g.userData.keep = true;
       m = { kind, g, fill, edge, on: false, t: 0, d: 0 }; MK.pool.push(m); if (kind === 'cone') edge.visible = false;

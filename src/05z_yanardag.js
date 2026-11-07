@@ -5,7 +5,7 @@
      lavJolesi           Lav Jölesi              zıplar, dokununca neşelenir                          base jole (lava)
      magmaDevi           Magma Kaya Devi         tek elit, yavaş; yere vurunca halka                  base golem (magma)
      sicakTasYavrusu     Sıcak Taş Yavrusu       sallanır, "pof" buhar, kendi ayağına takılır         base kratercik (turuncu)
-     kocaLavKaplumbagasi boss: kırmızı daireler (lav topu), turuncu şerit (yuvarlanma), serin taşlar oyunu (motorun 'lavkaplumbaga' davranışı).
+     kocaLavKaplumbagasi boss: kırmızı daireler (lav topu), turuncu şerit (yuvarlanma) (motorun 'lavkaplumbaga' davranışı; serin taşlar oyunu kaldırıldı).
        Pırıl uyuduğu için bu savaşta yardım edemez: can ×0,8, hasar düşük.
    Genel ad: HZ_YANARDAG. Cümleler: 02l_yanardag.js (b07_...). */
 const HZ_YANARDAG = (() => {
@@ -112,7 +112,8 @@ const HZ_YANARDAG = (() => {
   HUYSUZ.boss('kocaLavKaplumbagasi', {
     ad: 'Koca Lav Kaplumbağası', base: 'lavkaplumbaga', stats: { hp: 1040, dmg: 9 },
     lines: { giris: 'b07_kaplumbaga_giris', bitti: 'b07_bitti', yarim: 'b07_yarim' },
-    bossKit: { add: 'minikLavKaplumbaga', at: [0.5], n: [2], roar: 0.95, col: '#ff9a3c', bonus: 'serintas', addHp: 0.5, addDmg: 0.6 },
+    // (7 Kasım, ebeveyn: "Serin Taşlar" kaldırıldı — kaplumbağa yuvarlanırken doğru anda taşın arkasına saklanmak 5 yaşına zor; boss yalnız dokunarak neşelenir)
+    bossKit: { add: 'minikLavKaplumbaga', at: [0.5], n: [2], roar: 0.95, col: '#ff9a3c', bonus: null, addHp: 0.5, addDmg: 0.6 },
     model: viaBase('lavkaplumbaga', (r, m) => { lavPost(r, m); m.baseType = 'lavkaplumbaga'; m.type = 'kocaLavKaplumbagasi'; }),
   });
   HUYSUZ.zone('yanardag', {

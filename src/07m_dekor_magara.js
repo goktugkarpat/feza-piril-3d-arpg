@@ -18,6 +18,7 @@ const MAGARA_DEKOR = (() => {
     const ROCKT = [0xa8bcc0, 0x98b0b8, 0xb4c4c4, 0x9cb4c8];
     const rockTint = () => pick(ROCKT);
     const placed = [];
+    if (L.mg && L.mg.dragon) placed.push({ x: L.mg.dragon.cx, z: L.mg.dragon.z, r: 5.5 });   // QA (görsel): uyuyan ejderhanın yerine kaya/kemer konmasın (ejderha kayaların içinden taşıyordu)
     const spaced = (x, z, r) => { for (const q of placed) if (hyp(q.x - x, q.z - z) < r + q.r) return false; placed.push({ x, z, r }); return true; };
 
     // ── bileşenler ──

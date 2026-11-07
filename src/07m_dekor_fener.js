@@ -57,7 +57,8 @@ const FENER_DEKOR = (() => {
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const f = DF.at(i - M + 0.5, j - M + 0.5); const d = f ? f.d : 60; data[(j * W + i) * 4] = Math.min(255, Math.round(d / 40 * 255)); data[(j * W + i) * 4 + 3] = 255; }
     const tex = new THREE_.DataTexture(data, W, H, THREE_.RGBAFormat); tex.magFilter = THREE_.LinearFilter; tex.minFilter = THREE_.LinearFilter; tex.wrapS = tex.wrapT = THREE_.ClampToEdgeWrapping; tex.needsUpdate = true; api.dispose(tex);
     const ext = 90, x0 = -M - ext, x1 = L.W + M + ext, z0 = -M - ext, z1 = L.H + M + ext;
-    const gm = new THREE_.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-PI / 2).translate((x0 + x1) / 2, 0.035, (z0 + z1) / 2);
+    // QA (iPad): deniz zeminin yalnız 3.5 cm üstündeydi → iPad'in kaba derinliğinde kıyıda titreme riski; 10 cm (deniz yürünen yerden ≥2.4 m uzakta başlar, görünüş aynı)
+    const gm = new THREE_.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-PI / 2).translate((x0 + x1) / 2, 0.1, (z0 + z1) / 2);
     const fc = scene.fog ? scene.fog.color : new THREE_.Color(0x101c44);
     const mat = new THREE_.ShaderMaterial({ transparent: true, depthWrite: false, fog: false,
       uniforms: { tD: { value: tex }, uT: TIME.u, uBox: { value: new THREE_.Vector4(-M, -M, W, H) }, uFog: { value: fc }, uFN: { value: new THREE_.Vector2(35, 100) }, uCam: { value: new THREE_.Vector3() } },

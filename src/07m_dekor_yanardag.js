@@ -18,7 +18,7 @@ const YANARDAG_DEKOR = (() => {
     const fN = (x, z) => K.floorNorth(L, x, z, 9), fD = (x, z, m = 8) => K.floorDist(L, x, z, m);
     const D = MANTAR_DEKOR.olustur(L, api, { K, coneH, fN, fD, isF, tema: 'yanardag' });
     const ids = L.rooms.map((r, i) => i);
-    const ROCKT = [0xd8b8a8, 0xc8a898, 0xe0c0b0, 0xb89888], rockT = () => pick(ROCKT);
+    const ROCKT = [0xd4b49a, 0xc4a28a, 0xdcbea2, 0xb4927a], rockT = () => pick(ROCKT);   // (QA: pembeye çalıyordu → sıcak kül-kahve)
     const placed = [], vents = [], spin = [];
     const spaced = (x, z, r) => { for (const q of placed) if (hyp(q.x - x, q.z - z) < r + q.r) return false; placed.push({ x, z, r }); return true; };
     const wheelMat = api.dispose(new THREE_.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 })), gearMat = api.dispose(new THREE_.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, color: 0xe8c8b0 }));
@@ -27,7 +27,7 @@ const YANARDAG_DEKOR = (() => {
     const basalt = (x, z, s, n) => { put(P.basalt((rnd() * 5) | 0, n || 7), x, 0, z, s, s * (1.5 + rnd() * 1.3), s, pick(T.basalt), rnd() * TAU, 0, 0, s > 2 ? 'shiny' : 'shinyNS'); if (rnd() < 0.5) api.glow(x, z, s * 1.4 + 1, 0xff9a40, 0.07); };
     const ridge = (x, z, len, yaw, cracks) => {
       const k = (rnd() * 4) | 0;
-      put(P.lavaRidge(k), x, 0, z, len, len * 1.4, len * 1.3, 0xd8b8a8, yaw, 0, 0, 'shinyNS');
+      put(P.lavaRidge(k), x, 0, z, len, len * 1.4, len * 1.3, 0xd0ae94, yaw, 0, 0, 'shinyNS');
       if (cracks) { put(P.lavaRidgeCrack(k), x, 0, z, len, len * 1.4, len * 1.3, 0xff9040, yaw, 0, 0, 'glow'); api.glow(x, z, len * 0.9 + 0.6, 0xff8a30, 0.08); }
     };
     const fern = (x, z, s) => {
@@ -57,7 +57,8 @@ const YANARDAG_DEKOR = (() => {
     // ── Ateş Dede'nin yuvası: saman halka, taş yığınları, kabuk kırıkları (ejderhanın çevresi; ejderha yarıçapının dışında, alçak) ──
     if (M.dragon) {
       const dx = M.dragon.x, dz = M.dragon.z, R = M.dragon.r;
-      for (let i = 0; i < 26; i++) { const a = i / 26 * TAU + rnd() * 0.15, d = R * (1.15 + rnd() * 0.35), x = dx + Math.sin(a) * d, z = dz + Math.cos(a) * d; if (!isF(x, z)) continue; for (let j = 0; j < 3; j++) D.tuftAt(x + (rnd() - 0.5) * 0.6, z + (rnd() - 0.5) * 0.6, 1.5); }
+      // QA: 78 uzun saman tutamı ejderhanın gövdesine giriyor, önünü kapatıp karışık görünüyordu → arkada ve yanlarda 14 alçak tutam (kameraya bakan güney yayı boş)
+      for (let i = 0; i < 14; i++) { const a = PI * 0.62 + i / 13 * PI * 0.76 * 2 - PI * 0.76 + rnd() * 0.1, d = R * (1.45 + rnd() * 0.25), x = dx + Math.sin(a) * d, z = dz + Math.cos(a) * d; if (!isF(x, z) || z > dz + R * 0.6) continue; D.tuftAt(x, z, 1.0); }
       for (let i = 0; i < 9; i++) { const a = i / 9 * TAU + 0.3, d = R * 1.55, x = dx + Math.sin(a) * d, z = dz + Math.cos(a) * d; if (isF(x, z)) put(P.stoneMound((rnd() * 3) | 0), x, 0, z, 0.55 + rnd() * 0.4, 0.4 + rnd() * 0.3, 0.55 + rnd() * 0.4, rockT(), rnd() * TAU, 0, 0, 'shinyNS'); }
       for (let i = 0; i < 6; i++) { const a = rnd() * TAU, d = R * (1.3 + rnd() * 0.6), x = dx + Math.sin(a) * d, z = dz + Math.cos(a) * d; if (isF(x, z)) put(P.cap('dome', 2), x, 0.04, z, 0.16, 0.12, 0.16, 0xfff4dc, rnd() * TAU, (rnd() - 0.5) * 0.6, (rnd() - 0.5) * 0.6, 'shinyNS'); }
       api.glow(dx, dz, R * 2.8, 0xffa860, 0.1);
@@ -70,17 +71,17 @@ const YANARDAG_DEKOR = (() => {
       else if (mh >= 3.5 && fd > 2 && r < 0.3 && spaced(x, z, 2.2)) { bigRock(x, z, Math.min(1.1 + rnd() * 1.1, fd * 0.6)); }
       else if (fd > 1.6 && fd < 5.5 && mh >= 2.2 && r < 0.38 && spaced(x, z, 3)) addWheel(x, z, 0.9 + rnd() * 0.5, rnd() * 6);
       else if (fd > 1.4 && r < 0.46 && vents.length < 22 && spaced(x, z, 1.4)) vent(x, z, 0.7 + rnd() * 0.5);
-      else if (r < 0.58) ridge(x, z, 2.2 + rnd() * 2.2, rnd() * PI, true);
+      else if (r < 0.58) ridge(x, z, 2.2 + rnd() * 2.2, rnd() * PI, rnd() < 0.18);   // (QA: her sırtta parlak çatlak çizgisi karışık görünüyordu; ön plan kayaları hâlâ zikzak çizgiliydi → seyrek)
       else if (r < 0.68) mound(x, z, 0.8 + rnd() * 0.8);
       else if (r < 0.74 && mh >= 1 && spaced(x, z, 1.2)) gearDeco(x, z, 0.7 + rnd() * 0.5);
       else if (r < 0.86) { fern(x, z, 0.8 + rnd() * 0.5); D.tuftAt(x + 0.6, z, 1.4); }
       else { D.rockGroup(x, z, 0.45 + rnd() * 0.5); }
-      if (rnd() < 0.16) put(P.crackPatch((rnd() * 4) | 0), x + (rnd() - 0.5) * 2, 0, z + (rnd() - 0.5) * 2, 1.4, 1, 1.4, 0xff9040, rnd() * TAU, 0, 0, 'glow');
+      if (rnd() < 0.08) put(P.crackPatch((rnd() * 4) | 0), x + (rnd() - 0.5) * 2, 0, z + (rnd() - 0.5) * 2, 1.4, 1, 1.4, 0xff9040, rnd() * TAU, 0, 0, 'glow');
     }, { step: 2.1, d0: 0.9, d1: 8, margin: 10 });
 
     // ── lav göllerinin kıyısı: ek küçük süs (kor çatlağı, sırt, bazalt, eğrelti) ──
     K.fill(L, rnd, ids, (x, z, maxH0, fd) => {
-      const r = rnd(); if (r < 0.34) ridge(x, z, 1.6 + rnd() * 1.8, rnd() * PI, true);
+      const r = rnd(); if (r < 0.34) ridge(x, z, 1.6 + rnd() * 1.8, rnd() * PI, rnd() < 0.15);
       else if (r < 0.52) put(P.crackPatch((rnd() * 4) | 0), x, 0, z, 1.8, 1, 1.8, 0xff9040, rnd() * TAU, 0, 0, 'glow');
       else if (r < 0.7 && Math.min(maxH0, coneH(x, z)) > 1.2) basalt(x, z, 0.4 + rnd() * 0.5, 5);
       else if (r < 0.86) { fern(x, z, 0.7 + rnd() * 0.4); D.tuftAt(x + 0.5, z, 1.4); }
@@ -126,7 +127,7 @@ const YANARDAG_DEKOR = (() => {
         const r = rnd();
         if (r < 0.3) fern(x, z, 0.5 + rnd() * 0.4);
         else if (r < 0.52) D.stone(x, z, 0.28 + rnd() * 0.3);
-        else if (r < 0.68) { put(P.lavaRidge((rnd() * 4) | 0), x, 0, z, 1.6 + rnd() * 1.2, 1.2, 1.2, 0xd8b8a8, rnd() * PI, 0, 0, 'shinyNS'); }
+        else if (r < 0.68) { put(P.lavaRidge((rnd() * 4) | 0), x, 0, z, 1.6 + rnd() * 1.2, 1.2, 1.2, 0xd0ae94, rnd() * PI, 0, 0, 'shinyNS'); }
         else if (r < 0.8) put(P.basalt((rnd() * 5) | 0, 4), x, 0, z, 0.38, 0.45, 0.38, pick(T.basalt), rnd() * TAU, 0, 0, 'shinyNS');
         else D.tuftAt(x, z, 1.5);
       }

@@ -57,6 +57,11 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = PLAIN ? THREE.NeutralToneMapping : THREE.NoToneMapping;   // with post-processing the final pass tone-maps
+// Saydam sıralama: renderOrder 1 = yer çıkartmaları (gölge lekesi, dere/su, arena ışığı, amblem). Aynı katmanda uzaklığa göre sıralanınca
+// kamera kaydıkça hangisinin üstte olduğu değişip titriyordu (iPad'de belirgin) → bu katmanda alttan üste YÜKSEKLİĞE göre, sabit sıra.
+renderer.setTransparentSort((a, b) => a.groupOrder !== b.groupOrder ? a.groupOrder - b.groupOrder : a.renderOrder !== b.renderOrder ? a.renderOrder - b.renderOrder
+  : a.renderOrder === 1 && a.object.matrixWorld.elements[13] !== b.object.matrixWorld.elements[13] ? a.object.matrixWorld.elements[13] - b.object.matrixWorld.elements[13]
+  : a.z !== b.z ? b.z - a.z : a.id - b.id);
 const ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 // msaa = samples of the HDR scene target: 4× on desktop and tablets, 2× on other touch devices (?msaa=N overrides).
 // tablet: iPad (also in its "Mac" desktop mode), Android, phones — not PCs (a Windows touch laptop stays a PC); ?tablet / ?pc force it.

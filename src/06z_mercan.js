@@ -506,7 +506,7 @@ const MERCAN = (() => {
     // ZEMİN: yolda ince çakıl/kabuk kırıntısı dokusu (düşük kontrast; kenar şeridine dokunmaz)
     let sd = 11; const rn = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 260; i++) { const px = 9 + rn() * 46, py = rn() * 64, r = 0.6 + rn() * 1.4; x.fillStyle = rn() < 0.5 ? 'rgba(190,160,120,0.24)' : 'rgba(255,255,255,0.32)'; x.beginPath(); x.ellipse(px, py, r * 1.3, r, rn() * 3, 0, TAU); x.fill(); }
-    PATHTEX = new THREE.CanvasTexture(c); PATHTEX.colorSpace = THREE.SRGBColorSpace; PATHTEX.wrapT = THREE.RepeatWrapping; PATHTEX.userData.keep = true;
+    PATHTEX = new THREE.CanvasTexture(c); PATHTEX.colorSpace = THREE.SRGBColorSpace; PATHTEX.wrapT = THREE.RepeatWrapping; PATHTEX.anisotropy = typeof ANISO !== 'undefined' ? ANISO : 4; PATHTEX.userData.keep = true;   // QA: uzakta yol kenarı bulanıp kumla karışmasın
     return PATHTEX;
   }
   function pathStrip(api, B, L, rnd) {
@@ -529,7 +529,7 @@ const MERCAN = (() => {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
     g.computeVertexNormals(); api.dispose(g);
     const m = new THREE.MeshLambertMaterial({ map: pathTex(), color: new THREE.Color(1.22, 1.16, 1.06), transparent: true, depthWrite: false }); api.dispose(m);   // (aydınlık krem: kumdan net ayrılsın)
-    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 1; mesh.receiveShadow = true; mesh.name = 'mercan-yol'; api.add(mesh);
+    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = -5; mesh.receiveShadow = true; mesh.name = 'mercan-yol'; api.add(mesh);   // QA: zemin katmanları sabit sırada (yol < gölge < ışık deseni < çukur), hepsi gölge/uyarı halkalarının ALTINDA: yürürken sıra değişip yanıp sönmesin
   }
   // ════════ SADE5: girişte el sallayan sevimli yengeç (dokununca/yaklaşınca zıplar, kabarcık üfler) ════════
   function crab(api, L, x, z) {
@@ -580,7 +580,7 @@ const MERCAN = (() => {
         '  c /= 4.0; c = 1.17 - pow(c, 1.4); return pow(abs(c), 8.0); }',
         'void main(){ vec2 p = mod(vW.xz * 0.42, 6.2831853) - 250.0;',
         '  float c = caus(p, uT * 0.45) + 0.6 * caus(p * 1.3 + 3.0, uT * 0.33);',
-        '  float f = 1.0 - smoothstep(16.0, 30.0, length(vW.xz - uC.xz));',
+        '  float f = 1.0 - smoothstep(12.0, 24.0, length(vW.xz - uC.xz));',   // QA: uzakta ince ışık çizgileri titreşip karıncalanıyordu (iPad) → desen daha yakında söner
         '  float sh = 0.0; for (int k = 0; k < 6; k++) { float d = length(vW.xz - uS[k].xy); sh += uS[k].z > 0.0 ? 1.0 - smoothstep(uS[k].z * 0.4, uS[k].z * 1.2, d) : 0.0; }',
         '  gl_FragColor = vec4(vec3(0.6, 0.95, 1.0) * min(c, 1.6) * uK * f * (1.0 + 0.5 * min(sh, 1.0)), 1.0); }',
       ].join('\n'),
@@ -974,7 +974,7 @@ const MERCAN = (() => {
   const arenaSouth = (x, z) => !!ARS && hyp(x - ARS.x, z - ARS.z) < ARS.r + 11 && z > ARS.z - ARS.r * 0.3;
   function caveArches(B, api, L, rnd) {
     const a4 = (L.areas || [])[3]; if (!a4) return;
-    const ROCK = [0x72b8b8, 0x6a7ac0, 0x72b8b8, 0x6070b0];   // SADE8: daha açık mor-mavi (koyu kütle gibi durmasın)
+    const ROCK = [0x72b8b8, 0x5f9cc6, 0x72b8b8, 0x5a92ba];   // SADE8: açık renk (koyu kütle gibi durmasın); QA: mor-mavi yerine deniz mavisi (mor yalnız Pırıl'ın)
     for (const ri of a4.rooms) {
       const rm = L.rooms[ri]; if (!rm) continue;
       const side = rm.kind === 'side', N = side ? 12 : 18;
@@ -1015,11 +1015,11 @@ const MERCAN = (() => {
     if (!SHADEM) SHADEM = kp(new THREE.ShaderMaterial({
       uniforms: { uC: { value: new THREE.Vector3() } },
       vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-      fragmentShader: 'uniform vec3 uC; varying vec3 vW; void main(){ float d = length(vW.xz - uC.xy) / uC.z; float a = smoothstep(0.5, 1.15, d) * (1.0 - smoothstep(1.3, 1.72, d)) * 0.42; gl_FragColor = vec4(0.09, 0.05, 0.22, a); }',
+      fragmentShader: 'uniform vec3 uC; varying vec3 vW; void main(){ float d = length(vW.xz - uC.xy) / uC.z; float a = smoothstep(0.5, 1.15, d) * (1.0 - smoothstep(1.3, 1.72, d)) * 0.42; gl_FragColor = vec4(0.03, 0.11, 0.22, a); }',
       transparent: true, depthWrite: false, fog: false }));
     const m = SHADEM.clone(); m.uniforms.uC.value.set(x, z, r);
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(r * 3.6, r * 3.6).rotateX(-PI / 2), m);
-    pl.position.set(x, 0.045, z); pl.renderOrder = 1; api.add(pl);
+    pl.position.set(x, 0.045, z); pl.renderOrder = -4; api.add(pl);
   }
   // biyoparlak mercan: ışıldayan dallar (glow kiti; ışık havuzu yerine renk kendisi parlar)
   function glowCoral(g, x, z, s, q, rnd) {
@@ -1278,7 +1278,7 @@ const MERCAN = (() => {
     const g = new THREE.PlaneGeometry(W, T).rotateX(-PI / 2); api.dispose(g);
     const mesh = new THREE.Mesh(g, m);
     const cx = p.x + p.nx * (p.wr - p.wl) / 2, cz = p.z + p.nz * (p.wr - p.wl) / 2;
-    mesh.position.set(cx, 0.055, cz); mesh.rotation.y = Math.atan2(p.dx, p.dz) + PI / 2 * 0; mesh.renderOrder = 2; mesh.name = 'mercan-cukur'; api.add(mesh);
+    mesh.position.set(cx, 0.055, cz); mesh.rotation.y = Math.atan2(p.dx, p.dz) + PI / 2 * 0; mesh.renderOrder = -2; mesh.name = 'mercan-cukur'; api.add(mesh);
     // plane: yerel x = W boyunca (n yönü), yerel z = T boyunca (d yönü)  → dönüş: yerel z → d
     mesh.rotation.y = Math.atan2(p.dx, p.dz);
     api.glow(cx, cz, Math.max(W, T) * 0.55, 0x2a8ac8, 0.12);
@@ -1343,7 +1343,7 @@ const MERCAN = (() => {
       const top = new THREE.Mesh(shellG.top, mat('pearl')); top.position.set(0, 0.12, -0.5); top.rotation.x = -1.0; g.add(top);
       g.position.set(s.x, 0.05, s.z); g.scale.setScalar(0.85); g.rotation.y = PI * 0.1 * (i - 1); api.add(g);
       const gl = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0, depthWrite: false, fog: false }));
-      api.dispose(gl.geometry); api.dispose(gl.material); gl.position.set(s.x, 0.07, s.z); gl.renderOrder = 2; api.add(gl);
+      api.dispose(gl.geometry); api.dispose(gl.material); gl.position.set(s.x, 0.07, s.z); gl.renderOrder = -1; api.add(gl);
       Q.shells.push({ x: s.x, z: s.z, gl, full: false, a: 0 });
     });
     // uykulu midyeler (yaklaşınca kıkırdar, inci bırakır)
@@ -1404,10 +1404,10 @@ const MERCAN = (() => {
           if (m.st === 0 && dd < 2.6) { m.st = 1; m.t = 0; sfx('chime', { x: m.x, z: m.z, pitch: 1.5, vol: 0.6 }); burst('bubble', m.x, 0.6, m.z, { count: 3, scale: 0.8 }); m.pearl.visible = true; m.pearl.position.set(m.x, 0.4, m.z); }
           m.open = damp(m.open, m.st === 0 ? 0.05 : 1, 6, dt); m.hinge.rotation.x = -m.open * 0.95;
           for (const e of m.eyes) e.rotation.set(-PI / 2, 0, m.st === 0 ? 0 : PI);   // uykulu ∪ → mutlu ∩
-          if (m.st === 1) {   // inci yukarı çıkıp yüzer; dokununca kabuğa uçar
+          if (m.st === 1) {   // inci yukarı çıkıp yüzer; kısa süre sonra KENDİLİĞİNDEN kabuğa uçar (5 yaş: ikinci adım/dokunma gerekmez; yaklaşınca da uçar)
             m.pearl.position.set(m.x + m.ox * Math.min(1, m.t * 2), 0.5 + 0.4 * Math.min(1, m.t * 2) + Math.sin(t * 3 + m.ph) * 0.06, m.z + m.oz * Math.min(1, m.t * 2));
             m.pearl.rotation.y += dt * 2;
-            if (hyp(hx0 - m.pearl.position.x, hz0 - m.pearl.position.z) < 1.1) {
+            if (m.t > 0.9 || hyp(hx0 - m.pearl.position.x, hz0 - m.pearl.position.z) < 1.1) {
               const sh = Q.shells.find(s => !s.full && !s.taken); if (sh) { sh.taken = true; m.sh = sh; m.st = 2; m.t = 0; m.fx = m.pearl.position.x; m.fz = m.pearl.position.z; m.fy = m.pearl.position.y; sfx('bubble', { x: m.fx, z: m.fz, pitch: 1.6 }); }
             }
           } else if (m.st === 2) {   // kabuğa uçuş (1,3 sn)
@@ -1476,12 +1476,15 @@ const MERCAN = (() => {
     }
     yield;
     // ── uzak kıyı: büyük mercanlar, yosun ormanı, kum tepeleri (güneyde yalnız alçak) ──
+    // QA: kamerayı kapatan iri süs yok — hemen kuzeyinde (kamera bakış çizgisinde) yürünür zemin olan yere yüksek süs konmaz
+    //   (iki oda arasında kalan kenarlarda "güney" bayrağı tutmuyor; süs dosyasındaki hides() kuralının aynısı)
+    const camHide = (x, z, h) => { for (let t = 1.2; t < h * 0.8; t += 1.2) for (const o of [-0.5, 0, 0.5]) if (api.isFloor(x + o * (0.8 + t * 0.4), z - t)) return true; return false; };
     const far = edgeSpots(L, api, { dmin: 2.4, dmax: 4.4, space: 6.2, avoid });
     for (const c of far) {
       const ar = areaAt(L, c.x, c.z); if (ar === 4) continue;
       const r0 = rnd(), x = c.x + c.nx * 0.8, z = c.z + c.nz * 0.8;
       if (arenaSouth(x, z)) { if (r0 < 0.5) brainCoral(B, x, z, 0.45, rnd); continue; }
-      if (c.south) { if (r0 < 0.5) sandMound(B, x, z, 0.8 + rnd() * 0.6); else if (r0 < 0.75) brainCoral(B, x, z, 0.5, rnd); else rock(B, x, z, 0.5, rnd); continue; }
+      if (c.south || camHide(x, z, 5)) { if (r0 < 0.5) sandMound(B, x, z, 0.8 + rnd() * 0.6); else if (r0 < 0.75) brainCoral(B, x, z, 0.5, rnd); else rock(B, x, z, 0.5, rnd); continue; }
       if (ar === 0) { if (r0 < 0.35) sandMound(B, x, z, 1.2 + rnd()); else if (r0 < 0.65) seaweed(B, x, z, 2 + rnd() * 1.2, rnd); else if (r0 < 0.85) rock(B, x, z, 1 + rnd() * 0.6, rnd); else fanCoral(B, x, z, 1.1, rnd, Math.atan2(c.nx, c.nz) + PI / 2); }
       else if (ar === 1) { if (r0 < 0.3) fanCoral(B, x, z, 1.2 + rnd() * 0.6, rnd, Math.atan2(c.nx, c.nz) + PI / 2); else if (r0 < 0.6) branchCoral(B, x, z, 1.4 + rnd() * 0.7, rnd); else if (r0 < 0.8) brainCoral(B, x, z, 1 + rnd() * 0.6, rnd); else tubeSponge(B, x, z, 1.3, rnd); }
       else if (ar === 2) { if (r0 < 0.55) kelp(B, x, z, 3.5 + rnd() * 2.5, rnd); else if (r0 < 0.8) rock(B, x, z, 1.2 + rnd() * 0.8, rnd); else sandMound(B, x, z, 1.3); }
@@ -1492,7 +1495,7 @@ const MERCAN = (() => {
     for (const c of out) {
       if (c.south) continue;
       const ar = areaAt(L, c.x, c.z), x = c.x + c.nx, z = c.z + c.nz;
-      if (arenaSouth(x, z)) continue;
+      if (arenaSouth(x, z) || camHide(x, z, 7)) continue;
       if (ar === 2) kelp(B, x, z, 5 + rnd() * 2, rnd);
       else if (ar === 3 || ar === 4) { rock(B, x, z, 2 + rnd(), rnd); if (rnd() < 0.5) coralPillar(B, x + 1.5, z, 3 + rnd() * 2, rnd); }
       else if (rnd() < 0.5) { rock(B, x, z, 1.8 + rnd() * 1.2, rnd); branchCoral(B, x + 1.2, z + 0.4, 1.2, rnd); }
@@ -1586,7 +1589,7 @@ const MERCAN = (() => {
     }
     // ── zemin ışık desenleri (caustics) + kabarcıklar + plankton ──
     const cm = causticMat(), cp = new THREE.Mesh(new THREE.PlaneGeometry(64, 64).rotateX(-PI / 2), cm);
-    cp.position.y = 0.035; cp.renderOrder = 1; cp.frustumCulled = false; api.add(cp);
+    cp.position.y = 0.035; cp.renderOrder = -3; cp.frustumCulled = false; api.add(cp);
     const bubM = pointsCloud(api, 'bub', 55), plM = pointsCloud(api, 'plank', 70);   // SADE: az kabarcık/plankton
     // ── sürü balıklar ve denizanaları: kuzey ve yanlarda, yürünür alanın dışında ──
     const anchors = { fish: [], jelly: [] };
@@ -1723,7 +1726,7 @@ const MERCAN = (() => {
     kayipEsya: null,
     final: false,
     isik: { fog: [0x8fd8e8, 30, 86], hemiSky: 0xc4f4ff, hemiGround: 0x3a8cb0, hemi: 0.85, sunColor: 0xfff2d8, sun: 2.0, sunOffset: [-10, 28, 10],
-      env: [0x8fdcf0, 0x4ab0d8, 0x1a5a7a, 0.8], bloom: 0.3, exposure: 1.0, sat: 1.06, vig: 0.24, fezaLight: 1.2, fezaLightColor: 0xcff8ff },
+      env: [0x8fdcf0, 0x4ab0d8, 0x1a5a7a, 0.8], bloom: 0.3, exposure: 1.0, sat: 1.12, vig: 0.24, fezaLight: 1.2, fezaLightColor: 0xcff8ff },
     zemin: { tA: 0xd8e8cc, tB: 0xe2eed8, tC: 0xdcead0, out: 0x3a86a6, outAmt: 0.5, macro: 0xe0f6ee },
     minimap: { zemin: '#f2dcae' },
     harita: { ad: 'Mercan Krallığı', detay: 'Köpük gölünden dalış, mercanlar, inciler, uyuyan ejderha ve Koca Kirpi Balık', renk: '#4fc3e8', x: 32, y: 32, simge: '🐚' },

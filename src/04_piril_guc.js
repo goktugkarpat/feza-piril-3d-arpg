@@ -49,7 +49,7 @@ const PIRIL_GUC = (() => {
   function say(k) { const a = api(); if (!a || !a.say) return false; try { return a.say(k, 2); } catch (e) { return false; } }
   function sozSeyrek(k, n2) {   // ilk iki kullanımda, sonra %10 ve ≥ 40 s ara
     const i = (sayilar[k] = (sayilar[k] || 0) + 1);
-    if ((i <= 2 || Math.random() < .1) && t - sonSoz > (i <= 2 ? 8 : 40)) { sonSoz = t; say('pp_' + k + '_' + (i <= 2 ? i : 1 + (Math.random() * n2 | 0))); }
+    if ((i <= 2 || Math.random() < .1) && t - sonSoz > (i <= 2 ? 8 : 40)) { sonSoz = t; say('pp_' + k + '_1'); }   // yalnız _1 kaydı var
   }
 
   // ── Görsel: köpük balonu (Feza'nın çevresinde) — tek mesh, oluşturma bir kez ──
@@ -263,7 +263,7 @@ const PIRIL_GUC = (() => {
       }
       // uzun sessizlikte ara sıra sevgi sözü
       sessizlik += dt;
-      if (sessizlik > 75 && Math.random() < dt * .05) { sessizlik = 0; if (t - sonSoz > 30) { sonSoz = t; say(Math.random() < .5 ? 'pp_seviyorum' : 'pp_buradayim'); } }
+      if (sessizlik > 75) sessizlik = 0;   // (pp_seviyorum / pp_buradayim kaydı yok → söz söylenmez)
     }
     // (başlıkta Pırıl'ın pozu STORY'nin: titlePose / poseChars — burada dokunulmaz)
     // canlılık: Feza durunca ara sıra küçük bir şaka (kuyruk kovalama, hapşırık, başına konma, el sallama); uçarken seyrek ışık tozu
@@ -294,7 +294,7 @@ const PIRIL_GUC = (() => {
         balonMat.opacity = .22 + .08 * Math.sin(t * 4);
       }
     }
-    if (downAt >= 0 && c && c.P && !c.P.dead) { downAt = -1; if (t - sonSoz > 3) { sonSoz = t; say(Math.random() < .5 ? 'pp_kalkti_1' : 'pp_kalkti_2'); } }
+    if (downAt >= 0 && c && c.P && !c.P.dead) { downAt = -1; if (t - sonSoz > 3) { sonSoz = t; say('pp_kalkti_1'); } }
   }
   // ac(n) → ilk n güç açılır (motor: ışık sayısı); ac('nefes'|'kalkan'|'ruzgar'|'kalptozu'|'ucus') → yalnız o güç (bölüm ajanları bunu çağırır)
   function ac(n, o = {}) {
@@ -338,13 +338,14 @@ const PIRIL_GUC = (() => {
     sfx('pirilMutlu');
     return true;
   }
+  const OVGU_VAR = [1, 2, 3, 4, 5, 6, 9];
   function onCheer(o) {
     sessizlik = 0; charge = Math.min(1, charge + (o && o.boss ? .3 : o && o.elite ? .12 : .05));
     if (model) { if (o && (o.boss || o.elite)) model.takla(); else if (Math.random() < .45) model.alkis(1.1); }
     if (o && (o.boss || o.elite)) sfx('pirilKikir', { vol: .8 });
     const p = o && o.elite ? .8 : .3;
     if (t - sonOvgu > 20 && Math.random() < p) {
-      let k; do { k = 'pp_ovgu_' + (1 + (Math.random() * 10 | 0)); } while (k === sonOvguK);
+      let k; do { k = 'pp_ovgu_' + OVGU_VAR[Math.random() * OVGU_VAR.length | 0]; } while (k === sonOvguK);   // yalnız kaydı olan övgüler (7, 8, 10 yok)
       if (t - sonSoz > 4) { sonOvgu = t; sonOvguK = k; sonSoz = t; say(k); }
     }
   }
@@ -357,7 +358,7 @@ const PIRIL_GUC = (() => {
     else if (acikMi('kalkan') && cd.kalkan <= 0 && kalkan()) cd.kalkan = AYAR.kalkan.cd;
   }
   function onFezaDown(o) {
-    downAt = t; sonSoz = t; say('pp_saril_' + (1 + (Math.random() * 3 | 0)));
+    downAt = t; sonSoz = t; say('pp_saril_1');   // yalnız 1. sarılma sözünün kaydı var
     if (model) { model.uyu(false); model.salla(2); }
     if (o && bctx && bctx.follow && bctx.follow.goster) bctx.follow.goster(o.x, o.z, 2.2);   // Feza'nın üstünde kanatlarıyla döner
     // Pırıl kanatlarıyla sarar, kalp tozu serper → 2.4 s sonra Feza kalkar
@@ -373,7 +374,7 @@ const PIRIL_GUC = (() => {
     if (model) { model.takla(); model.nefes(1.2); }
     setTimeout(() => { if (blast) blast(); }, 350);
     const a = api(); if (a && a.burst && o && o.P) a.burst('star', o.P.pos.x, 2.2, o.P.pos.z, { count: 8, color: '#d9c8ff' });
-    sonSoz = t; say('pp_takim_' + (1 + (Math.random() * 3 | 0)));
+    // (pp_takim_1..3 kaydı yok → takım hamlesinde söz söylenmez)
     return true;
   }
   // yol / kapı gösterme
@@ -502,7 +503,7 @@ const PIRIL_GUC = (() => {
         const a = api(); if (a && a.burst && bctx && bctx.pos) a.burst('sparkle', bctx.pos.x, 1.4, bctx.pos.z, { color: '#fff2a8', count: 4 });
       }
     }
-    if (t - sonDokunSoz > 25 && t - sonSoz > 5 && Math.random() < .5) { sonDokunSoz = t; sonSoz = t; say(Math.random() < .5 ? 'pp_komik' : 'pp_yasasin'); }
+    // (pp_komik / pp_yasasin kaydı yok → dokununca yalnız kıkırdama/ışıltı, söz yok)
   }
   function sneeze(c) { if (model && model.sneeze) return model.sneeze(); return false; }
 

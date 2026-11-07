@@ -76,7 +76,8 @@ const SEHIR = (() => {
       const rm = L.rooms[ROOM_OF[i]] || L.rooms[mainRooms(i)[0]];
       const R = Math.max(5, (rm.r || 8));
       const n = spot(rm.x, rm.z, R * 0.2, R * 0.5, 1.2, used, 4) || { x: rm.x, z: rm.z }; used.push(n);
-      const it = spot(n.x, n.z, 4.5, 6.5, 1.0, used, 3.5) || spot(rm.x, rm.z, 2, R * 0.6, 1.0, used, 3) || { x: rm.x + 3, z: rm.z }; used.push(it);
+      // eşya şehirlinin hemen yanında (3–4,2 m): ikisi aynı anda ekranda görünsün, 5 yaşındaki Feza bağı hemen kursun (eskiden 4,5–6,5 m)
+      const it = spot(n.x, n.z, 3.0, 4.2, 1.0, used, 2.6) || spot(n.x, n.z, 4.2, 6.5, 1.0, used, 3.0) || spot(rm.x, rm.z, 2, R * 0.6, 1.0, used, 3) || { x: rm.x + 3, z: rm.z }; used.push(it);
       Z.npc[i] = n; Z.item[i] = it;
     });
     // tabela tahtaları (alan 3 odaları) ve bayrak direkleri (alan 4 odaları)
@@ -168,7 +169,7 @@ const SEHIR = (() => {
     const k = new Kit(), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
     for (const sx of [w0 - 0.3, w1 + 0.3]) { k.add(box, 0xe9dcc2, [sx, 0.14, 0], null, [1.15, 0.28, 1.15]); k.add(box, 0xf3e8d0, [sx, 0.44, 0], null, [0.86, 0.42, 0.86]); k.add(box, 0xd8826a, [sx, 0.70, 0], null, [1.02, 0.12, 1.02]); }
     const frame = new THREE.Mesh(k.build(), stoneMat()); frame.castShadow = true; grp.add(frame); api.dispose(frame.geometry);
-    const cm = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false }); api.dispose(cm);
+    const cm = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); api.dispose(cm);   // iPad: zeminle titreşmesin
     const clk = new THREE.Mesh(geo('kClk', () => kp(new THREE.PlaneGeometry(1, 1))), cm); clk.rotation.x = -PI / 2; clk.scale.set(1.45, 1.45, 1); clk.position.set(cx, 0.04, 0.9); clk.renderOrder = 2; grp.add(clk);
     const pm = new THREE.MeshBasicMaterial({ color: 0xf2e8ec, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, fog: false });
     const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 0.72, 1); panel.position.set(cx, 0.40, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
@@ -279,7 +280,7 @@ const SEHIR = (() => {
     (Z.boards || []).forEach((b, i) => {
       PO(cyl, b.x - 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a); PO(cyl, b.x + 0.8, 1.1, b.z, 0.06, 2.2, 0.06, 0x8a6a4a);
       const mt = new THREE.MeshBasicMaterial({ map: tabelaTex(i, false) }); api.dispose(mt);
-      const m = new THREE.Mesh(geo('bd', () => kp(new THREE.PlaneGeometry(1.9, 1.2))), mt); m.position.set(b.x, 1.6, b.z + 0.05); api.add(m); boards.push({ m, mt, i });
+      const m = new THREE.Mesh(geo('bd', () => kp(new THREE.PlaneGeometry(1.9, 1.2))), mt); m.position.set(b.x, 1.6, b.z + 0.1); api.add(m); boards.push({ m, mt, i });   // (direklerin önünde: 0,05'te direk yüzeyi tahtanın içinden çizgi çizgi görünüyordu)
       api.solid(b.x, b.z, 0.9, 'tabela');
     });
     // bayrak direkleri (gri → renkli)
@@ -287,7 +288,8 @@ const SEHIR = (() => {
     (Z.poles || []).forEach((p, i) => {
       PO(cyl, p.x, 1.6, p.z, 0.07, 3.2, 0.07, 0xe8d8b8); PO(sph, p.x, 3.25, p.z, 0.1, 0.1, 0.1, 0xffd24a);
       const mt = new THREE.MeshBasicMaterial({ color: 0xb9b4b0, side: THREE.DoubleSide }); api.dispose(mt);
-      const m = new THREE.Mesh(geo('fl', () => kp(new THREE.PlaneGeometry(1.1, 0.7))), mt); m.position.set(p.x + 0.58, 2.85, p.z); api.add(m); flags.push({ m, mt, col: flagCols[i % flagCols.length], ph: i });
+      // bayrak direğin kenarından döner (eskiden ortasından dönüp sallanırken direkten ayrılıp havada asılı kalıyordu)
+      const m = new THREE.Mesh(geo('fl2', () => kp(new THREE.PlaneGeometry(1.1, 0.7).translate(0.55, 0, 0))), mt); m.position.set(p.x + 0.05, 2.85, p.z); api.add(m); flags.push({ m, mt, col: flagCols[i % flagCols.length], ph: i });
       api.solid(p.x, p.z, 0.4, 'bayrak');
     });
     // sis tutamları: alçak, saydam, seyrek (alan 1–4); hatırlayanla incelir
@@ -296,8 +298,11 @@ const SEHIR = (() => {
     for (let i = 0; i < NW; i++) {
       const rm = L.rooms[1 + ((i * 7) % Math.max(1, L.rooms.length - 3))]; if (!rm) continue;
       const a = rnd() * TAU, d = rnd() * (rm.r || 8) * 0.8, x = rm.x + Math.sin(a) * d, z = rm.z + Math.cos(a) * d; if (!api.isFloor(x, z)) continue;
+      const yy = rnd(), sw = 5 + rnd() * 3, ph = rnd() * 6;
+      // seyrek ve yere yakın: yarısı yeter; şehirli/eşya üstünde sis yok (QA: insanları ve parlayan eşyayı bulanık beyaz lekeyle örtüyordu)
+      if (i % 2 || (Z.npc || []).concat(Z.item || []).some(q => q && hyp(q.x - x, q.z - z) < 4)) continue;
       const mt = new THREE.SpriteMaterial({ map: haloTex(), color: 0xf0e6ea, transparent: true, opacity: 0.0, depthWrite: false }); api.dispose(mt);
-      const sp = new THREE.Sprite(mt); sp.position.set(x, 0.7 + rnd() * 0.5, z); sp.scale.set(5 + rnd() * 3, 2.2, 1); api.add(sp); wisps.push({ sp, x, z, ph: rnd() * 6 });
+      const sp = new THREE.Sprite(mt); sp.position.set(x, 0.3 + yy * 0.2, z); sp.scale.set(sw, 1.2, 1); api.add(sp); wisps.push({ sp, x, z, ph });
     }
     // alçak gökyüzü şeridi: sıcak şeftali
     const skyMat = new THREE.ShaderMaterial({ transparent: true, depthTest: false, depthWrite: false,
@@ -357,7 +362,7 @@ const SEHIR = (() => {
       npcs.push({ w, i, m, p, bl, mt, face: 0, st: { move: 0, windup: -1, attack: -1, hurt: 0, frozen: false, dying: -1, t: 0 }, joy: 0 });
     });
     // pati izleri (Bilbo): sıradaki kişiye
-    const pawM = kp(new THREE.MeshBasicMaterial({ color: 0xc9a070, transparent: true, opacity: 0.0, depthWrite: false }));
+    const pawM = kp(new THREE.MeshBasicMaterial({ color: 0x7a4a2c, transparent: true, opacity: 0.0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));   // koyu sıcak kahve: bal rengi kaldırımda açık kahve iz kayboluyordu (Feza'nın tek yol göstericisi)
     const toe = geo('toe', () => kp(new THREE.CircleGeometry(1, 12).rotateX(-PI / 2)));
     const trails = [];
     const path = Z.path || [];
@@ -366,14 +371,16 @@ const SEHIR = (() => {
     const nearS = p => { let bi = 0, bd = 1e9; for (let i = 0; i < path.length; i++) { const d = hyp(path[i].x - p.x, path[i].z - p.z); if (d < bd) { bd = d; bi = i; } } return cum[bi] || 0; };
     npcs.forEach((n, i) => {
       const grp = new THREE.Group(); grp.visible = false; api.add(grp); const sN = nearS(n.p), s0 = i === 0 ? 4 : nearS(npcs[i - 1].p);
-      const items = [];
-      for (let s = Math.max(0, Math.max(s0, sN - 20)); s < sN - 3.5; s += 2.2) {
+      const items = [], pk = new Kit();   // bütün pati izi tek çizimde (eskiden her iz 4 ayrı parça = ~30 çizim)
+      // iz bir önceki şehirlinin yanından başlar (eskiden yalnız son 20 m: 40–50 m ötedeki kişiye giden iz Feza'nın ekranında hiç görünmüyordu)
+      for (let s = Math.max(0, Math.max(s0, sN - 70)); s < sN - 3.5; s += 2.2) {
         const q = at(s); if (!q) continue; const l = hyp(q.dx, q.dz) || 1, side = items.length % 2 ? 0.5 : -0.5;
-        const pg = new THREE.Group(); pg.position.set(q.x + (-q.dz / l) * side, 0.09, q.z + (q.dx / l) * side); pg.rotation.y = Math.atan2(q.dx, q.dz);
-        const pad = new THREE.Mesh(toe, pawM); pad.scale.set(0.2, 1, 0.22); pad.renderOrder = 2; pg.add(pad);
-        for (let j = -1; j <= 1; j++) { const t = new THREE.Mesh(toe, pawM); t.scale.set(0.085, 1, 0.095); t.position.set(j * 0.17, 0, 0.3 - Math.abs(j) * 0.05); t.renderOrder = 2; pg.add(t); }
-        grp.add(pg); items.push(pg);
+        pk.push([q.x + (-q.dz / l) * side, 0.09, q.z + (q.dx / l) * side], [0, Math.atan2(q.dx, q.dz), 0]);
+        pk.add(toe, 0xffffff, [0, 0, 0], null, [0.24, 1, 0.26]);   // (%20 iri: 15,5 m kameradan seçilsin)
+        for (let j = -1; j <= 1; j++) pk.add(toe, 0xffffff, [j * 0.2, 0, 0.36 - Math.abs(j) * 0.06], null, [0.1, 1, 0.11]);
+        pk.pop(); items.push(s);
       }
+      if (items.length) { const pm = new THREE.Mesh(pk.build(), pawM); pm.renderOrder = 2; grp.add(pm); api.dispose(pm.geometry); }
       trails[i] = { grp, items };
     });
     // oyuncak rafı + kırık taç (kule içi; AD YOK, EFEKT YOK)
@@ -382,7 +389,7 @@ const SEHIR = (() => {
       const T0 = Z.tower, southHides = Z.southHides || makeSouthHides(L, api);
       // kule iç duvarı: kameraya bakan / arkasında zemin olan her yerde alçak taş bordür (<0.8 m); yalnız en kuzey arkada alçak duvar + çarklar
       const cogs = [];
-      const wallM = kp(new THREE.MeshStandardMaterial({ color: 0xf0e2c8, roughness: 0.95 }));
+      const wk = new Kit();   // duvar parçaları tek çizimde (eskiden her parça ayrı çizimdi): koyu taban + krem gövde + bal rengi kapak
       const wbox = geo('wbox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
       for (const rm of [T0.a, T0.b]) {
         const R = rm.r + 1.8, N = Math.max(14, Math.round(R * 2.4));
@@ -390,22 +397,25 @@ const SEHIR = (() => {
           const a = q * TAU / N, x = rm.x + Math.sin(a) * R, z = rm.z + Math.cos(a) * R;
           if (api.isFloor(x, z) || api.linkDist(x, z) < 3.2) continue;
           const south = z > rm.z - rm.r * 0.45 || southHides(x, z, 3.0), h = south ? 0.52 : 2.3;
-          const m = new THREE.Mesh(wbox, wallM); m.scale.set(TAU * R / N * 1.12, h, 0.82); m.position.set(x, h / 2, z); m.rotation.y = a; m.receiveShadow = true; api.add(m);
+          const w = TAU * R / N * 1.12;
+          wk.add(wbox, 0xc8ad86, [x, 0.1, z], [0, a, 0], [w + 0.05, 0.2, 0.94]); wk.add(wbox, 0xf4e8d0, [x, h / 2, z], [0, a, 0], [w, h, 0.82]);
+          wk.add(wbox, 0xd9965e, [x, h + 0.05, z], [0, a, 0], [w + 0.03, 0.12, 0.98]); if (!south) wk.add(wbox, 0xe6cfa6, [x, h * 0.58, z], [0, a, 0], [w + 0.02, 0.1, 0.88]);
           if (q % 3 === 0) {
             const gm = new THREE.MeshStandardMaterial({ color: q % 2 ? 0xd8a24a : 0xc08a3a, roughness: 0.4, metalness: 0.5 }); api.dispose(gm);
             const gk = new Kit(); const tb = geo('tooth', () => kp(new THREE.BoxGeometry(1, 1, 1))), disk = geo('disk', () => kp(new THREE.CylinderGeometry(1, 1, 0.4, 20)));
             gk.add(disk, 0xffffff, [0, 0, 0], [PI / 2, 0, 0], 1); for (let tI = 0; tI < 10; tI++) { const ta = tI * TAU / 10; gk.add(tb, 0xffffff, [Math.cos(ta) * 1.12, Math.sin(ta) * 1.12, 0], [0, 0, ta], [0.3, 0.38, 0.4]); }
             const mesh = new THREE.Mesh(gk.build(), gm); api.dispose(mesh.geometry);
             const sz = south ? 0.48 : 0.68 + (q % 3) * 0.14; mesh.scale.setScalar(sz);
-            if (south) { mesh.position.set(x, h + 0.08, z); mesh.rotation.set(PI / 2, 0, 0); }
+            if (south) { mesh.position.set(x, h + 0.22, z); mesh.rotation.set(PI / 2, 0, 0); }   // kapağın üstünde dursun (içine gömülmesin)
             else { mesh.position.set(x - Math.sin(a) * 0.48, 1.25 + (q % 2) * 0.35, z - Math.cos(a) * 0.48); mesh.rotation.y = a + PI; }
             api.add(mesh); cogs.push({ mesh, sp: (q % 2 ? 1 : -1) * (0.5 + (q % 3) * 0.2) });
           }
         }
       }
+      if (wk.parts.length) { const wm = new THREE.Mesh(wk.build(), stoneMat()); wm.receiveShadow = true; api.add(wm); api.dispose(wm.geometry); }
       V.cogs = cogs;
       // büyük kadran (2. odanın zemininde, dev anahtarın altında: koridoru ve kamerayı asla kapatmaz)
-      const cmat = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false }); api.dispose(cmat);
+      const cmat = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); api.dispose(cmat);
       const clk = new THREE.Mesh(geo('clk2', () => kp(new THREE.PlaneGeometry(1, 1))), cmat); clk.rotation.x = -PI / 2; clk.scale.set(3.4, 3.4, 1); clk.position.set(T0.b.x, 0.038, T0.b.z); clk.renderOrder = 2; api.add(clk);
       // raf
       const sh = T0.shelf; shelfAt = sh;
@@ -439,7 +449,7 @@ const SEHIR = (() => {
     // HUD: 5 noktalı kule kadranı
     let hud = null; const dots = [];
     try {
-      hud = document.createElement('div'); hud.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);display:flex;gap:9px;padding:7px 14px;border-radius:22px;background:rgba(255,248,230,0.82);box-shadow:0 2px 8px rgba(0,0,0,.2);pointer-events:none;z-index:30;opacity:0;transition:opacity .6s';
+      hud = document.createElement('div'); hud.id = 'sehirKadran'; hud.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);display:flex;gap:9px;padding:7px 14px;border-radius:22px;background:rgba(255,248,230,0.82);box-shadow:0 2px 8px rgba(0,0,0,.2);pointer-events:none;z-index:30;opacity:0;transition:opacity .6s';
       const ic = document.createElement('div'); ic.textContent = '\u{1F570}️'; ic.style.cssText = 'font-size:20px;line-height:20px;margin-right:2px'; hud.appendChild(ic);
       for (let i = 0; i < 5; i++) { const d = document.createElement('div'); d.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#d6cdbd;border:2px solid #b0a690;transition:all .5s'; hud.appendChild(d); dots.push(d); }
       document.body.appendChild(hud); api.dispose({ dispose() { if (hud && hud.parentNode) hud.parentNode.removeChild(hud); } });
@@ -509,8 +519,7 @@ const SEHIR = (() => {
         if (n.hearted && n.joy <= 0) n.mt.opacity *= 1 - Math.min(1, dt * 0.4);
       }
       for (const s of S.items) if (s) { const o = s.o; s.halo.visible = !o.tut && !o.yerlesik; s.halo.scale.setScalar(2.2 + Math.sin(T * 3) * 0.25); s.halo.position.set(o.x, 0.6, o.z); }
-      for (const t of trails) if (t.grp.visible) t.items.forEach((p, k) => { p.visible = true; });
-      pawM.opacity = 0.55 + 0.2 * Math.sin(T * 3);
+      pawM.opacity = 0.6 + 0.18 * Math.sin(T * 3);   // koyu iz: hep seçilir (0,42–0,78), yanıp sönmez
       // rüzgâr/sis, renk, dikkat
       if (V.cogs) for (const c of V.cogs) c.mesh.rotation.z += c.sp * dt;
       try {
@@ -541,7 +550,10 @@ const SEHIR = (() => {
         if (u >= 1) { wave.visible = false; S.wave = null; S.bell = 3; }
       }
       // kule kadranı HUD'u: arenada, sinematikte/duraklatmada ve başka bölümde gizli (QA: boss girişinde arenada açık kalıyordu)
-      if (hud) { hud.style.top = innerHeight > innerWidth ? '162px' : '92px'; const sh = playing && g0.L === L && P.area >= 0 && P.area < A.length - 1 && !(typeof MINIGAME !== 'undefined' && MINIGAME.active); hud.style.opacity = sh ? '1' : '0'; }
+      // dikeyde ışık çubuğunun (sol üst, ~170 px'e iner) belirgin ALTINA: 162 px'te çubuğa yapışıktı (834 px'te 4 px, 744 px'te 9 px ara);
+      // çok aşağı da inmesin (şehirlinin düşünce balonunu örtmesin)
+      // dar yatay iPad (1024 px): sağ üst çanta düğmesinin altına 4 px kalıyordu → 100 px (12 px boşluk)
+      if (hud) { const ht = innerHeight > innerWidth ? '184px' : innerWidth < 1100 ? '100px' : '92px'; if (hud.style.top !== ht) hud.style.top = ht; const sh = playing && g0.L === L && P.area >= 0 && P.area < A.length - 1 && !(typeof MINIGAME !== 'undefined' && MINIGAME.active), op = sh ? '1' : '0'; if (hud.style.opacity !== op) hud.style.opacity = op; }   // (yalnız değişince yaz: her kare stil yazımı yok)
       // konuşmalar ve akış
       if (playing) {
         const ar = P.area;
@@ -549,11 +561,12 @@ const SEHIR = (() => {
         if (T > 7 && S.started === 1) { S.started = 2; say('b08_pirilgiris'); }
         if (T > 12 && S.started === 2) { S.started = 3; say('b08_bilbo'); }
         if (T > 2.5 && !S.items[0]) activate(0);
-        if (S.nextAt && T >= S.nextAt) { S.nextAt = 0; if (S.act >= 0) activate(S.act); }
+        // sıradaki şehirli: pati izi hemen görünür; eşya ve "bulalım" sözü Feza o kişiye yaklaşınca (uzaktaki birinden söz etmesin)
+        if (S.nextAt && T >= S.nextAt && S.act >= 0) { const nx = npcs[S.act]; if (trails[S.act]) trails[S.act].grp.visible = true; if (!nx || hyp(P.pos.x - nx.p.x, P.pos.z - nx.p.z) < 24 || T - S.nextAt > 14) { S.nextAt = 0; activate(S.act); } }   // (14 sn yaklaşmazsa yine de: söz + Pırıl yolu gösterir; beklemesin)
         if (T > 22 && S.started === 3) { S.started = 4; say('b08_kule'); }
-        // eşya bulunamıyorsa: 12 sn sonra Feza yakınındayken Pırıl bir kez eşyanın üstüne uçup gösterir (sessiz, tek işaret)
+        // eşya bulunamıyorsa: 8 sn sonra Feza yakınındayken Pırıl bir kez eşyanın üstüne uçup gösterir (sessiz, tek işaret)
         { const it = S.act >= 0 && !S.done[S.act] && S.items[S.act], o = it && it.o;
-          if (o && !it.shown && T - it.at > 12 && !o.tut && !o.yerlesik && hyp(P.pos.x - o.x, P.pos.z - o.z) < 16) { it.shown = 1; pirilGit(o.x, o.z); } }
+          if (o && !it.shown && T - it.at > 8 && !o.tut && !o.yerlesik && hyp(P.pos.x - o.x, P.pos.z - o.z) < 22) { it.shown = 1; pirilGit(o.x, o.z); } }
         if (ar !== S.area) {
           S.area = ar;
           // (b08_pirilruzgar söylenmez: alanlar arası sis perdesi kaldırıldı; olmayan perdeden söz etmesin)

@@ -466,7 +466,9 @@ const GAME = (() => {
     return t;
   }
   function decalMat(tex, color, k, blend = THREE.AdditiveBlending) {
-    return new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(color).multiplyScalar(k), transparent: true, blending: blend, depthWrite: false, fog: false });
+    // (iPad: derinlik hassasiyeti düşük → yer halkaları/gölgeler zeminle titreşmesin: polygonOffset ile hep zeminin önünde)
+    return new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(color).multiplyScalar(k), transparent: true, blending: blend, depthWrite: false, fog: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   }
   function decal(mat, s) {
     const m = new THREE.Mesh(R.plane, mat); m.rotation.x = -Math.PI / 2; m.scale.setScalar(s); m.renderOrder = 2; return m;
@@ -499,7 +501,7 @@ const GAME = (() => {
     R.selMat = decalMat(R.reticle, '#ff8a4a', 2.4);
     R.auraMat = decalMat(R.ring, '#ffc93c', 2.2);
     R.auraGlow = decalMat(R.disc, '#ffb42a', 0.7);
-    R.blobMat = new THREE.MeshBasicMaterial({ map: R.disc, color: 0x1a1020, transparent: true, opacity: 0.42, depthWrite: false });
+    R.blobMat = new THREE.MeshBasicMaterial({ map: R.disc, color: 0x1a1020, transparent: true, opacity: 0.42, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
     R.lootRing = {};   // by colour
     R.warmEq = {};     // item bases Feza has already worn in a warm-up
     R.marker = new THREE.Group();

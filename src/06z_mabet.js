@@ -3,8 +3,9 @@
    Zıp düğmesi, kenarda otomatik zıplama, rün taşı → basamak belirir, bulut yastığı). Düşme cezası yok.
      1. Bulut Kapısı        büyük yıldız taşına zıpla → taş kapı açılır
      2. Yıldız Tozu Avlusu  sütunlar, kristal kubbeler, yıldız çukurları; alçak taşlar; yüksek "kuyruklu yıldız taşı" ve çatı bahçesi (gizli)
-     3. Rün Taşları Bahçesi 3 rün taşına bas → 3 basamak belirir; tepeye çık → kapı açılır
-     4. Yıldız Basamakları  3 kat × 4 yüzen taş; her kat gökte Küçük Ejderha takımyıldızının çizgisini uzatır; bitince mabet kapısı açılır
+     3. Rün Taşları Bahçesi kapının önünde TEK ay işareti taşı: üstüne yürü/dokun → kapı açılır
+     4. Yıldız Basamakları  kapının önünde TEK büyük dolunay taşı: üstüne yürü/dokun → tapınak kapısı açılır
+        (ebeveyn, 7 Kasım: ay evresi sıralı zıplama görevi 5 yaş için imkânsızdı, kaldırıldı; sıra/hafıza/tekrarlı zıplama yok)
      5. Mabet İç Salonu     uyuyan taş tavşan, silik duvar resmi (yarım taçlı yaşlı biri, elinde fener; AD YOK, EFEKT YOK; Pırıl: "Bu kimin resmi acaba?")
      Arena: Büyük Mabet Salonu — Mabet Bekçisi (src/05z_mabet.js). Neşelenince Pırıl kanat rüzgârını geri alır (PIRIL_GUC.gucVer('ruzgar')).
    Görünüm kaynağı: feza-bilbo/huysuz Zıp Zıp Ay (kubbe, anten, krater, kuyruklu yıldız) — "Ay" yok, Dünya/halkalı gezegen yok; MOR YOK.
@@ -82,26 +83,15 @@ const MABET = (() => {
         if (h1) M.high = h1;
         if (c1 && (!h1 || hyp(c1.x - h1.x, c1.z - h1.z) > 6)) M.cati = c1;
       } }
-    // 3) rün bahçesi: 3 rün taşı (alanın odalarına) + 3 basamak (son odada, 3. geçidin 4–10 m önünde)
-    { const mr = mainRooms(2), last = L.rooms[mr[mr.length - 1]], g = A[3] && A[3].gate;
-      if (last && g) {
-        const d = dirTo(last.x, last.z, g.x, g.z); let ok = true; const pts = [];
-        for (const dd of [10.5, 7.6, 4.8]) { let p = null; for (let s = 0; s < 3 && !p; s++) { const x = g.x - d[0] * dd + -d[1] * (s - 1) * 0.8, z = g.z - d[1] * dd + d[0] * (s - 1) * 0.8; if (api.isFloor(x, z) && api.circleFree(x, z, 0.8)) p = { x, z }; } if (!p) ok = false; pts.push(p || { x: g.x - d[0] * dd, z: g.z - d[1] * dd }); }
-        void ok; M.rsteps = pts;
-        const rooms = mr.map(ri => L.rooms[ri]);
-        for (let i = 0; i < 3; i++) { const rm = rooms[i % rooms.length]; const p = spot(rm.x, rm.z, 2.5, Math.max(3.5, rm.r * 0.6), 1.3); if (p && !pts.some(q => hyp(q.x - p.x, q.z - p.z) < 4) && !M.runs.some(q => hyp(q.x - p.x, q.z - p.z) < 3.5)) M.runs.push(p); }
-        let guard = 0; while (M.runs.length < 3 && guard++ < 30) { const rm = rooms[guard % rooms.length], p = spot(rm.x, rm.z, 2, Math.max(3, rm.r * 0.7), 1.2); if (p && !M.runs.some(q => hyp(q.x - p.x, q.z - p.z) < 3)) M.runs.push(p); }
-      } }
-    // 4) basamaklar: odanın içinde 3 kat × 4 taş sarmal; son taş 4. geçit tarafında
-    { const mr = mainRooms(3), rm = L.rooms[mr[0]], g = A[4] && A[4].gate;
-      if (rm) {
-        const R = clamp(rm.r * 0.5, 4.2, 6.6), step = 2.65 / R, tg = g ? Math.atan2(g.x - rm.x, g.z - rm.z) : 0, pads = [];
-        for (let n = 0; n < 12; n++) {
-          const a = tg - (11 - n) * step, kat = (n / 4) | 0, j = n % 4;
-          pads.push({ id: 'p' + n, x: rm.x + Math.sin(a) * R, z: rm.z + Math.cos(a) * R, top: 0.7 + n * 0.62, r: j === 3 ? 1.35 : 0.98, kat, j, a, R, cx: rm.x, cz: rm.z });
-        }
-        M.pads = pads; M.padRoom = { x: rm.x, z: rm.z, r: rm.r };
-      } }
+    // 3) rün bahçesi (ebeveyn: sıralı/çok adımlı görev yok): kapının 4–6 m önünde, yolun üstünde TEK ay işareti taşı; üstüne basınca kapı açılır
+    // 4) basamaklar (ay evresi zıplama görevi KALDIRILDI): kapının önünde TEK büyük dolunay taşı; basınca (ya da dokununca) tapınak kapısı açılır
+    const gateStone = (rm, g, r) => {   // geçidin oda tarafında, yol üstünde boş zemin
+      if (!rm || !g) return null; const d = dirTo(rm.x, rm.z, g.x, g.z);
+      for (const dd of [4.6, 5.4, 3.8, 6.4, 3.2]) for (const s of [0, 1, -1, 2, -2]) { const x = g.x - d[0] * dd + -d[1] * s * 0.7, z = g.z - d[1] * dd + d[0] * s * 0.7; if (api.isFloor(x, z) && api.circleFree(x, z, r)) return { x, z }; }
+      return spot(rm.x, rm.z, 1, Math.max(2, rm.r * 0.5), r) || { x: rm.x, z: rm.z };
+    };
+    { const mr = mainRooms(2), p = gateStone(L.rooms[mr[mr.length - 1]], A[3] && A[3].gate, 1.0); if (p) M.runs.push(p); }
+    { const mr = mainRooms(3), rm = L.rooms[mr[0]]; M.aytasi = gateStone(rm, A[4] && A[4].gate, 1.3); if (rm) M.padRoom = { x: rm.x, z: rm.z, r: rm.r }; }
     // 5) iç salon: kuzey kenarda silik duvar resmi, uyuyan taş tavşan
     { const mr = mainRooms(4), rm = L.rooms[mr[0]]; if (rm) { M.salon = { x: rm.x, z: rm.z, r: rm.r }; } }
     { const ar = L.rooms.filter(r => r.kind !== 'side').pop(); if (ar) M.arena = { x: ar.x, z: ar.z, r: ar.r || 11 }; }
@@ -132,13 +122,13 @@ const MABET = (() => {
       k.add(new THREE.CylinderGeometry(1, 0.96, 1, 20), 0xd9d1bd, [0, -0.28, 0], null, [r, 0.56, r]);
       k.add(new THREE.CylinderGeometry(1, 1, 1, 20), 0xb9b09a, [0, -0.5, 0], null, [r * 1.01, 0.1, r * 1.01]);
       k.add(new THREE.ConeGeometry(1, 1, 10), 0x8e8774, [0, -1.0, 0], [PI, 0, 0], [r * 0.85, 0.9, r * 0.85]);
-      k.add(moonFlat(ph, r * 0.62), 0x7f8aa0, [0, 0.012, 0], null, 1);
+      k.add(moonFlat(ph, r * 0.62), 0x7f8aa0, [0, 0.03, 0], null, 1);   // 0,03: iPad derinlik hassasiyetinde taşın yüzüyle titreşmesin
       const g = k.build(); g.userData.keep = true; return g;
     });
   }
   function makePad(api, p) {
     const m = new THREE.Mesh(padGeo(p.r, p.ph), stoneMat()); m.castShadow = true; m.receiveShadow = true;
-    const lit = new THREE.Mesh(geo('moonLit' + p.r + '_' + p.ph, () => moonFlat(p.ph, p.r * 0.62)), litMat()); lit.position.y = 0.03; lit.visible = false; lit.renderOrder = 4; m.add(lit);
+    const lit = new THREE.Mesh(geo('moonLit' + p.r + '_' + p.ph, () => moonFlat(p.ph, p.r * 0.62)), litMat()); lit.position.y = 0.055; lit.visible = false; lit.renderOrder = 4; m.add(lit);
     m.userData.lit = lit; api.add(m); return m;
   }
   function haloTex() {
@@ -148,14 +138,15 @@ const MABET = (() => {
     const t = new THREE.CanvasTexture(c); t.userData = { keep: true }; return (GM.haloT = t);
   }
   // rün taşı: yassı taş disk, üstünde turuncu-altın rün
-  function runeMesh(api, x, z) {
-    const g = new THREE.Group(); g.position.set(x, 0, z);
-    const disc = new THREE.Mesh(geo('runeDisc', () => kp(new THREE.CylinderGeometry(0.9, 1.0, 0.14, 18))), kp(new THREE.MeshStandardMaterial({ color: 0xcfc6b0, roughness: 0.85 })));
-    disc.position.y = 0.07; disc.receiveShadow = true; g.add(disc);
-    const glyph = new THREE.Mesh(geo('runeG', () => kp(moonFlat(1, 0.62))), new THREE.MeshBasicMaterial({ color: 0x7ea2c8, transparent: true, opacity: 0.9, depthWrite: false }));
-    glyph.position.y = 0.16; glyph.renderOrder = 3; g.add(glyph);
-    const ring = new THREE.Mesh(geo('runeR', () => kp(new THREE.RingGeometry(0.72, 0.86, 28).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xa8d4ff, transparent: true, opacity: 0.8, depthWrite: false }));
-    ring.position.y = 0.17; ring.renderOrder = 3; g.add(ring);
+  function runeMesh(api, x, z, s = 1, full = false) {   // s: genişlik (y ölçeği 1 kalır: basınca motor y'yi esnetir); full: dolunay oyması
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.set(s, 1, s);
+    const disc = new THREE.Mesh(geo('runeDisc', () => kp(new THREE.CylinderGeometry(0.9, 1.0, 0.16, 22))), kp(new THREE.MeshStandardMaterial({ color: 0xd8cfb8, roughness: 0.85 })));
+    disc.position.y = 0.08; disc.receiveShadow = true; g.add(disc);
+    const dm = o => new THREE.MeshBasicMaterial(Object.assign({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }, o));   // iPad: taşın yüzüyle titreşmesin
+    const glyph = new THREE.Mesh(full ? geo('runeF', () => kp(new THREE.CircleGeometry(0.6, 30).rotateX(-PI / 2))) : geo('runeG', () => kp(moonFlat(1, 0.62))), dm({ color: 0x7ea2c8, opacity: 0.9 }));
+    glyph.position.y = 0.19; glyph.renderOrder = 3; g.add(glyph);
+    const ring = new THREE.Mesh(geo('runeR', () => kp(new THREE.RingGeometry(0.72, 0.86, 30).rotateX(-PI / 2))), dm({ color: 0xa8d4ff, opacity: 0.8 }));
+    ring.position.y = 0.195; ring.renderOrder = 3; g.add(ring);
     api.add(g); api.dispose(glyph.material); api.dispose(ring.material); return { g, glyph, ring };
   }
 
@@ -172,7 +163,7 @@ const MABET = (() => {
     const k = new Kit(), cyl = geo('kCyl', () => kp(new THREE.CylinderGeometry(1, 1, 1, 14))), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
     for (const sx of [w0 - 0.2, w1 + 0.2]) {
       k.add(box, 0xd8d0bb, [sx, 0.22, 0], null, [0.92, 0.44, 0.92]); k.add(cyl, 0xe6dfcb, [sx, 0.95, 0], null, [0.36, 1.15, 0.36]); k.add(box, 0xcfc6ae, [sx, 1.62, 0], null, [0.92, 0.26, 0.92]);
-      k.add(moonFlat(1, 0.2), 0xd9dde8, [sx, 1.0, 0.37], [PI / 2, 0, 0], 1);
+      k.add(moonFlat(1, 0.2), 0xd9dde8, [sx, 1.0, 0.41], [PI / 2, 0, 0], 1);
     }
     const frame = new THREE.Mesh(k.build(), stoneMat()); frame.castShadow = true; grp.add(frame); api.dispose(frame.geometry);
     const pm = new THREE.MeshBasicMaterial({ color: 0x9cc8ff, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -204,7 +195,7 @@ const MABET = (() => {
     const moonMat = new THREE.MeshBasicMaterial({ map: mt, transparent: true, depthTest: true, depthWrite: false, fog: false });   // derinlik testi: yakın duvar/sütun/resim ayın önünde kalır (ay onların üstüne yapışmaz)
     const moon = new THREE.Mesh(skyGeo, moonMat); moon.renderOrder = 29; moon.frustumCulled = false; api.add(moon); api.dispose(mt); api.dispose(moonMat);
     const comets = [];
-    for (let k = 0; k < 3; k++) { const o = new THREE.Mesh(cg, cm); o.renderOrder = 31; o.frustumCulled = false; api.add(o); comets.push(o); }
+    for (let k = 0; k < 1; k++) { const o = new THREE.Mesh(cg, cm); o.renderOrder = 31; o.frustumCulled = false; api.add(o); comets.push(o); }
     const right = new THREE.Vector3(), up = new THREE.Vector3(), fwd = new THREE.Vector3();
     const anchor = (o, sx, sy, rf, depth) => {
       right.setFromMatrixColumn(camera.matrixWorld, 0); up.setFromMatrixColumn(camera.matrixWorld, 1); fwd.setFromMatrixColumn(camera.matrixWorld, 2).negate();
@@ -216,8 +207,14 @@ const MABET = (() => {
     api.anim(dt => {
       t += Math.min(dt, 0.05); anchor(sky, 0.5, 0.06, 0.23, 30); sky.scale.x *= camera.aspect / 0.23;
       // ay ekranın en üstünde, yarısı ufuk şeridinde: eskiden (0,16 / 0,5) zeminin üstüne yapışıp rün taşlarını, huysuzları saklıyordu
-      anchor(moon, camera.aspect > 1 ? 0.3 : 0.32, camera.aspect > 1 ? 0.085 : 0.075, camera.aspect > 1 ? 0.3 : 0.24, 23); moon.scale.y = moon.scale.x * (1 + Math.sin(t * 0.5) * 0.004);   // 23 m: uzak zeminin önünde, Feza'nın yanındaki duvar/sütunların arkasında
-      comets.forEach((o, k) => { const u = (t * (0.07 + k * 0.012) + k * 0.34) % 1; anchor(o, 0.16 + 0.68 * u, 0.145 + k * 0.025 + Math.sin(u * PI) * 0.01, k === 0 ? 0.023 : 0.017, 19); o.rotateZ(0.06 + k * 0.035); });
+      // ay: yatayda üst çubuk ile sağ düğmelerin ARASINDAKİ boşlukta, küçük (eskiden can/renk çubuğunun ve boss adının arkasına giriyordu)
+      if (camera.aspect > 1) anchor(moon, 0.52, 0.072, 0.19, 23); else anchor(moon, 0.6, 0.128, 0.11, 23);   // dikey: düğmelerin altı, boss adının üstü
+      moon.scale.y = moon.scale.x * (1 + Math.sin(t * 0.5) * 0.004);   // 23 m: uzak zeminin önünde, Feza'nın yanındaki duvar/sütunların arkasında
+      // tek kuyruklu yıldız: üst düğmelerin hemen altında görünür geçer ("Kuyruklu yıldız geçiyor!" cümlesi doğru kalsın); boss salonunda
+      // yok (eskiden 3 tanesi boss adının/çubuğunun arkasından ok gibi geçiyordu)
+      const g9 = G_(), arenada = !!(g9 && g9.L && g9.L.areas && g9.P && g9.P.area === g9.L.areas.length - 1);
+      moon.visible = !(arenada && camera.aspect > 1);   // yatay boss salonu: boss adı + çubuğu tam ayın yerinde (üst orta); ay orada saklanır
+      comets.forEach((o, k) => { const u = (t * 0.06 + k * 0.34) % 1; o.visible = !arenada; anchor(o, 0.1 + 0.8 * u, (camera.aspect > 1 ? 0.15 : 0.2) + Math.sin(u * PI) * 0.01, 0.022, 19); o.rotateZ(0.06); });
     });
   }
 
@@ -275,13 +272,12 @@ const MABET = (() => {
       if (typeof MABET_DEKOR !== 'undefined') HASD = MABET_DEKOR.olustur(L, api, { K: typeof ODAKIT !== 'undefined' ? ODAKIT : null });
     } catch (e) { console.warn('MABET_DEKOR', e); HASD = false; }
     finally { if (origBake) PROPKIT.bake = origBake; }
-    // Antik taş mabet avlusu: oda merkezlerine alçak taş usturlap / güneş-ay rozeti (y=0.02, engel olmaz)
-    const ringFlat = api.tmp(new THREE.RingGeometry(0.78, 1.0, 28).rotateX(-PI / 2));
+    // Oda ortalarındaki iki düz halka (y=0,02) KALDIRILDI: taş karoların içine gömülüp kırık/titrek görünüyordu (iPad), Feza'nın altında
+    // nişan gibi duruyordu, arenada boss uyarı halkasına benziyordu. Yerine zemine pişmiş sıcak fener ışığı havuzu (ek çizim yok).
+    const arR = L.rooms.filter(r => r.kind !== 'side').pop();
     for (let ri = 0; ri < L.rooms.length; ri++) {
-      const rm = L.rooms[ri]; if (!rm || rm.kind === 'side') continue;
-      const rr = Math.min(3.8, (rm.r || 7) * 0.45);
-      rawPut(ringFlat, rm.x, 0.022, rm.z, rr, 1, rr, 0xc8b482, 0, 0, 0);
-      rawPut(ringFlat, rm.x, 0.024, rm.z, rr * 0.58, 1, rr * 0.58, 0x9ab4d8, 0, 0, 0);
+      const rm = L.rooms[ri]; if (!rm || rm.kind === 'side' || rm === arR) continue;
+      api.glow(rm.x, rm.z, Math.min(5.5, (rm.r || 7) * 0.6), 0xffd68a, 0.12);
     }
     const P = (g, x, y, z, sx, sy, sz, c, yaw, rx, rz) => api.put(g, x, y, z, sx, sy, sz, c, yaw || 0, rx || 0, rz || 0);
     const clouds = (x, z, s) => { P(sph, x, 0.05, z, 2.6 * s, 0.5 * s, 2.2 * s, 0xc4d4ee); P(sph, x + 1.4 * s, 0.12, z + 0.6 * s, 1.8 * s, 0.5 * s, 1.5 * s, 0xdbe6f8); P(sph, x - 1.3 * s, 0.1, z - 0.4 * s, 1.6 * s, 0.45 * s, 1.4 * s, 0xb4c6e6); };
@@ -289,7 +285,7 @@ const MABET = (() => {
     const shaftG = api.dispose(new THREE.CylinderGeometry(0.75, 1.5, 5.2, 14, 1, true));
     const shaftM = api.dispose(new THREE.MeshBasicMaterial({ color: 0xdfeaff, transparent: true, opacity: 0.085, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
     const pillar = (x, z, s) => {   // sütun + ay ışığı huzmesi
-      if (shafts < 12 && rnd() < 0.4) { shafts++; const m = new THREE.Mesh(shaftG, shaftM); m.position.set(x + 0.9, 2.6, z + 0.5); m.rotation.z = 0.2; m.renderOrder = 3; api.add(m); }
+      if (shafts < 12 && rnd() < 0.4) { shafts++; void shaftG; void shaftM; }   // huzme çizilmez (7 Kasım: soluk şerit gibi karışık görünüyordu); rnd sırası aynı kalsın diye sayaç duruyor
       P(box, x, 0.2 * s, z, 1.1 * s, 0.4 * s, 1.1 * s, 0xcfc6ae); P(cyl, x, 2.0 * s, z, 0.38 * s, 3.2 * s, 0.38 * s, 0xe6dfcb); P(box, x, 3.75 * s, z, 1.0 * s, 0.3 * s, 1.0 * s, 0xd2c9b1);
       P(cyl, x, 1.2 * s, z, 0.4 * s, 0.14 * s, 0.4 * s, 0xc9a24a); P(cyl, x, 2.6 * s, z, 0.4 * s, 0.14 * s, 0.4 * s, 0xc9a24a);
     };
@@ -393,17 +389,15 @@ const MABET = (() => {
     (M.low || []).forEach((q, i) => addPad('low' + i, q.x, q.z, q.top, 0.95, { phase: 1 + (i % 2) }));
     if (M.high) { addPad('hi0', M.high.x, M.high.z, 1.5, 1.05); addPad('hi1', M.high.x + 2.6, M.high.z - 1.2, 3.0, 1.3, { bob: 0.12 }); }
     if (M.cati) { addPad('ca0', M.cati.x, M.cati.z, 1.5, 1.05); addPad('ca1', M.cati.x - 2.5, M.cati.z - 1.3, 3.0, 1.9, { bob: 0.1 }); }
-    // rün basamakları: gizli, rün taşına basınca belirir
-    (M.rsteps || []).forEach((q, i) => addPad('rs' + (i + 1), q.x, q.z, 0.8 + i * 0.8, i === 2 ? 1.5 : 1.05, { on: false, phase: 1 + i }));
-    // 3 kat basamak
-    (M.pads || []).forEach(p => addPad(p.id, p.x, p.z, p.top, p.r, { phase: p.j, bob: p.kat >= 1 ? 0.12 : 0, ph: p.j * 1.3 + p.kat, slide: p.kat === 2 && p.j < 3 ? 0.55 : 0, sdx: Math.cos(p.a), sdz: -Math.sin(p.a) }));
-    // rün taşları
+    // ay işareti taşı (rün bahçesi) ve büyük dolunay taşı (tapınak kapısının önü): üstüne yürü ya da dokun → kapı açılır (tek adım)
     (M.runs || []).forEach((q, i) => {
-      const R = runeMesh(api, q.x, q.z);
-      const o = { id: 'run' + i, tur: 'dugme', x: q.x, z: q.z, r: 1.0, ac: ['rs' + (i + 1)], renk: '#ffb040', mesh: R.g };
+      const R = runeMesh(api, q.x, q.z, 1);
+      const o = { id: 'run' + i, tur: 'dugme', x: q.x, z: q.z, r: 1.1, ac: [], renk: '#ffd27a', mesh: R.g };
       L.nesneler.push(o); S['R' + i] = { o, R };
-      api.glow(q.x, q.z, 2.2, 0xa8d4ff, 0.14);
     });
+    if (M.aytasi) { const q = M.aytasi, R = runeMesh(api, q.x, q.z, 1.45, true);
+      const o = { id: 'aytasi', tur: 'dugme', x: q.x, z: q.z, r: 1.5, ac: [], renk: '#ffe27a', mesh: R.g };
+      L.nesneler.push(o); S.R3 = { o, R }; }
     // yıldız oyması ışıkları
     const lightPad = id => { const p = surf.find(s => s.id === id); if (p && p.mesh && p.mesh.userData.lit && !p.mesh.userData.lit.visible) { p.mesh.userData.lit.visible = true; burst('sparkle', p.x, p.top + 0.1, p.z, { color: '#ffe27a', count: 5 }); return true; } return false; };
     // altın çıkartma / küçük ödül
@@ -458,24 +452,7 @@ const MABET = (() => {
       sg.position.set(sx0, 0, sz0); sg.scale.setScalar(1.3); api.add(sg); sleeper = sg;
       if (api.solid) api.solid(sx0, sz0, 1.0, 'bekci');
     }
-    // takımyıldızı: ekranın üstünde Küçük Ejderha çizgisi (2B kanvas; yalnız basamaklar alanında ve tamamlanınca bir süre)
-    let cv = null, cx = null;
-    try {
-      cv = document.createElement('canvas'); cv.width = 190; cv.height = 190;
-      cv.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);width:min(30vw,150px);pointer-events:none;z-index:30;opacity:0;transition:opacity .8s';
-      document.body.appendChild(cv); cx = cv.getContext('2d');
-      api.dispose({ dispose() { if (cv && cv.parentNode) cv.parentNode.removeChild(cv); } });
-    } catch (e) { cv = null; }
-    function drawConst() {   // ay evresi göstergesi: yeni ay → hilal → yarım → dolunay
-      if (!cx) return; cx.clearRect(0, 0, 190, 190);
-      const R = 62, c0 = 95;
-      cx.strokeStyle = 'rgba(220,235,255,0.7)'; cx.lineWidth = 4; cx.beginPath(); cx.arc(c0, c0, R, 0, TAU); cx.stroke();
-      cx.save(); cx.shadowColor = '#fff2c0'; cx.shadowBlur = 14; cx.fillStyle = '#fff4cc'; cx.beginPath(); cx.arc(c0, c0, R - 3, 0, TAU); cx.fill(); cx.restore();
-      cx.globalCompositeOperation = 'destination-out'; cx.fillStyle = '#000'; cx.beginPath(); cx.arc(c0 + S.cProg * 2.2 * R, c0, R - 1, 0, TAU); cx.fill(); cx.globalCompositeOperation = 'source-over';
-    }
-    drawConst();
-    const beamG = api.dispose(new THREE.CylinderGeometry(1.1, 1.8, 11, 18, 1, true)), beamM = api.dispose(new THREE.MeshBasicMaterial({ color: 0xeaf2ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-    const beam = new THREE.Mesh(beamG, beamM); beam.visible = false; beam.renderOrder = 5; api.add(beam); let beamT = -1;
+    // (ay evresi göstergesi ve 12 basamaklı zıplama görevi ebeveyn isteğiyle kaldırıldı: 5 yaş için sıra/tekrarlı zıplama yok)
     const unlock = (id, why) => { const gt = gates.find(q => q.id === id); if (gt && !gt.open) { gt.open = true; sfx('unlock', { x: gt.x, z: gt.z }); burst('sparkle', gt.x, 1.6, gt.z, { color: '#bfe2ff', count: 10 }); if (why) say(why, { force: true, once: false }); } };
     // ── olaylar ──
     const offs = [];
@@ -483,19 +460,14 @@ const MABET = (() => {
     on('indi', e => {
       if (!e || !e.id) return;
       if (e.id === 'tas1' && !S.tas) { S.tas = true; lightPad('tas1'); say('b06_ziplama_p', { force: true }); unlock('tas1'); }
-      if (e.id === 'rs3' && S.rune >= 3) unlock('rs3');
-      if (/^p\d+$/.test(e.id)) {
-        lightPad(e.id); const n = +e.id.slice(1);
-        if (n === 3 && S.kat < 1) { S.kat = 1; S.cTarget = 4 / 11; say('b06_kat1', { force: true }); }
-        if (n === 7 && S.kat < 2) { S.kat = 2; S.cTarget = 8 / 11; say('b06_kat2', { force: true }); }
-        if (n === 11 && S.kat < 3) { S.kat = 3; S.cTarget = 1; S.compT = S.t; const gp = gates.find(q => q.id === 'p11'); if (gp) { beam.position.set(gp.x, 5.5, gp.z); beam.visible = true; beamT = 0; } say('b06_takim', { force: true }); S.kapiOpenAt = S.t + 3.0; }
-      }
-      if (/^rs\d$/.test(e.id)) lightPad(e.id);
       if (e.id === 'hi1' && !S.hiDone) { S.hiDone = true; lightPad('hi1'); prize('mabet_kuyruklu', 1); say('b06_dilek', { force: true, once: false }); burst('sparkle', e.x || 0, 3, 0, {}); }
       if (e.id === 'ca1' && !S.catiDone) { S.catiDone = true; lightPad('ca1'); prize('gizli_mabet_cati', 2); say('b06_cati', { force: true, once: false }); }
     });
-    on('nesne', e => { if (e && /^run\d$/.test(e.id)) { const rr = S['R' + e.id.slice(3)]; if (rr) rr.o.done = true;   // motor nesneyi kopyalar: bizim kopyayı da işaretle (parlama + en yakın taş)
-      S.rune++; if (S.rune === 1) say('b06_run_p', { force: true }); if (S.rune === 3) pirilGit((M.rsteps[0] || {}).x || 0, (M.rsteps[0] || {}).z || 0); } });
+    on('nesne', e => {   // tek taş = tek adım: basınca kapı hemen açılır (taş altın parlar + kapı perdesi kalkar; tek net efekt)
+      if (!e || e.olay !== 'bas') return;
+      if (/^run\d$/.test(e.id)) { const rr = S['R' + e.id.slice(3)]; if (rr) rr.o.done = true; S.rune++; unlock('rs3', 'kapi_acildi'); }   // motor nesneyi kopyalar: bizim kopyayı da işaretle
+      if (e.id === 'aytasi' && S.R3) { S.R3.o.done = true; unlock('p11', 'b06_kapi'); }
+    });
     on('dusme', () => { if (S.fell++ === 0) say('b06_dusme', { force: true }); });
     on('happy', e => {
       if (!e || !e.boss || e.type !== 'mabetBekcisi') return;
@@ -510,7 +482,7 @@ const MABET = (() => {
     const hero = () => g0 && g0.P;
     S.soft = {};   // Pırıl'ın kendisi açtığı kapılar (görev yapılmadan)
     // basılmamış en yakın ay işareti taşı (sırayla değil, herhangi biri basılabilir)
-    const enYakinRun = P => { let best = null, bd = 1e9; for (let i = 0; i < 3; i++) { const r = S['R' + i]; if (!r || r.o.done) continue; const d = hyp(P.pos.x - r.o.x, P.pos.z - r.o.z); if (d < bd) { bd = d; best = r.o; } } return best || M.rsteps[0]; };
+    const enYakinRun = P => { let best = null, bd = 1e9; for (let i = 0; i < 3; i++) { const r = S['R' + i]; if (!r || r.o.done) continue; const d = hyp(P.pos.x - r.o.x, P.pos.z - r.o.z); if (d < bd) { bd = d; best = r.o; } } return best; };
     MABET.qa = { S, M, surf, gates, unlock, lightPad, paint };
     let T = 0;
     api.anim((dt, hx, hz) => {
@@ -524,7 +496,7 @@ const MABET = (() => {
         if (s.mesh && s.on && s.k >= 1) s.mesh.position.set(s.x, s.top, s.z);
       }
       // rün taşları: basılınca parlar
-      for (const k of ['R0', 'R1', 'R2']) { const r = S[k]; if (!r) continue; const on2 = r.o.done ? 1 : 0.55 + 0.25 * Math.sin(T * 3 + k.charCodeAt(1)); r.R.glyph.material.opacity = on2; r.R.glyph.material.color.setHex(r.o.done ? 0xfff0b0 : 0x7ea2c8); r.R.ring.material.opacity = r.o.done ? 0.95 : 0.5; }
+      for (const k of ['R0', 'R3']) { const r = S[k]; if (!r) continue; const on2 = r.o.done ? 1 : 0.6 + 0.3 * Math.sin(T * 3 + k.charCodeAt(1)); r.R.glyph.material.opacity = on2; r.R.glyph.material.color.setHex(r.o.done ? (k === 'R3' ? 0xffd860 : 0xfff0b0) : (k === 'R3' ? 0xe4e6f2 : 0x7ea2c8)); r.R.ring.material.opacity = r.o.done ? 0.95 : 0.5; }
       // kapılar
       for (const gt of gates) {
         if (gt.open) {
@@ -535,8 +507,9 @@ const MABET = (() => {
           // YUMUŞAK KAPI: görev isteğe bağlı. Feza kapının yanında (6 m) toplam ~4,5 sn durursa (gidip gelse de sayılır) Pırıl kapıyı kendisi açar.
           if (playing && d < 6) { S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt; gt.near += dt; }
           if (playing && d < 6 && !gt.hint && gt.near > 0.8) {   // ipucu bir kez: cümle + Pırıl görevin yerini gösterir
-            gt.hint = true; const first = { tas1: 'b06_kapi1', rs3: 'b06_kapi2', p11: 'b06_bas_ipucu2' }[gt.id]; if (first) say(first, { force: true, once: false });
-            const tgt = gt.id === 'tas1' ? M.tas1 : gt.id === 'rs3' ? (S.rune < 3 ? enYakinRun(P) : M.rsteps[0]) : (M.pads && M.pads[0]); if (tgt) pirilGit(tgt.x, tgt.z);
+            gt.hint = true; const first = { tas1: 'b06_kapi1' }[gt.id];   // (rs3/p11: eski basamak cümleleri söylenmez; Pırıl taşı gösterir)
+            if (first) say(first, { force: true, once: false });
+            const tgt = gt.id === 'tas1' ? M.tas1 : gt.id === 'rs3' ? enYakinRun(P) : M.aytasi; if (tgt) pirilGit(tgt.x, tgt.z);
           }
           if (playing && (S.stuck[gt.id] || 0) > 4.5) {   // Pırıl açar: kapıya uçar, parıltı + "yol açıldı"
             pirilGit(gt.x, gt.z); S.soft[gt.id] = true; unlock(gt.id);
@@ -544,15 +517,6 @@ const MABET = (() => {
             for (const k of gt.id === 'p11' ? ['b06_kapi', 'kapi_acildi'] : ['kapi_acildi', 'b06_kapi']) if (say(k, { force: true, once: false, prio: 3 })) break;
           }
         }
-      }
-      if (beamT >= 0) { beamT += dt; const u = beamT / 4.2; beamM.opacity = Math.sin(clamp(u, 0, 1) * PI) * 0.3; if (u >= 1) { beamT = -1; beam.visible = false; } }
-      if (S.kapiOpenAt && T >= S.kapiOpenAt) { S.kapiOpenAt = 0; unlock('p11', 'b06_kapi'); }
-      // takımyıldızı çizgisi
-      S.cProg += (S.cTarget - S.cProg) * Math.min(1, dt * 1.6); if (Math.abs(S.cTarget - S.cProg) < 0.002) S.cProg = S.cTarget;
-      if (cv) {
-        const inArea = P.area === 3 && playing, show = inArea || (S.compT > 0 && T - S.compT < 7);
-        cv.style.opacity = show && S.cTarget > 0 ? '0.95' : '0';
-        if (show) { S._dc = (S._dc || 0) + dt; if (S._dc > 0.04) { S._dc = 0; drawConst(); } }
       }
       // konuşmalar
       if (playing) {
@@ -564,8 +528,8 @@ const MABET = (() => {
         if (ar !== S.area) {
           S.area = ar;
           if (ar === 1) { say('b06_avlu', { force: true }); later(9000, () => say('b06_kuyruklu')); }
-          if (ar === 2) say('b06_run', { force: true });
-          if (ar === 3) { say('b06_bas_ipucu', { force: true }); later(7000, () => say('b06_bas_ipucu2')); if (M.pads && M.pads[0]) pirilGit(M.pads[0].x, M.pads[0].z); }
+          if (ar === 2) { const r0 = S.R0; if (r0 && !r0.o.done) pirilGit(r0.o.x, r0.o.z); }   // Pırıl ay işareti taşına uçar (eski 'basamak görünsün' cümlesi yok)
+          if (ar === 3) { say('b06_mabet', { force: true }); if (M.aytasi && !(S.R3 && S.R3.o.done)) pirilGit(M.aytasi.x, M.aytasi.z); }   // Pırıl dolunay taşına uçar
           if (ar === 4) say('b06_salon', { force: true });   // (b06_bekci_uyur söylenmez: salondaki taş tavşan heykeli dokunulmaz; "onu güldürelim" deyince Feza heykelle bir şey yapması gerektiğini sanabilir)
           if (ar === A.length - 1) say('b06_arena', { force: true, once: false });
         }
@@ -594,13 +558,13 @@ const MABET = (() => {
     ad: 'Ay Tapınağı',
     taban: 'mabet',              // bulutların üstünde gece zirvesi, antik taş mabet; dekor kur()'da yeniden çerçevelenir
     size: 100, side: 2, lowGravity: true,
-    areas: [{ id: 'a1', ad: 'Bulut Kapısı', rooms: 1 }, { id: 'a2', ad: 'Yıldız Tozu Avlusu', rooms: 2 }, { id: 'a3', ad: 'Rün Taşları Bahçesi', rooms: 2 }, { id: 'a4', ad: 'Yıldız Basamakları', rooms: 1 }, { id: 'a5', ad: 'Mabet İç Salonu', rooms: 1 }],
+    areas: [{ id: 'a1', ad: 'Bulut Kapısı', rooms: 1 }, { id: 'a2', ad: 'Yıldız Tozu Avlusu', rooms: 2 }, { id: 'a3', ad: 'Rün Taşları Bahçesi', rooms: 2 }, { id: 'a4', ad: 'Dolunay Kapısı', rooms: 1 }, { id: 'a5', ad: 'Mabet İç Salonu', rooms: 1 }],
     muzik: 'ay', malzeme: 'isik6', kayipEsya: null, final: false,
     isik: { fog: [0x182650, 36, 98], hemiSky: 0xc4d8f8, hemiGround: 0x464e6a, hemi: 0.88, sunColor: 0xfff2dc, sun: 1.28, sunOffset: [-12, 26, 14],
       env: [0x385482, 0x6482ae, 0x1e2846, 0.56], bloom: 0.30, exposure: 1.08, sat: 1.08, vig: 0.22, fezaLight: 1.72, fezaLightColor: 0xfff4dc },
     zemin: { tA: 0xd8d1c2, tB: 0xe2dbd0, tC: 0xcfdbe8, out: 0x384e7c, outAmt: 0.82, macro: 0xb8c6dc, soluk: 0.22 },
     minimap: { zemin: '#2c3b66' },
-    harita: { ad: 'Ay Tapınağı', detay: 'Dolunayın altında taş tapınak, ay evresi basamakları ve Ay Tavşanı', renk: '#5b8def', simge: '🌙' },
+    harita: { ad: 'Ay Tapınağı', detay: 'Dolunayın altında taş tapınak, parlayan ay taşları ve Ay Tavşanı', renk: '#5b8def', simge: '🌙' },
     yolculuk: { arac: 'yaprak', cumle: 'Yaprak kayığımız kızıl parıltıya doğru süzülüyor!' },
     huysuzlar: { yildizPonpon: 3 }, elitler: ['yildizPonpon'], boss: 'mabetBekcisi',
     yerlesim, kur, kurSon,

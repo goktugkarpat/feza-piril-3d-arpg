@@ -196,7 +196,7 @@ const HZ_MANTAR = (() => {
   const SPOR_P = [[0, 0.02], [0.18, 0.03], [0.32, 0.12], [0.4, 0.3], [0.4, 0.48], [0.33, 0.66], [0.2, 0.76], [0.06, 0.8], [0, 0.8]];
   function buildSpor(r, o) {
     const E = o.elite;
-    const base = E ? col('#e3c6ff') : col('#efe6ff'), deep = E ? col('#a77ae8') : col('#b9a4e0'), light = col('#ffffff');
+    const base = E ? col('#d4fbe8') : col('#eefff6'), deep = E ? col('#5fc49e') : col('#9ad8bc'), light = col('#ffffff');   // GÜZEL2: lila → nane-beyaz (mor yok)
     r.bone('body', 'root', [0, 0, 0]);
     r.bone('top', 'body', [0, 0.78, 0]);
     r.bone('feet', 'root', [0, 0.03, 0.05]);
@@ -219,7 +219,7 @@ const HZ_MANTAR = (() => {
     r.fx(0, 0);
     if (E) K.crown(r.on('top'), [0, 0.86, -0.08], 0.5);
     r.on('feet');
-    for (const sd of [-1, 1]) foot(r, 0.15 * sd, 0.04, 0.1, 0.09, 0.05, 0.11, '#8a6ab8');
+    for (const sd of [-1, 1]) foot(r, 0.15 * sd, 0.04, 0.1, 0.09, 0.05, 0.11, '#5fae90');
     r.on('body');
     K.face(r, [0, 0.42, 0], 0.4, yuz({ bone: 'body', tilt: 0.18, ex: 0.12, ey: 0.03, er: 0.085, iris: '#4a3a8a', skin: base, browCol: '#8a7aa8', browY: 1.36,
       mouthY: -0.115, mouthW: 0.085, heartY: 1.1, heartX: 1.15 }));
@@ -372,7 +372,7 @@ const HZ_MANTAR = (() => {
   const KB_STEM = [[0, 0.02], [0.92, 0.02], [1.1, 0.16], [1.2, 0.55], [1.17, 1.2], [1.04, 1.8], [0.9, 2.15], [0, 2.22]];
   const KB_CAP = [[0, 2.05], [1.05, 2.03], [1.4, 2.1], [1.58, 2.26], [1.62, 2.55], [1.46, 2.95], [1.0, 3.28], [0.45, 3.42], [0, 3.45]];
   function buildKoca(r, o) {
-    const capA = col('#ff7ec8'), capB = col('#b46cff'), capL = col('#ffd0f0');
+    const capA = col('#ff7ec8'), capB = col('#e8508f'), capL = col('#ffd8f0');   // GÜZEL2: mor yalnız Pırıl'ın → şapka altı koyu pembe
     r.bone('body', 'root', [0, 0, 0]);
     r.bone('cap', 'body', [0, 2.1, 0]);
     r.bone('sprout', 'cap', [0, 3.45, 0]);
@@ -380,7 +380,7 @@ const HZ_MANTAR = (() => {
     r.bone('footL', 'root', [0.55, 0.1, 0.25]); r.bone('footR', 'root', [-0.55, 0.1, 0.25]);
     // sap
     r.on('body').fx(0, 0.15, 0, (x, y) => 0.25 * sm(y / 2));
-    r.add(K.lathe('mzKbStem', KB_STEM, 48), K.vgrad(0.02, 2.2, [[0, '#a98ae0'], [0.35, '#dcc2f0'], [1, '#f6dcee']]), [0, 0, 0]);
+    r.add(K.lathe('mzKbStem', KB_STEM, 48), K.vgrad(0.02, 2.2, [[0, '#e6c4a6'], [0.35, '#f8e6d4'], [1, '#fff4ec']]), [0, 0, 0]);
     // göbek ışıltısı (yumuşak)
     r.fx(0.4, 0.3).add(G.sphere(16, 10), mixc('#fff6ec', '#ffe0f4', 0.5), [0, 0.62, 0.98], null, [0.5, 0.38, 0.14]);
     // şapka
@@ -405,16 +405,16 @@ const HZ_MANTAR = (() => {
     // kollar (kısa, yuvarlak eller)
     for (const sd of [-1, 1]) {
       r.on(sd > 0 ? 'armL' : 'armR').fx(0, 0.2);
-      r.seg([1.05 * sd, 1.3, 0.1], [1.45 * sd, 0.95, 0.2], 0.2, '#d8c0ee', 0.17, 12);
-      r.add(G.sphere(16, 12), '#f6e4f2', [1.52 * sd, 0.88, 0.24], null, [0.24, 0.22, 0.22]);
+      r.seg([1.05 * sd, 1.3, 0.1], [1.45 * sd, 0.95, 0.2], 0.2, '#f2dcc8', 0.17, 12);
+      r.add(G.sphere(16, 12), '#fff0e4', [1.52 * sd, 0.88, 0.24], null, [0.24, 0.22, 0.22]);
       r.add(G.sphere(10, 8), '#fff6ee', [1.42 * sd, 1.0, 0.36], null, 0.1);
       r.fx(0, 0);
     }
     // ayaklar
-    for (const sd of [-1, 1]) { r.on(sd > 0 ? 'footL' : 'footR'); foot(r, 0.55 * sd, 0.13, 0.3, 0.42, 0.16, 0.5, '#9a6ad8'); }
+    for (const sd of [-1, 1]) { r.on(sd > 0 ? 'footL' : 'footR'); foot(r, 0.55 * sd, 0.13, 0.3, 0.42, 0.16, 0.5, '#e07aa8'); }
     // yüz
     r.on('body');
-    K.face(r, [0, 1.2, 0.04], 1.14, yuz({ bone: 'body', tilt: 0.38, ex: 0.34, ey: 0.08, er: 0.22, iris: '#4a2a8a', skin: col('#f6e0f0'), browCol: '#6a4a98', browY: 1.36,
+    K.face(r, [0, 1.2, 0.04], 1.14, yuz({ bone: 'body', tilt: 0.38, ex: 0.34, ey: 0.08, er: 0.22, iris: '#3a2a4a', skin: col('#fff0e4'), browCol: '#8a5a48', browY: 1.36,
       mouthY: -0.3, mouthW: 0.26, mouthPivot: true, heartY: 1.15, heartX: 1.1, heartS: 0.3 }));
     r.on('body').mark('muzzle', [0, 1.0, 1.1]);
     return { height: 3.6, glowC: col('#ff9fe0'), portrait: { cx: 0, cy: 1.9, cz: 0, rad: 2.0 },
@@ -554,7 +554,7 @@ const HZ_MANTAR = (() => {
       const P0 = [[0, 0.3, 0, 0.62], [0.6, 0.24, 0.25, 0.46], [-0.58, 0.24, -0.2, 0.5], [0.2, 0.36, -0.52, 0.42], [-0.3, 0.22, 0.55, 0.42], [0.55, 0.2, -0.42, 0.36], [-0.66, 0.2, 0.38, 0.34]];
       for (const p of P0) k.add(G.sphere(14, 9), new THREE.Color('#e6ffd0'), [p[0], p[1], p[2]], null, [p[3], p[3] * 0.6, p[3]]);
       CL.geo = k.build(); CL.geo.userData.keep = true;
-      CL.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, transparent: true, opacity: 0.34, color: new THREE.Color('#e4ffc4'), emissive: new THREE.Color('#9fe070'), emissiveIntensity: 0.45, depthWrite: false });
+      CL.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, transparent: true, opacity: 0.27, color: new THREE.Color('#e4ffc4'), emissive: new THREE.Color('#9fe070'), emissiveIntensity: 0.32, depthWrite: false });   // GÜZEL2: daha sakin (iç içe parlamasın)
       CL.mat.userData.keep = true;
       const g = new Kit();
       for (let i = 0; i < 7; i++) { const a = i / 7 * TAU; g.add(G.octa(), new THREE.Color(2.2, 2.3, 1.4), [Math.sin(a) * 0.55, 0.55 + 0.15 * Math.sin(i * 2.1), Math.cos(a) * 0.55], [0, a, 0], [0.05, 0.09, 0.05]); }
@@ -567,6 +567,8 @@ const HZ_MANTAR = (() => {
     return grp;
   }
   function cloud(x, z, r, dur, at = 0) {
+    // GÜZEL2: bulutlar üst üste binmesin (yarı saydam katlar iç içe parlak lekeler yapıyordu): yakında bulut varsa o uzar, yenisi açılmaz
+    for (let i = 0; i < CL.list.length; i++) { const c = CL.list[i]; if (dist2(c.x, c.z, x, z) < (c.r + r) * (c.r + r) * 0.36) { c.dur = Math.max(c.dur, c.t - c.at + dur); return c; } }
     if (CL.list.length >= 10) return null;
     const o = CL.pool.pop() || cloudMesh();
     o.visible = false; o.position.set(x, 0, z); o.scale.setScalar(0.001);

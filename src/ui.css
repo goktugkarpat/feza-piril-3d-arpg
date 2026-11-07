@@ -1326,5 +1326,8 @@ body > button:not([id]):not([class]) { min-height: 72px !important; min-width: 1
 /* Zıp düğmesi (07_game, #ui dışında) menü / harita / yolculuk / sinematik / bitiş ekranının ÜSTÜNDE kalıyordu: o anlarda gizli */
 body:has(#ui.menu-on) #zipBtn, body:has(#ui.journey-on) #zipBtn, body:has(#ui.cine-on) #zipBtn, body:has(#ui:not(.hud-on)) #zipBtn, body.st-cinema #zipBtn { display: none !important; }
 
-/* Dikey ekran: altyazı kutusu can topunun üstünde durur; Zıp düğmesi onun da ÜSTÜNE (altyazıyı kapatmasın) */
-@media (orientation: portrait) { #zipBtn { bottom: calc(var(--k) * 390px + max(14px, env(safe-area-inset-bottom))) !important; } }
+/* Dikey ekran: Zıp düğmesi yatayla AYNI yerde (can topunun hemen üstü, 228); altyazı yukarıdaki :has kuralıyla onun ÜSTÜNE çıkar (352).
+   Eskiden ikisi birden yukarı kaçıyordu (Zıp 390) ve Zıp altyazının ortasına biniyordu. */
+@media (orientation: portrait) { #zipBtn { bottom: calc(var(--k) * 228px + max(14px, env(safe-area-inset-bottom))) !important; } }
+/* Bölüm yüklenirken (yıldızlı perde) Zıp düğmesi perdenin üstünde görünüyordu: perde kalkana dek gizli */
+body:has(> #uiFade.load:not([style*="opacity: 0;"])) #zipBtn { display: none !important; }

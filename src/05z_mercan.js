@@ -503,7 +503,7 @@
     if (RINGS.length >= 10) return null;
     if (!ringGeo) {
       ringGeo = new THREE.TorusGeometry(1, 0.2, 10, 28); ringGeo.userData.keep = true;
-      ringMat = new THREE.MeshStandardMaterial({ color: 0xcff6ff, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.62, emissive: 0x4fb8e0, emissiveIntensity: 0.35, depthWrite: false });
+      ringMat = new THREE.MeshStandardMaterial({ color: 0x9fe0ff, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.7, emissive: 0x3aa8f0, emissiveIntensity: 0.5, depthWrite: false });   // QA: ses "mavi halka" diyor; buz beyazı halka açık arenada seçilmiyordu → belirgin mavi
       ringMat.userData.keep = true;
       ringHalo = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff).multiplyScalar(1.6), transparent: true, opacity: 0.5, depthWrite: false });
       ringHalo.userData.keep = true;

@@ -261,7 +261,7 @@ const HZ_MAGARA = (() => {
       asamalar: [0.66, 0.33], asamaSoz: { 2: 'b05_asama2', 3: 'b05_asama3' }, kikirdama: 1.8,
       choose(b, S) {
         const A = BOSSDAV.api; S.stage = S.stage || 1;
-        if (S.stage >= 2 && !S.sakDone && hpF(b) <= 0.6) { S.sakDone = true; A.bossPhase(b, 'sakla', 999); return; }
+        // SADE (ebeveyn): Saklambaç (doğru anda deliğe koşup 3 kez dokunma; ~25 sn boss'a vurulamıyordu) 5 yaş için zordu → KALDIRILDI (hamle kodu duruyor, seçilmiyor)
         const opts = S.stage === 1 ? [['toprak', 0.5], ['dalga', 0.5]] : S.stage === 2 ? [['toprak', 0.3], ['dalga2', 0.7]] : [['toprak', 0.2], ['dalga3', 0.35], ['kristalpar', 0.45]];
         const ph = A.pickPhase(b, opts);
         A.bossPhase(b, ph, { toprak: 4.2, dalga: 4.0, dalga2: 5.2, dalga3: 6.2, kristalpar: 4.2 }[ph]);

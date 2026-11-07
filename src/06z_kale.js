@@ -101,7 +101,7 @@ const KALE = (() => {
   }
   function frame(api, x, y, z, yaw, k) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw;
-    const wood = kp(new THREE.MeshStandardMaterial({ color: 0xb48a58, roughness: 0.7 }));
+    const wood = geo('fWoodM', () => kp(new THREE.MeshStandardMaterial({ color: 0xb48a58, roughness: 0.7 })));   // (malzemeler bir kez yapılır: her yüklemede yenisi birikmesin)
     const back = new THREE.Mesh(geo('fBox', () => kp(new THREE.BoxGeometry(1, 1, 1))), wood); back.scale.set(2.3, 2.9, 0.16); g.add(back);
     const pm = new THREE.MeshBasicMaterial({ map: paintTex(k), fog: false });
     const pic = new THREE.Mesh(geo('fPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); pic.scale.set(2.0, 2.6, 1); pic.position.z = 0.09; g.add(pic);
@@ -110,15 +110,17 @@ const KALE = (() => {
   // beşik + kırık kabuk (iki yarım): kabuk parlaması tek efekt
   function cradle(api, x, z) {
     const g = new THREE.Group(); g.position.set(x, 0, z);
-    const wood = kp(new THREE.MeshStandardMaterial({ color: 0xcaa070, roughness: 0.75 })), cloth = kp(new THREE.MeshStandardMaterial({ color: 0xf3c9d6, roughness: 0.95 }));
+    const wood = geo('crWoodM', () => kp(new THREE.MeshStandardMaterial({ color: 0xcaa070, roughness: 0.75 }))), cloth = geo('crClothM', () => kp(new THREE.MeshStandardMaterial({ color: 0xf3c9d6, roughness: 0.95 })));
     const bowl = new THREE.Mesh(geo('cr', () => kp(new THREE.SphereGeometry(1, 20, 10, 0, TAU, PI * 0.5, PI * 0.5))), wood); bowl.scale.set(1.6, 0.9, 1.0); bowl.position.y = 0.95; g.add(bowl);
-    const pad = new THREE.Mesh(geo('crp', () => kp(new THREE.SphereGeometry(1, 16, 8, 0, TAU, PI * 0.5, PI * 0.5))), cloth); pad.scale.set(1.45, 0.7, 0.88); pad.position.y = 1.0; g.add(pad);
-    for (const sx of [-1.2, 1.2]) { const leg = new THREE.Mesh(geo('crl', () => kp(new THREE.CylinderGeometry(0.08, 0.1, 0.9, 8))), wood); leg.position.set(sx, 0.45, 0); g.add(leg); }
-    // kabuk: iki yarım
-    const sm = new THREE.MeshStandardMaterial({ color: 0xf4ead0, roughness: 0.55, emissive: 0xffb0c8, emissiveIntensity: 0 }); api.dispose(sm);
-    const half = geo('shellH', () => kp(new THREE.SphereGeometry(1, 16, 10, 0, TAU, 0, PI * 0.55)));
-    const h1 = new THREE.Mesh(half, sm); h1.scale.set(0.42, 0.5, 0.42); h1.position.set(2.0, 0.08, 1.4); h1.rotation.z = 0.08;
-    const h2 = new THREE.Mesh(half, sm); h2.scale.set(0.4, 0.46, 0.4); h2.position.set(2.7, 0.08, 1.2); h2.rotation.z = -0.1; h2.rotation.y = 1.4;
+    // pembe yorgan: beşiği dolduran kabarık tümsek (eskisi içi boş çanaktı: üstten bakınca beşik boş bir kayık gibiydi, ayaklar içinden görünüyordu)
+    const pad = new THREE.Mesh(geo('crp2', () => kp(new THREE.SphereGeometry(1, 18, 8))), cloth); pad.scale.set(1.42, 0.26, 0.86); pad.position.y = 0.93; g.add(pad);
+    // iki ayak yerine iki sallanan kızak (beşik olduğu belli olsun)
+    for (const sz of [-0.55, 0.55]) { const rk = new THREE.Mesh(geo('crk', () => kp(new THREE.TorusGeometry(1, 0.07, 6, 18, PI).rotateZ(PI))), wood); rk.scale.set(1.75, 0.58, 1); rk.position.set(0, 0.62, sz); g.add(rk); }
+    // kabuk yarımları: ağzı yukarı açık, içi görünen yumurta kabuğu (eskiden ters kapalı kubbeydi, iki ekmek topu gibi duruyordu)
+    const sm = new THREE.MeshStandardMaterial({ color: 0xf6eedc, roughness: 0.5, emissive: 0xffb0c8, emissiveIntensity: 0, side: THREE.DoubleSide }); api.dispose(sm);
+    const half = geo('shellC', () => kp(new THREE.SphereGeometry(1, 16, 8, 0, TAU, PI * 0.4, PI * 0.6)));
+    const h1 = new THREE.Mesh(half, sm); h1.scale.set(0.42, 0.52, 0.42); h1.position.set(2.0, 0.5, 1.4); h1.rotation.z = 0.28;
+    const h2 = new THREE.Mesh(half, sm); h2.scale.set(0.4, 0.48, 0.4); h2.position.set(2.7, 0.46, 1.2); h2.rotation.z = -0.3; h2.rotation.y = 1.4;
     g.add(h1, h2);
     api.add(g);
     const glow = { t: 0, d: 0 };
@@ -127,26 +129,29 @@ const KALE = (() => {
   // sıcak yuva: pembe-altın taş çukur, üstünde minik fener; yumurta "ısınınca" pembeleşir
   function nestMesh(api, x, z) {
     const g = new THREE.Group(); g.position.set(x, 0, z);
-    const bowl = new THREE.Mesh(geo('nb', () => kp(new THREE.LatheGeometry([[0, 0.03], [0.5, 0.05], [0.85, 0.16], [1.05, 0.3], [1.2, 0.34], [1.25, 0.2], [1.1, 0.02]].map(q => new THREE.Vector2(q[0], q[1])), 20))), kp(new THREE.MeshStandardMaterial({ color: 0xe8b8a0, roughness: 0.85 })));
+    const bowl = new THREE.Mesh(geo('nb', () => kp(new THREE.LatheGeometry([[0, 0.03], [0.5, 0.05], [0.85, 0.16], [1.05, 0.3], [1.2, 0.34], [1.25, 0.2], [1.1, 0.02]].map(q => new THREE.Vector2(q[0], q[1])), 20))), geo('nbM', () => kp(new THREE.MeshStandardMaterial({ color: 0xe8b8a0, roughness: 0.85 }))));
     g.add(bowl);
-    const hay = new THREE.Mesh(geo('nh', () => kp(new THREE.TorusGeometry(0.75, 0.16, 8, 20).rotateX(PI / 2))), kp(new THREE.MeshStandardMaterial({ color: 0xf2d9a0, roughness: 1 }))); hay.position.y = 0.2; g.add(hay);
-    const lamp = new THREE.Mesh(geo('nl', () => kp(new THREE.SphereGeometry(0.16, 10, 8))), kp(new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd070).multiplyScalar(1.2) }))); lamp.position.set(1.1, 0.55, 0); g.add(lamp);
-    const pm = new THREE.MeshBasicMaterial({ map: haloTex(), color: 0xffd470, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(geo('nr', () => kp(new THREE.RingGeometry(1.35, 1.55, 40).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd470, transparent: true, opacity: 0.75, depthWrite: false })); ring.position.y = 0.06; g.add(ring);
-    api.dispose(pm); api.dispose(ring.material); api.add(g); return { g, ring };
+    // saman: kalın, kabarık tek simit (eskisi ince halkaydı; çanak kenarı + saman + sarı halka "iç içe üç halka" gibi görünüyordu)
+    const hay = new THREE.Mesh(geo('nh2', () => kp(new THREE.TorusGeometry(0.8, 0.3, 7, 18).rotateX(PI / 2))), geo('nhM', () => kp(new THREE.MeshStandardMaterial({ color: 0xf0d49a, roughness: 1 })))); hay.position.y = 0.26; hay.scale.y = 0.6; g.add(hay);   // (soluk saman rengi: koyu turuncu "simit" gibi durmasın; pembe taş çanak kenarı görünsün)
+    // minik fener: havada asılı top yerine kısa direğin ucunda
+    const lamp = new THREE.Mesh(geo('nl', () => kp(new THREE.SphereGeometry(0.16, 10, 8))), geo('nlM', () => kp(new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd070).multiplyScalar(1.2) })))); lamp.position.set(1.45, 0.98, 0); g.add(lamp);
+    const post = new THREE.Mesh(geo('np', () => kp(new THREE.CylinderGeometry(0.05, 0.07, 0.9, 6).translate(0, 0.45, 0))), geo('npM', () => kp(new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.9 })))); post.position.set(1.45, 0, 0); g.add(post);
+    // tek hedef halkası: çanaktan ayrık (1.55–1.75; eskisi çanak kenarına yapışık "iç içe halka" gibiydi), zeminden yukarıda + öne çekik (iPad'de zeminle titreşmesin)
+    const ring = new THREE.Mesh(geo('nr2', () => kp(new THREE.RingGeometry(1.55, 1.75, 40).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd470, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ring.position.y = 0.07; ring.renderOrder = 2; g.add(ring);
+    api.dispose(ring.material); api.add(g); return { g, ring };
   }
   function bridgeFlags(api, K) {   // köprü odasının kenarında gökkuşağı bayrakları (mor yok)
     if (!K.bridge) return;
     const cols = [0xff6b6b, 0xffa94d, 0xffe066, 0x69db7c, 0x4dabf7, 0xff928b];
-    const pole = geo('pole', () => kp(new THREE.CylinderGeometry(0.05, 0.06, 3.4, 8))), fl = geo('flag', () => kp(new THREE.PlaneGeometry(1.2, 0.7)));
+    const pole = geo('pole', () => kp(new THREE.CylinderGeometry(0.05, 0.06, 3.4, 8))), fl = geo('flag3', () => { const sh = new THREE.Shape(); sh.moveTo(0, 0.36); sh.lineTo(1.25, 0.02); sh.lineTo(0, -0.36); sh.lineTo(0, 0.36); return kp(new THREE.ShapeGeometry(sh)); });   // üçgen flama (düz dikdörtgen gölgesiz renk lekesi gibi duruyordu)
     let n = 0;
     for (let k = 0; k < 14; k++) {
       const a = k * TAU / 14, R = K.bridge.r + 1.6, x = K.bridge.x + Math.sin(a) * R, z = K.bridge.z + Math.cos(a) * R;
-      if (api.isFloor(x, z) || z > K.bridge.z + 2) continue;
+      if (api.isFloor(x, z) || Math.abs(Math.cos(a)) > 0.55) continue;   // yalnız doğu/batı kenarı: kuzeydekiler avluda Feza'nın önüne (kamera ile arasına) düşüyordu
       const g = new THREE.Group(); g.position.set(x, 0, z);
-      const p = new THREE.Mesh(pole, kp(new THREE.MeshStandardMaterial({ color: 0xe9e1cf }))); p.position.y = 1.7; g.add(p);
-      const m = new THREE.MeshBasicMaterial({ color: cols[n++ % cols.length], side: THREE.DoubleSide }); api.dispose(m);
-      const f = new THREE.Mesh(fl, m); f.position.set(0.62, 2.9, 0); g.add(f); api.add(g);
+      const p = new THREE.Mesh(pole, geo('poleM', () => kp(new THREE.MeshStandardMaterial({ color: 0xe9e1cf })))); p.position.y = 1.7; g.add(p);
+      const m = new THREE.MeshStandardMaterial({ color: cols[n++ % cols.length], roughness: 0.8, emissive: cols[(n - 1) % cols.length], emissiveIntensity: 0.18, side: THREE.DoubleSide }); api.dispose(m);
+      const f = new THREE.Mesh(fl, m); f.position.set(0.04, 2.95, 0); g.add(f); g.rotation.y = ((k * 5) % 7) / 7 * 0.6 - 0.3; api.add(g);   // (rastgele sayı harcamaz: bölüm yerleşimi değişmesin)
     }
   }
   // sis perdesi (arena kapısı): inci-pembe şeffaf perde; üç yumurta tamamlanınca çekilir
@@ -182,7 +187,7 @@ const KALE = (() => {
     const flGrid = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && L.grid[j * L.W + i] === 1; };
     const southHides = (x, z, topY) => {
       if (topY <= 0.82) return false;
-      const dMax = Math.min(24, Math.max(10, Math.ceil(topY * 2.5)));
+      const dMax = Math.min(24, Math.max(4, Math.ceil(topY * 1.6)));   // (gerçek boy artık hesaplanıyor: ön surlar (≈1,9 m, ≥5 m güneyde) kalır, uzun kule/sütun/ağaç gizlenir)
       for (let dz = 1; dz <= dMax; dz += 1.5) {
         const halfW = 3.8 + dz * 0.46;
         for (const dx of [-halfW, -halfW * 0.5, 0, halfW * 0.5, halfW]) {
@@ -193,15 +198,20 @@ const KALE = (() => {
     };
     const rawPut = api.put.bind(api);
     const sphLow = api.tmp(new THREE.SphereGeometry(1, 9, 6));
-    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0) => {
-      const h = Math.abs(sy || 1), topY = (y || 0) + h * 0.5;
-      if (southHides(x, z, topY)) {
-        if (!flGrid(x, z) && ((Math.abs(Math.round(x * 3 + z * 5))) % 6 === 0)) {
-          rawPut(sphLow, x, 0.16, z, 0.58, 0.25, 0.58, 0x709850, 0, 0, 0);
-        }
-        return;
+    const hidAt = new Map();
+    // (12. değer = malzeme anahtarı: eskiden düşüyordu → bütün kale süsleri 'shiny' oluyordu: sur/kuleler avluya kocaman koyu gölge
+    //  düşürüyor, mangal/pencere parıltısı sönük kalıyor, uzak süsler hiç gizlenmiyordu. Artık aynen geçer.)
+    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0, mk) => {
+      if (!g.boundingBox && g.computeBoundingBox) { try { g.computeBoundingBox(); } catch (e) { /* yok */ } }
+      const my = g.boundingBox ? Math.max(0.01, g.boundingBox.max.y) : 0.5, topY = (y || 0) + (my <= 1.05 ? 1 : my) * Math.abs(sy || 1);   // birim boy (ağaç, kutu) → ölçek = boy; metrelik takım (kule, sur) → gerçek boy
+      const pk = Math.round(x * 20) + ',' + Math.round(z * 20);   // aynı yerdeki parçalar (kule + penceresi + sancağı, ağaç gövdesi + yaprağı) İLK parçanın kararına uyar: havada pencere / yapraksız gövde kalmasın
+      let hide = hidAt.get(pk);
+      if (hide === undefined) {
+        hidAt.set(pk, hide = southHides(x, z, topY));
+        if (hide && !flGrid(x, z) && ((Math.abs(Math.round(x * 3 + z * 5))) % 6 === 0)) rawPut(sphLow, x, 0.16, z, 0.58, 0.25, 0.58, 0x709850, 0, 0, 0);
       }
-      rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz);
+      if (hide) return null;
+      return rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz, mk);
     };
     try { if (typeof KALE_DEKOR !== 'undefined' && typeof YAPI !== 'undefined' && typeof SEHIR_DEKOR !== 'undefined') K.dekor = KALE_DEKOR.olustur(L, api, K); } catch (e) { console.warn('KALE_DEKOR', e); }   // E8910: yeni çevre takımı (src/07m_dekor_kale.js)
     // yumuşak altın-kum sis ışığı (kale ışığı isik tanımında); odalara sıcak parıltı
@@ -262,7 +272,7 @@ const KALE = (() => {
       let egg = null;
       try { if (typeof EJDERHA !== 'undefined' && EJDERHA.yumurta) egg = EJDERHA.yumurta(i); } catch (e) { egg = null; }
       const mesh = new THREE.Group(); if (egg) { egg.root.scale.setScalar(1.7); mesh.add(egg.root); }
-      const ring = new THREE.Mesh(geo('er', () => kp(new THREE.RingGeometry(0.9, 1.1, 32).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.85, depthWrite: false })); ring.position.y = 0.06; mesh.add(ring); api.dispose(ring.material);
+      const ring = new THREE.Mesh(geo('er', () => kp(new THREE.RingGeometry(0.9, 1.1, 32).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ring.position.y = 0.07; ring.renderOrder = 2; mesh.add(ring); api.dispose(ring.material);   // (öne çekik: iPad'de zeminle titreşmesin)
       const o = { id: 'yum' + i, tur: 'tasinir', x: p.x, z: p.z, r: 1.3, y: 0, mesh, kucakY: 1.05, kabulId: 'yuva', ringM: ring, egg, renk: YC[i % 3] };
       o.aldi = () => { ring.visible = false; if (i === 0) say('b09_yumurta_p', { force: true }); S.hint = 0; };   // (ipucu sayacı sıfırlanır: yoksa yumurtayı alır almaz "Yuvaya götür" denirdi)
       L.nesneler.push(o); S.eggs.push(o);
@@ -271,7 +281,7 @@ const KALE = (() => {
       api.glow(p.x, p.z, 1.6, 0xffe08a, 0.1);
     });
     function eggWarm(o) {
-      S.delivered++; S.hint = 0; burst('hearts', o.x, 1.4, o.z, { count: 6 });
+      S.delivered++; S.hint = 0;   // (kalp + pırıltı patlaması motorda zaten var: ikinci kalp patlaması üst üste biniyordu)
       if (o.egg && o.egg.mesh && o.egg.mesh.material) { const m = o.egg.mesh.material; m.emissive = new THREE.Color(0xff9ab8); m.emissiveIntensity = 0.45; try { m.color.lerp(new THREE.Color(0xffc8d8), 0.45); } catch (e) { /* yok */ } }
       try { if (o.egg) o.egg.kir(); } catch (e) { /* yok */ }
       if (S.delivered === 1) say('b09_yuva_tamam', { force: true, once: false });
@@ -324,6 +334,7 @@ const KALE = (() => {
     on('zone', () => { KALE._halaOn = false; });
 
     const sayAt2 = (t, key, o) => { if (S.endStep && S.t - S.endT >= t && !S['e_' + key]) { S['e_' + key] = 1; say(key, Object.assign({ force: true, once: false }, o || {})); return true; } return false; };
+    const yakinPerde = (pd, px, pz) => { const so = pd.solids; for (let i = 0; i < so.length; i++) if (hyp(px - so[i].x, pz - so[i].z) < 6) return true; return false; };
     api.anim((dt, hx, hz) => {
       dt = Math.min(dt, 0.05); T += dt; S.t = T;
       for (let i = TQ.length - 1; i >= 0; i--) if (T >= TQ[i].t) { const f = TQ[i].fn; TQ.splice(i, 1); try { f(); } catch (e) { /* yok */ } }
@@ -331,10 +342,10 @@ const KALE = (() => {
       const playing = live();
       if (baba && baba.update) baba.update(dt); if (kartal && kartal.update) kartal.update(dt);
       // motor (nesneNorm) L.nesneler'i kopyalayıp değiştirir: S.eggs canlı kopyaları göstersin (tut / yerlesik / x,z güncel olsun; yoksa ipuçları teslim edilmiş yumurtayı sorar)
-      for (let i = 0; i < S.eggs.length; i++) { const q = L.nesneler && L.nesneler.find(n => n.id === S.eggs[i].id); if (q && q !== S.eggs[i]) S.eggs[i] = q; }
+      const NS = L.nesneler; if (NS) for (let i = 0; i < S.eggs.length; i++) { const id = S.eggs[i].id; for (let j = 0; j < NS.length; j++) if (NS[j].id === id) { if (NS[j] !== S.eggs[i]) S.eggs[i] = NS[j]; break; } }   // (kare başına kapanış/dizi yok)
       // yumurta halkası + yuva halkası nabzı
-      S.eggs.forEach(o => { if (o.egg && o.egg.update) o.egg.update(dt); if (o.ringM && !o.tut && !o.yerlesik) { o.ringM.visible = true; o.ringM.material.opacity = 0.6 + 0.25 * Math.sin(T * 3); } });
-      S.nests.forEach((n, i) => { const full = L.hedefler[i] && L.hedefler[i].dolu; n.ring.material.opacity = full ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + i); });
+      for (let i = 0; i < S.eggs.length; i++) { const o = S.eggs[i]; if (o.egg && o.egg.update) o.egg.update(dt); if (o.ringM && !o.tut && !o.yerlesik) { o.ringM.visible = true; o.ringM.material.opacity = 0.6 + 0.25 * Math.sin(T * 3); } }
+      for (let i = 0; i < S.nests.length; i++) { const full = L.hedefler[i] && L.hedefler[i].dolu; S.nests[i].ring.material.opacity = full ? 0.2 : 0.55 + 0.25 * Math.sin(T * 3 + i); }
       // kabuk parlaması
       if (cr) { const gl = cr.glow; if (gl.d > 0) { gl.t += dt; const u = gl.t / gl.d; cr.sm.emissiveIntensity = u < 1 ? 1.2 * Math.sin(u * PI) : 0; if (u >= 1) gl.d = 0; } }
       // galeri resimleri: Feza resmin kuzeyine geçince (kamera güneyden bakar) resim önünde ekranı kapatmasın → yavaşça söner
@@ -346,7 +357,7 @@ const KALE = (() => {
         else if (pd.anim < 1) { pd.anim = Math.min(1, pd.anim + dt / 1.8); pd.pm.opacity = 0.5 * (1 - pd.anim); pd.panel.position.y = 1.9 + pd.anim * 2.4; if (pd.anim >= 1) { pd.panel.visible = false; for (const so of pd.solids) so.alive = false; L._sh = null; } }
         // perde önünde (≤6 m) toplam süre birikir (durmak da, geri gelmek de sayılır): 4 sn'de Pırıl perdeyi açar.
         // (Eski "yumurtayı yuvaya taşı" ipucu kaldırıldı: Feza'yı geri gönderiyor, 3 sn sonra kapı zaten açılıyordu → kafa karışıklığı.)
-        if (!pd.open && playing && pd.solids.some(so => hyp(P.pos.x - so.x, P.pos.z - so.z) < 6)) {   // perdenin herhangi bir yerine yakın (kapı noktası perdenin ucunda kalabilir)
+        if (!pd.open && playing && yakinPerde(pd, P.pos.x, P.pos.z)) {   // perdenin herhangi bir yerine yakın (kapı noktası perdenin ucunda kalabilir)
           S.perdeNear = (S.perdeNear || 0) + dt;
           if (S.perdeNear >= 4) perdeYedekAc();
         }

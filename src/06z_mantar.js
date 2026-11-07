@@ -1,6 +1,6 @@
 /* ── Bölüm 1: Işıklı Mantar Vadisi (Feza ile Pırıl) ──
    Alacakaranlıkta dev, parlayan mantarlar vadisi. İlk bölüm: oyuncuyu nazikçe öğretir (ilk oda huysuzsuz, sonra tek tük Zıp Mantarcık).
-     1. Parıltı Çayırı      yumuşak yosun, minik ışıklı mantar kümeleri, şarkı söyleyen mantarlar (sırayla dokun → ezgi + şeker)
+     1. Parıltı Çayırı      yumuşak yosun, minik ışıklı mantar kümeleri, şarkı söyleyen mantarlar (hepsine dokun, sıra yok → ezgi + şeker)
      2. Dev Mantar Ormanı   dev şemsiye mantarlar, raf mantarı merdivenleri, ZIPLATAN MANTARLAR (Feza'yı yay çizerek fırlatır)
      3. Işıklı Dere         ışıl ışıl akan sığ dere (içinden yürünür: su sıçrar), yosunlu taşlar, mantar köprüsü, basamak taşları
      4. Kök Tünelleri       dev kök kemerleri altında, asılı ışıklı yosun damlaları, dev yaprak altları
@@ -241,7 +241,7 @@ const MANTAR = (() => {
     const areaOf = {}; A.forEach((a, k) => { if (!a.boss) a.rooms.forEach(ri => { areaOf[ri] = k; }); });
     // Nazik öğretim: başlangıç odasında huysuz yok; 1. alanda yalnız Zıp Mantarcık (grup en çok 2); sonra türler yavaş yavaş gelir
     const LIST = [['zipMantarcik'], ['zipMantarcik', 'tohumTopaci', 'sporPofudugu', 'zipMantarcik'], ['yosunTopu', 'sporPofudugu', 'zipMantarcik', 'tohumTopaci'], ['tohumTopaci', 'yosunTopu', 'sporPofudugu', 'zipMantarcik']];
-    const CAP = [0, 2, 3, 3], packN = {}, keep = [];
+    const CAP = [0, 2, 3, 2], packN = {}, keep = [];   // GÜZEL2: sis tünelinde (4. alan) grup en çok 2: sis + Pırıl anı sırasında etrafı huysuzla dolmasın
     for (const sp of L.spawns || []) {
       const ai = areaOf[sp.room];
       if (sp.room === 0) continue;
@@ -597,7 +597,7 @@ const MANTAR = (() => {
       const gm = (key, c) => mats[key] || (mats[key] = api.dispose(new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(c).multiplyScalar(2.0) })));
       const sw = Math.max(0.16, s * 0.34);
       const st = new THREE.Mesh(KP.stem('plain', lod), vm('kstem', 0xf6ecdf)); st.scale.set(sw, h, sw); st.castShadow = true; g.add(st);
-      const rt = new THREE.Mesh(KP.roots(5, lod), vm('kroot', 0xd9c4a8)); rt.scale.set(sw, sw, sw); g.add(rt);
+      if (h >= 1) { const rt = new THREE.Mesh(KP.roots(5, lod), vm('kroot', 0xd9c4a8)); rt.scale.set(sw, sw, sw); g.add(rt); }   // GÜZEL2: kısa/tombul mantarda kökler şapkanın altından diş gibi taşıyordu → yalnız uzun saplıda
       const cp = new THREE.Group(); cp.position.y = h * 0.96; cp.scale.set(s, s * 0.75, s); g.add(cp);
       const cm = new THREE.Mesh(KP.cap('dome', lod), vm('kcap' + capC, capC, { emissive: new THREE.Color(capC), emissiveIntensity: 0.14 })); cm.castShadow = true; cp.add(cm);
       cp.add(new THREE.Mesh(KP.gills(lod), vm('kgill', 0xffe6d2)));
@@ -650,7 +650,7 @@ const MANTAR = (() => {
           it.last -= 0; },
         tick: dt => { sq += dt; const k = sq < 0.6 ? Math.sin(sq * 26) * Math.exp(-sq * 6) : 0; M.cp.scale.set(1.05 * (1 + 0.25 * k), 1.05 * 0.75 * (1 - 0.4 * k), 1.05 * (1 + 0.25 * k)); M.gl.scale.copy(M.cp.scale); } });
     }
-    // şarkı söyleyen mantarlar (1. alan): sırayla dokununca do-re-mi; hepsi → ezgi + şeker
+    // şarkı söyleyen mantarlar (1. alan): her dokunuşta bir nota (sıra yok, istediği sırayla); hepsi → ezgi + şeker
     if (T && (L.mzSing || []).length) {
       const NOTES = [1.0, 1.122, 1.26, 1.335, 1.498], cols = [0xff7ec8, 0xffa86a, 0xfff07a, 0x7affa8, 0x7ac8ff];
       const heard = new Set(); let done = false;
@@ -671,7 +671,7 @@ const MANTAR = (() => {
     if (ar) for (let i = 0; i < 5; i++) { const M = liveMush(ar.x, ar.z, 0.42, 0.4, [0xff7ec8, 0x6fa8ff, 0x5fd8e8, 0xffa86a, 0xfff07a][i], { gc: GLOWC[i] }); M.g.visible = false; dancers.push(M); }
     // pofuduk toplar: içine girince "püf!" parıltı + birkaç şeker; söner, 10 s sonra yeniden kabarır
     if (T) for (const p of L.mzPuffs || []) {
-      const m = new THREE.Mesh(HAS ? PROPKIT.puff() : sphG, mm(HAS ? 'puff2' : 'puff', { vertexColors: HAS, color: 0xeefaf0, roughness: 0.9, emissive: new THREE.Color(0xb8f0d8), emissiveIntensity: 0.12 }));
+      const m = new THREE.Mesh(HAS ? PROPKIT.puff() : sphG, mm(HAS ? 'puff2' : 'puff', { vertexColors: HAS, color: 0xd8f4e4, roughness: 0.9, emissive: new THREE.Color(0xb8f0d8), emissiveIntensity: 0.05 }));   // GÜZEL2: bembeyaz parlayan taş gibi değil, yumuşak nane top
       m.position.set(p.x, 0.42, p.z); m.scale.set(0.5, 0.42, 0.5); m.castShadow = true; api.add(m);
       let t = 99;
       T.add({ x: p.x, z: p.z, r: 0.9, hint: false, cd: 10, use: () => {
@@ -852,7 +852,7 @@ const MANTAR = (() => {
         sis.t += dt;
         if ((sis.pT = (sis.pT || 0) - dt) <= 0) { sis.pT = 2.2; const pp = pirilPos(); if (pp) burst('sparkle', pp.x, 1.5, pp.z, { color: '#fff2a8', count: 4 }); }
         if (sis.tap && sis.t > 0.8) { sis.st = 3; sis.t = 0; }
-        else if (sis.t > 20) { try { if (PG()) PG().kullan(1); } catch (e) { /* yok */ } sis.st = 3; sis.t = 0; }
+        else if (sis.t > 12) { try { if (PG()) PG().kullan(1); } catch (e) { /* yok */ } sis.st = 3; sis.t = 0; }
         if (sis.st === 3) { try { if (PG()) PG().isikGoster(null); } catch (e) { /* yok */ } sfx('bell', { x: hx, z: hz, pitch: 1.3, vol: 0.6 }); say('b01_nefesBitti', { gap: 0.5 }); }
       } else if (sis.st === 3) {
         sis.t += dt; sis.k = clamp01(1 - sis.t / 2.8);
@@ -1010,9 +1010,10 @@ const MANTAR = (() => {
     malzeme: 'isik1',
     kayipEsya: null,
     final: false,
-    isik: { fog: [0x2a4a72, 34, 90], hemiSky: 0xa8d8ff, hemiGround: 0x2a5a58, hemi: 1.05, sunColor: 0xfff0d0, sun: 1.7, sunOffset: [-12, 26, 12],
-      env: [0x6a9ac0, 0xa8d8e8, 0x1c4040, 0.8], bloom: 0.35, exposure: 1.08, sat: 1.08, vig: 0.24, fezaLight: 1.6, fezaLightColor: 0xfff0d8, moss: [0x3a8a6a, 0.6], rim: [0xc8f0ff, 0.18] },
-    zemin: { tA: 0x5a96a8, tB: 0xe8dcb0, tC: 0xd8caa0, out: 0x1c3a52, outAmt: 0.75, macro: 0xc8f0e8 },
+    // GÜZEL2: "parlak alacakaranlık" biraz daha sıcak ve aydınlık (bulanık koyu turkuaz yerine; sis daha açık mavi-turkuaz)
+    isik: { fog: [0x2f5c7c, 36, 92], hemiSky: 0xb4e0ff, hemiGround: 0x2f6a5e, hemi: 1.16, sunColor: 0xffe6c4, sun: 1.85, sunOffset: [-12, 26, 12],
+      env: [0x6a9ac0, 0xa8d8e8, 0x1c4040, 0.8], bloom: 0.35, exposure: 1.1, sat: 1.08, vig: 0.24, fezaLight: 1.6, fezaLightColor: 0xfff0d8, moss: [0x3a8a6a, 0.6], rim: [0xc8f0ff, 0.18] },
+    zemin: { tA: 0x60c096, tB: 0xeedfb0, tC: 0xd8caa0, out: 0x1c3a52, outAmt: 0.75, macro: 0xdaffda },   // GÜZEL2: çimen bulanık mavi yerine taze yosun yeşili-turkuaz
     minimap: { zemin: '#6a9a8a' },
     harita: { ad: 'Işıklı Mantar Vadisi', detay: 'Parlayan dev mantarlar, ışıklı dere ve Koca Pofuduk Mantar', renk: '#5fd8c8', x: 14, y: 68, simge: '🍄' },
     yolculuk: { arac: 'dere', cumle: 'b01_yolculuk' },   // TODO(MOTOR1): şema onaylanınca uyarla (köpük gölüne akan ışıklı dere)

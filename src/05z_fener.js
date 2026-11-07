@@ -117,6 +117,7 @@ const HZ_FENER = (() => {
     const G = GAME; b.hp = 1; try { G.damage(b, 999, { kind: 'team', force: true }); } catch (e) { /* yok */ }
   }
 
+  const toyBusy = e => !!(e.tele || e.state === 'windup' || e.state === 'roll' || e.state === 'hop' || e.state === 'strike' || e.state === 'rise');   // oyuncağın kendi işareti/saldırısı sürüyor
   function stepObjects(dt) {
     const A = BOSSDAV.api, P = A && A.P, b = typeof GAME !== 'undefined' ? GAME.boss : null;
     const k = K(); if (k && k.markTick) k.markTick(dt);
@@ -150,6 +151,8 @@ const HZ_FENER = (() => {
         if (u >= 1) { markOff(s.mk); if (s.wagon && s.wagon.parent) s.wagon.parent.remove(s.wagon); W.strips.splice(i, 1); }
       }
     }
+    // QA (iPad turu): Kral'ın şeridi/halkası yerdeyken oyuncak kendi saldırısını başlatmasın (mavi şeridin üstüne pembe şerit biniyordu: tek işaret kuralı)
+    if (W.strips.length || W.rings.length) for (const e of W.toys) if (!e.dead && !toyBusy(e)) e.cd = Math.max(e.cd || 0, 0.9);
     // oyuncak neşelenme sayacı (boss'un "canı" = anı çubuğu): ölü oyuncakları say
     for (let i = W.toys.length - 1; i >= 0; i--) {
       const e = W.toys[i];
@@ -216,7 +219,7 @@ const HZ_FENER = (() => {
         if (!W.busy && W.frame < 2 && W.cheered >= 6) { W.frame = 2; ani(b, 2); A.bossPhase(b, 'sessiz', 20); return; }
         if (!W.busy && W.frame < 3 && W.cheered >= 7) { W.frame = 3; ani(b, 3); A.bossPhase(b, 'sessiz', 14); return; }
         if (W.busy || W.frame >= 3) { A.bossPhase(b, 'sessiz', 4); return; }
-        if (W.strips.length || W.rings.length || W.toys.some(e => !e.dead && (e.state === 'windup' || e.tele))) { A.bossPhase(b, 'sessiz', 0.8); return; }   // BOSSC: tek büyük efekt (oyuncağın kendi işareti varken Kral beklesin)
+        if (W.strips.length || W.rings.length || W.toys.some(e => !e.dead && toyBusy(e))) { A.bossPhase(b, 'sessiz', 0.8); return; }   // BOSSC: tek büyük efekt (oyuncağın kendi işareti varken Kral beklesin)
         // oyuncak sağla: aynı anda en çok 2 oyuncak
         const want = W.frame === 0 ? ['tahtaAt', 'kirikTren'] : W.frame === 1 ? ['ucurtma', 'balerin'] : ['devPelusAyi'];
         const need = W.frame >= 2 ? (W.cheered >= 6 ? 1 : 0) : 2;
