@@ -95,22 +95,34 @@ const PIRIL = (() => {
       x.quadraticCurveTo(58, 178, ...B);
       x.quadraticCurveTo(4, 172, ...R); x.closePath();
     };
+    // Zar: kökte sıcak leylak → ortada pembe-leylak → taraklı kenarda şeftali pembesi (2B Pırıl'ın kanadı gibi canlı, dolgun);
+    // kenara doğru içten ışıyan yumuşak bir ışık bandı ve zarın üstünde birkaç minik ışık benekleri (tek doku: çizim yükü yok).
     x.save(); wingPath(); x.clip();
-    let g = x.createRadialGradient(W[0], W[1] + 30, 10, W[0] + 20, W[1] + 40, 210);
-    g.addColorStop(0, 'rgba(214,190,255,0.95)'); g.addColorStop(0.45, 'rgba(172,134,250,0.93)'); g.addColorStop(1, 'rgba(250,160,220,0.92)');
+    let g = x.createRadialGradient(W[0] - 10, W[1] + 34, 8, W[0] + 30, W[1] + 50, 220);
+    g.addColorStop(0, 'rgba(206,176,255,0.97)'); g.addColorStop(0.42, 'rgba(178,132,252,0.96)'); g.addColorStop(0.78, 'rgba(232,150,236,0.95)'); g.addColorStop(1, 'rgba(255,184,214,0.95)');
     x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    x.globalCompositeOperation = 'lighter';                     // kenardan içe yumuşak ışık (zarın kendisi ışıyormuş gibi)
+    x.strokeStyle = 'rgba(255,214,246,0.30)'; x.lineWidth = 26; wingPath(); x.stroke();
+    x.strokeStyle = 'rgba(255,226,250,0.30)'; x.lineWidth = 12; wingPath(); x.stroke();
+    x.globalCompositeOperation = 'source-over';
+    for (const [sx, sy, sr] of [[150, 64, 3.2], [196, 52, 2.4], [132, 112, 2.6], [178, 98, 2], [96, 150, 2.4], [60, 128, 1.8], [214, 86, 1.8], [118, 186, 1.8]]) {
+      const sg = x.createRadialGradient(sx, sy, 0, sx, sy, sr * 3);
+      sg.addColorStop(0, 'rgba(255,255,255,0.95)'); sg.addColorStop(.35, 'rgba(255,240,255,0.55)'); sg.addColorStop(1, 'rgba(255,240,255,0)');
+      x.fillStyle = sg; x.beginPath(); x.arc(sx, sy, sr * 3, 0, 6.283); x.fill();
+    }
     x.restore();
     x.lineCap = 'round'; x.lineJoin = 'round';
-    x.shadowColor = 'rgba(255,255,255,0.7)'; x.shadowBlur = 6;
-    x.strokeStyle = 'rgba(250,236,255,0.88)'; x.lineWidth = 5; wingPath(); x.stroke();     // ışıklı kenar (yumuşak)
-    x.lineWidth = 7; x.beginPath();                                                      // kemikler: kol ve üç parmak
+    x.shadowColor = 'rgba(255,236,252,0.85)'; x.shadowBlur = 7;
+    x.strokeStyle = 'rgba(255,242,252,0.95)'; x.lineWidth = 5; wingPath(); x.stroke();     // ışıklı kenar (yumuşak)
+    x.strokeStyle = 'rgba(255,236,250,0.9)'; x.lineWidth = 5; x.beginPath();               // kemikler: kol ve üç parmak (incecik: zar bütün görünsün)
     x.moveTo(...R); x.bezierCurveTo(40, 98, 80, 58, ...W);
     x.moveTo(...W); x.quadraticCurveTo(196, 60, ...F2);
     x.moveTo(...W); x.quadraticCurveTo(160, 120, ...F3);
     x.moveTo(...W); x.quadraticCurveTo(112, 140, ...F4);
     x.stroke();
     x.fillStyle = 'rgba(255,250,255,1)';
-    for (const p of [W, T, F2, F3, F4]) { x.beginPath(); x.arc(p[0], p[1], p === W ? 8 : 6, 0, 6.283); x.fill(); }   // yuvarlak eklem/uçlar
+    for (const p of [W, T, F2, F3, F4]) { x.beginPath(); x.arc(p[0], p[1], p === W ? 7.5 : 5.5, 0, 6.283); x.fill(); }   // yuvarlak eklem/uçlar
     x.shadowBlur = 0;
     // yuvarlak parıltı (kuyruk ucu, nefes topları): sağ 256×256
     g = x.createRadialGradient(384, 128, 0, 384, 128, 124);
@@ -627,7 +639,8 @@ const PIRIL = (() => {
       // süzülme: arada kanatlar açık kalır (Ori'deki Sein gibi akıcı), hızlıyken daha sık
       glideT -= dt;
       if (glideT <= 0) glideT = glide > .5 ? 2 + Math.random() * 2.5 : .9 + Math.random() * .8;
-      const wantGlide = (glideT < 1.1 && run > .25 && breath < .5 && wave < .5) || ride > .5 ? 1 : 0;
+      // dururken de arada kanatlarını açıp yavaşça süzülür (hep aynı hızda çırpmaz; sakin, akıcı havada durma)
+      const wantGlide = ride > .5 ? 1 : (glideT < 1.1 && breath < .5 && wave < .5 && hazirT <= 0 ? (run > .25 ? 1 : .7) : 0);
       glide = smooth(glide, wantGlide * (1 - sleep), 4, dt);
       const flapHz = (2.1 + 1.6 * run + 1.4 * pounce) * (1 - .55 * sleep);
       ph += dt * Math.PI * 2 * flapHz * (1 - .85 * glide);
@@ -675,7 +688,7 @@ const PIRIL = (() => {
       // Işık kanatlar: kök (wing) yukarı-aşağı çırpar, uç (wingTip) geriden gelir (bükülme); süzülmede açık, hafif yukarı.
       // Kanat hafifçe geriye süpürülür (yandan da görünsün). Işık sayısıyla büyür.
       const fold = Math.max(sleep, konK);
-      const wScale = (.74 + .1 * isikV) * (1 - .35 * fold) * (1 + .3 * ride + .45 * davet);
+      const wScale = (.8 + .09 * isikV) * (1 - .35 * fold) * (1 + .3 * ride + .45 * davet);   // ilk bölümlerde de kanat seçilir; ışıkla yine büyür
       const up = fl * .5 + .5;
       const wAng = THREE.MathUtils.lerp(-.75 + 1.0 * up, -.05 + .05 * Math.sin(t * 3), glide);
       const tipLag = Math.sin(ph - 1.1) * .45 * (1 - glide);
@@ -688,7 +701,7 @@ const PIRIL = (() => {
       }
       // kanat ışığı: ışık sayısıyla parlar, uykuda söner
       const glow = (.35 + .13 * isikV) * (1 - .6 * sleep) * (.9 + .1 * Math.sin(t * 5.3));
-      wingMat.opacity = Math.min(.95, .42 + .75 * glow);
+      wingMat.opacity = Math.min(.96, .56 + .62 * glow);   // zar her ışıkta dolgun görünür (0 ışıkta da seçilir)
       wingMat.color.setScalar(.82 + .28 * glow); if (kanatTon) wingMat.color.multiply(kanatTon);
       if (flashT > 0) {   // hızlı yanar, tutar, yumuşak söner; kanatlar o renkte güçlü parlar (ton eşlemesiz renk > 1)
         const u = 1 - flashT / flashSure, k = u < .15 ? u / .15 : u > .6 ? (1 - u) / .4 : 1;

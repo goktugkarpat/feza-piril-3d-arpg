@@ -31,15 +31,20 @@ const KARTAL = (() => {
     }
     for(let i=0;i<7;i++){const f=joint(tail,'eagle tail feather '+i,(i-3)*.043,-.014,-.04);feather(f,i%2?0xd6c8a8:0x4f3b2e,[0,0,0],.048,.42,(i-3)*-.08);tailFeathers.push(f);}
     const out=b.finish();let joyK=0,curK=0,time=0,wingPhase=0,diveBlend=0,flapSpeed=4.6,bankBlend=0,neckFollow=0,carryBlend=0,perchBlend=0;
+    // Süzülme: yavaş gezinirken kartal birkaç kez çırpar, sonra kanatları hafif V açık, uçları yukarı kıvrık süzülür (gerçek kartal gibi sakin).
+    // Hızlıyken, dalışta, taşırken, konarken, sevinçte ve selamda (yavaş çırpış) süzülmez.
+    let soarK=0;const soarOfs=Math.random()*7;
     out.update=(dt,state={})=>{dt=Math.max(0,Math.min(.1,dt));time+=dt;const blend=1-Math.exp(-12*dt),previousDive=diveBlend;diveBlend+=(sat(state.dive||0)-diveBlend)*blend;flapSpeed+=((state.flap||(state.fast?8.6:4.6))-flapSpeed)*blend;wingPhase+=dt*flapSpeed;
-      const dive=diveBlend,beat=Math.sin(wingPhase),flap=(beat*.28+.12)*(1-dive*.72)*(1-.93*perchBlend),recovery=sat((previousDive-dive)*18),bankTarget=Math.max(-.16,Math.min(.16,state.bank||0));bankBlend+=(bankTarget-bankBlend)*(1-Math.exp(-7*dt));neckFollow+=(dive-neckFollow)*(1-Math.exp(-8*dt));carryBlend+=(sat(state.carry||0)-carryBlend)*(1-Math.exp(-6*dt));perchBlend+=(sat(state.perch||0)-perchBlend)*(1-Math.exp(-6*dt));const fold=perchBlend;
+      const canSoar=!state.fast&&!((state.dive||0)>.05)&&!((state.carry||0)>.05)&&!((state.perch||0)>.05)&&!((state.joy||0)>.05)&&(state.flap==null||(state.flap>=4&&state.flap<=4.8));
+      soarK+=((canSoar&&((time+soarOfs)%7.2)<4.4?1:0)-soarK)*(1-Math.exp(-(canSoar?1.8:6)*dt));const soar=soarK*(1-diveBlend);
+      const dive=diveBlend,beat=Math.sin(wingPhase)*(1-soar),flap=(beat*.28+.12*(1-soar)+soar*(-.07+.025*Math.sin(time*1.15)))*(1-dive*.72)*(1-.93*perchBlend),recovery=sat((previousDive-dive)*18),bankTarget=Math.max(-.16,Math.min(.16,state.bank||0));bankBlend+=(bankTarget-bankBlend)*(1-Math.exp(-7*dt));neckFollow+=(dive-neckFollow)*(1-Math.exp(-8*dt));carryBlend+=(sat(state.carry||0)-carryBlend)*(1-Math.exp(-6*dt));perchBlend+=(sat(state.perch||0)-perchBlend)*(1-Math.exp(-6*dt));const fold=perchBlend;
       body.rotation.set(-.17*dive+.024*Math.sin(time*2.1)+.028*beat*(1-dive)-.42*perchBlend,bankBlend*.20,bankBlend+.012*Math.sin(wingPhase-.35)*(1-dive));
       neck.rotation.set(-.13*neckFollow,.022*Math.sin(time*.9)*(1-dive),-bankBlend*.18);
       head.rotation.set(.51*dive-.075*recovery,.045*Math.sin(time*.8)*(1-dive)-bankBlend*.32,-bankBlend*.38);
       tail.rotation.set(.16*dive+.045*Math.sin(wingPhase-.85)*(1-dive)+.06*recovery,-bankBlend*.32,-bankBlend*.28);
       for(const wing of wings){const downstroke=Math.max(0,-Math.cos(wingPhase));wing.shoulder.rotation.set(.024*beat*(1-dive),wing.side*(.055*dive+.015*recovery+1.15*fold),wing.side*(-flap+.38*dive+.22*fold)-bankBlend*.18);
         // Wrists lag the shoulder through the upstroke; primaries flex rather than flap as a plank.
-        wing.wrist.rotation.set(.045*Math.sin(wingPhase-.55)*(1-dive),wing.side*(-.13*dive+.045*downstroke*(1-dive)+1.2*fold),wing.side*((Math.sin(wingPhase-.38)*.28+.12)*.48*(1-dive*.72)+.19*dive));}
+        wing.wrist.rotation.set(.045*Math.sin(wingPhase-.55)*(1-dive),wing.side*(-.13*dive+.045*downstroke*(1-dive)+1.2*fold),wing.side*((Math.sin(wingPhase-.38)*.28+.12)*.48*(1-dive*.72)*(1-soar)+soar*(.11+.03*Math.sin(time*1.15-.6))+.19*dive));}
       for(let i=0;i<tailFeathers.length;i++){const f=tailFeathers[i],spread=.028+.075*(1-dive)+.028*recovery;f.rotation.set(.012*Math.sin(wingPhase-.5+i*.11)*(1-dive),(i-3)*spread,-bankBlend*.08);}
       for(let i=0;i<talons.length;i++){const t=talons[i];t.rotation.set(-.24+.76*dive+.62*carryBlend+.30*perchBlend-.06*recovery+.014*Math.sin(wingPhase+i*Math.PI)*(1-dive),0,(i===0?-1:1)*.020*(1-dive));}
       // G5 duygular: joy (sevinç: kanatlar hızlı çırpar, başı sağa sola, kuyruk yelpaze), merak (başı yana eğer)
@@ -67,21 +72,32 @@ const KARTAL = (() => {
     const model = KARTAL.model(), root = model.root; root.scale.setScalar(1.15); if (env.scene) env.scene.add(root);
     const pos = { x: 0, y: 4.6, z: 0 }; let t = 0, face = 0, started = false, act = null, prev = { x: 0, z: 0 }, bank = 0, pushes = [];
     const hp = () => { const h = env.hero(); return h.pos || h; };
+    // Uçuş yolu: Feza'nın KAMERAYA GÖRE ARKA tarafında yatık bir elips (kameradan bakınca Feza'nın üstünde/ötesinde süzülür);
+    // eskiden tam daireydi: yarısında kamera ile Feza arasından geçip Feza'yı ve Baba'yı kocaman örtüyordu.
+    let awx = 0, awz = -1;   // kameradan uzak yön (yumuşatılmış)
+    function orbit(p, w, k) {
+      const cam = env.camera || (typeof camera !== 'undefined' && camera && camera.isCamera ? camera : null);
+      if (cam) { const dx = p.x - cam.position.x, dz = p.z - cam.position.z, l = Math.hypot(dx, dz); if (l > .5) { const b = Math.min(1, k); awx += (dx / l - awx) * b; awz += (dz / l - awz) * b; const n = Math.hypot(awx, awz) || 1; awx /= n; awz /= n; } }
+      const lx = awz, lz = -awx, ox = Math.cos(w) * 2.9, oz = 1.3 + Math.sin(w) * 1.0;   // yan 2,9 m · derinlik Feza'nın 0,3–2,3 m ötesi
+      return { x: p.x + lx * ox + awx * oz, z: p.z + lz * ox + awz * oz };
+    }
+    const H0 = 3.7;   // uçuş yüksekliği: ekranda Feza'nın biraz üstünde kalır (yatay ve dikeyde kadrajda, düğmelerin altında)
     function update(dt) {
       dt = Math.min(.05, Math.max(0, dt)); t += dt; const p = hp();
-      if (!started) { pos.x = p.x + 3; pos.z = p.z; pos.y = 4.6; started = true; prev.x = pos.x; prev.z = pos.z; }
+      if (!started) { const o = orbit(p, 0, 1); pos.x = o.x; pos.z = o.z; pos.y = H0; started = true; prev.x = pos.x; prev.z = pos.z; }
       let dive = 0, fast = false, goal;
-      const cx = p.x, cz = p.z, w = t * .55, R = 3.4;   // Feza'nın üstünde yavaş daire
-      goal = { x: cx + Math.cos(w) * R, y: 4.6 + Math.sin(t * .9) * .25, z: cz + Math.sin(w) * R };
+      const cx = p.x, cz = p.z, w = t * .5;   // Feza'nın ötesinde yavaş elips
+      const o = orbit(p, w, 2 * dt);
+      goal = { x: o.x, y: H0 + Math.sin(t * .9) * .22, z: o.z };
       if (act) {
         act.age += dt;
-        if (act.k === 'selam') {   // Feza'nın yanına alçal, kanat eğ, geri yüksel
-          const u = Math.min(1, act.age / 2.6), s = Math.sin(Math.PI * u);
-          goal = { x: cx + Math.cos(w) * (R - 1.4 * s), y: 4.6 - 2.9 * s, z: cz + Math.sin(w) * (R - 1.4 * s) }; dive = .0; fast = false;
+        if (act.k === 'selam') {   // Feza'nın yanına alçal, kanat eğ, geri yüksel (Feza'nın ötesinde: onu örtmez)
+          const u = Math.min(1, act.age / 2.6), s = Math.sin(Math.PI * u), q = 1 - .3 * s;
+          goal = { x: cx + (o.x - cx) * q, y: H0 - 2.2 * s, z: cz + (o.z - cz) * q }; dive = .0; fast = false;
           if (u >= 1) act = null;
         } else if (act.k === 'it') {
           const u = Math.min(1, act.age / .9); dive = Math.sin(Math.PI * u); fast = true;
-          goal = { x: act.cx, y: 4.6 - 3.6 * dive, z: act.cz };
+          goal = { x: act.cx, y: H0 - 2.7 * dive, z: act.cz };
           if (u >= .5 && !act.done) { act.done = true; for (const e of act.list) pushes.push({ e, age: 0, dx: act.dirs.get(e)[0], dz: act.dirs.get(e)[1], moved: 0 }); if (env.sfx) env.sfx('wingGust', { vol: .8 }); }
           if (u >= 1) act = null;
         }
@@ -122,5 +138,6 @@ const KARTAL = (() => {
     tetik(ctx) { return ctx.canOrani < (ctx.bolum >= 9 ? IT.canEsikB9 : IT.canEsik) || ctx.yakinDusman >= IT.dusman; },
     eylem() { return cur ? cur.itHuysuz() : 0; }, hazir() { return !!cur && !cur.mesgul; },
   };
-  Object.assign(KARTAL, { kur, kayit, IT, get aktif() { return cur; } });
+  Object.assign(KARTAL, { kur, kayit, IT });
+  Object.defineProperty(KARTAL, 'aktif', { get() { return cur; }, configurable: true });   // canlı alıcı (Object.assign değeri bir kez okuyordu)
 })();

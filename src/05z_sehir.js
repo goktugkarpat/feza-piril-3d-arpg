@@ -24,20 +24,39 @@ const HZ_SEHIR = (() => {
       try { sm.call(m, 'happy'); } catch (e) { /* yok */ }
     }
   }
-  // mor → mavi (mor yalnız Pırıl'ın)
-  function morKaldir(root) {
-    if (!root || !root.traverse) return;
+  // mor → mavi (mor yalnız Pırıl'ın) + isteğe bağlı "sisli" süt-gri pastel hâl (unutmuş şehirli; hatırlayınca tam renk).
+  // Boyanmış geometri asıl geometri başına BİR KEZ yapılır ve bütün kopyalar paylaşır (eskiden her düşman kendi kopyasını alıyordu);
+  // motor setMood ile geometriyi değiştirince (ör. neşelenince) mor geri gelmesin diye setMood sarılır.
+  const PAL = new WeakMap(), SRC = new WeakMap();
+  function palGeo(g0) {
+    let p = PAL.get(g0); if (p) return p;
     const c = new THREE.Color(), hsl = { h: 0, s: 0, l: 0 };
-    root.traverse(o => {
-      let g = o.geometry; if (!g || !g.attributes || !g.attributes.color || o.userData._sehirMor) return;
-      o.userData._sehirMor = 1; o.geometry = g = g.clone();
-      const a = g.attributes.color, n = a.count;
+    const mk = gri => {
+      const g = g0.clone(), a = g.attributes.color, n = a.count;
       for (let i = 0; i < n; i++) {
         c.setRGB(a.getX(i), a.getY(i), a.getZ(i)); c.getHSL(hsl);
-        if (hsl.s > 0.2 && hsl.h > 0.69 && hsl.h < 0.9) { c.setHSL(0.6, Math.min(0.75, hsl.s), hsl.l); a.setXYZ(i, c.r, c.g, c.b); }
+        if (hsl.s > 0.2 && hsl.h > 0.69 && hsl.h < 0.9) c.setHSL(0.6, Math.min(0.75, hsl.s), hsl.l);
+        if (gri) { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11, v = 0.2 + l * 0.72; c.setRGB(v + (c.r - l) * 0.18, v + (c.g - l) * 0.18, v * 1.03 + (c.b - l) * 0.18); }
+        a.setXYZ(i, c.r, c.g, c.b);
       }
-      a.needsUpdate = true;
+      a.needsUpdate = true; g.userData.keep = true; SRC.set(g, g0); return g;
+    };
+    p = { renk: mk(false), gri: mk(true) }; PAL.set(g0, p); return p;
+  }
+  function boya(root, gri) {
+    root.traverse(o => {
+      const g = o.geometry; if (!g || !g.attributes || !g.attributes.color) return;
+      const g0 = SRC.get(g) || g, p = palGeo(g0), w = gri ? p.gri : p.renk;
+      if (o.geometry !== w) o.geometry = w;
     });
+  }
+  function morKaldir(root, m, gri = false) {
+    if (!root || !root.traverse) return;
+    root.userData._sehirGri = gri; boya(root, gri);
+    if (m && typeof m.setMood === 'function' && !m._sehirPal) {
+      const sm = m.setMood; m._sehirPal = 1;
+      m.setMood = function (md) { const r = sm.call(m, md); boya(root, !!root.userData._sehirGri); return r; };
+    }
   }
   // ── BOSSB: ortak parlatma yardımcıları (zemin ışıması, kenar ışığı, havada uçuşan parıltılar) ──
   const BB = (() => {
@@ -81,7 +100,7 @@ const HZ_SEHIR = (() => {
 
   // Yiğit (Huysuz Şövalye) ve atı Pamuk: yüz yukarıdan görünsün diye şövalyenin başı biraz büyük, altın ışık havuzu, kenar ışığı
   function sovalyePost(root, m) {
-    morKaldir(root);
+    morKaldir(root, m);
     BB.rim(m, '#ffe2b0', 0.6);
     const gl = BB.ground(root, 0xffd890, 4.2, 0.34);
     const sp = new THREE.Group(), spM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff0b0).multiplyScalar(1.5) });
@@ -103,7 +122,7 @@ const HZ_SEHIR = (() => {
     if (m && m.root && post) post(m.root, m);
     return m;
   };
-  const yum = base => viaBase(base, (root, m) => { yumusat(m); morKaldir(root); });
+  const yum = base => viaBase(base, (root, m) => { yumusat(m); morKaldir(root, m); });
 
   HUYSUZ.type('sehirNobetci', { ad: 'Unutmuş Nöbetçi', base: 'nobetci', saldiri: 'yakin', stats: { hp: 40, dmg: 5 }, model: yum('nobetci'), ilkSoz: 'b08_sur' });
   HUYSUZ.type('sehirSimitci', { ad: 'Unutmuş Simitçi', base: 'simitci', saldiri: 'uzak', stats: { hp: 30, dmg: 4 }, model: yum('simitci') });

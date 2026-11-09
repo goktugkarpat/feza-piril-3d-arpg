@@ -262,6 +262,21 @@ const BASLIK = (() => {
       c.fillStyle = hs; c.fillRect(0, 0, w, h);
     });
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(9, 4), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false, fog: false })); wall.position.set(0, 2, -2.896); wall.renderOrder = 0; R.add(wall);
+    // duvarın üst uzantısı (dikey ekranda kamera geri çekilince logonun arkasında boş koyu bant kalmasın): aynı nokta deseni, yukarı doğru koyulaşır
+    const ut = canvasTex(512, 200, (c, w, h) => {
+      c.clearRect(0, 0, w, h); const pm = w / 9;   // piksel / metre (duvar kâğıdıyla aynı desen, kaldığı yerden yukarı)
+      for (let y = -1; y >= -8; y--) for (let x = 0; x < 22; x++) {
+        const hy = 4 - (20 + y * 52) / 115, py = h - (hy - 4) * (h / 3.5), px = (x * 48 + (y & 1 ? 24 : 0) + 10) / 1024 * w;
+        if (py < -4) continue;
+        const m3 = ((x + y) % 3 + 3) % 3;
+        c.fillStyle = m3 ? 'rgba(170,200,255,.10)' : 'rgba(255,225,150,.14)'; c.beginPath(); c.arc(px, py, (m3 ? 4 : 6) / 1024 * w * 1.0, 0, 7); c.fill();
+      }
+      const v = c.createLinearGradient(0, 0, 0, h); v.addColorStop(0, 'rgba(5,8,40,.74)'); v.addColorStop(1, 'rgba(5,8,40,.45)');
+      c.fillStyle = v; c.fillRect(0, 0, w, h);
+      const hs = c.createLinearGradient(0, 0, w, 0); hs.addColorStop(0, 'rgba(5,8,40,.35)'); hs.addColorStop(0.3, 'rgba(5,8,40,0)'); hs.addColorStop(0.8, 'rgba(5,8,40,0)'); hs.addColorStop(1, 'rgba(5,8,40,.35)');
+      c.fillStyle = hs; c.fillRect(0, 0, w, h);
+    });
+    const upw = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.5), new THREE.MeshBasicMaterial({ map: ut, transparent: true, depthWrite: false, fog: false })); upw.position.set(0, 5.75, -2.896); upw.renderOrder = 0; R.add(upw);
     // çocuk resimleri (bantlı)
     const pic = (draw, x, y, rz, sx, sy) => {
       const g = new THREE.Group(); g.position.set(x, y, -2.855); g.rotation.z = rz; R.add(g);
@@ -292,7 +307,11 @@ const BASLIK = (() => {
     const lx = 2.97, ly = 1.5;
     k.add(cy, 0xf4f0ea, [lx, ly + 0.14, -2.72], null, [0.075, 0.28, 0.075]); k.add(cy, 0xe8564a, [lx, ly + 0.09, -2.72], null, [0.08, 0.07, 0.08]); k.add(cy, 0xe8564a, [lx, ly + 0.22, -2.72], null, [0.07, 0.06, 0.07]);
     k.add(cy, 0x3a3f66, [lx, ly + 0.3, -2.72], null, [0.09, 0.025, 0.09]); k.add(cy, 0xe8564a, [lx, ly + 0.37, -2.72], null, [0.06, 0.05, 0.06]);
-    const m = new THREE.Mesh(k.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 })); m.receiveShadow = true; R.add(m);
+    // dikey ekran: duvar yukarı, ahşap zemin öne uzar (oda bitmesin, alt/üst koyu bant olmasın) — aynı ağda, ek çizim yok
+    k.add(b, 0x2f4f86, [0, 5.75, -3], null, [9, 3.5, 0.2]); k.add(b, 0x2b4a7c, [-4.4, 5.75, 0], null, [0.2, 3.5, 8]);
+    k.add(b, 0xb98f66, [0, -0.05, 8], null, [9, 0.1, 8]);
+    for (let i = 0; i < 8; i++) k.add(b, i & 1 ? 0xc29a70 : 0xb08560, [0, 0.003, 4.5 + i], null, [9, 0.004, 0.06]);
+    const m = new THREE.Mesh(k.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })); m.receiveShadow = true; R.add(m);
     const lt = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe6a0 })); lt.position.set(lx, ly + 0.325, -2.72); R.add(lt);
     X.toyLH = glowSprite(X.texSoft, 0xffd27a, 0.28, 0.28, 0.5, [lx, ly + 0.325, -2.7]); R.add(X.toyLH);
   }
@@ -377,7 +396,8 @@ const BASLIK = (() => {
     if (!room.visible || !S.X) return;
     const X = S.X, T = (S.t += dt);
     tilt.x += (tilt.tx - tilt.x) * Math.min(1, dt * 3); tilt.y += (tilt.ty - tilt.y) * Math.min(1, dt * 3);
-    const px = (typeof innerHeight === 'number' ? innerHeight : 800) * 1.0;
+    // nokta boyu çizim pikseli cinsinden: iPad'de çözünürlük katsayısıyla çarp (yoksa peri ışıkları/toz tabletlerde küçücük kalır)
+    const px = (typeof innerHeight === 'number' ? innerHeight : 800) * (typeof QUALITY !== 'undefined' && QUALITY.dpr > 0 ? Math.min(2, QUALITY.dpr) : 1);
     // gökyüzü, huzme, toz
     if (X.sky) { X.sky.uniforms.uT.value = T; X.sky.uniforms.uPar.value.set(tilt.x * 0.6 + Math.sin(T * 0.12) * 0.15, tilt.y * 0.3);
       const b = Math.pow(Math.max(0, Math.sin(T * 1.25)), 5) * 0.55 * (0.8 + 0.2 * Math.sin(T * 9.0)); X.sky.uniforms.uBeat.value = 0.08 + b; }

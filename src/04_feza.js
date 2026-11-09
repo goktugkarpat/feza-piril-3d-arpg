@@ -351,10 +351,11 @@ const { FEZA, ITEMS } = (function () {
     for (let i = 0; i < 8; i++) clump(i / 8 * TAU + r(-0.2, 0.2), 0.35 + r(-0.1, 0.15), 0.03, r(0.3, 0.4), 0.004, 0.02, 0.022, 0.02 + r(0, 0.012), r(0.068, 0.082), r(0.018, 0.022), r(0.3, 1), 0.5);
     for (let i = 0; i < 12; i++) { const d0 = r(0.26, 0.34); clump(i / 12 * TAU + r(-0.15, 0.15), r(-0.45, 0.45), d0, d0 + r(0.32, 0.44), 0.006, 0.022, 0.02, 0.017 + r(0, 0.016), r(0.07, 0.086), r(0.018, 0.023), r(0.2, 1), 0.6); }
     // cowlicks (collapsed under hats)
-    const cw = [[0.5, 0.11, 0.06], [-0.3, 0.13, 0.08], [0.15, 0.08, 0.05], [1.4, 0.07, 0.035]];
+    // (cila) kısa ve dolgun perçemler: yukarıdan bakınca tel / anten gibi değil, kabarık saç tutamı gibi
+    const cw = [[0.5, 0.075, 0.06], [-0.3, 0.085, 0.08], [0.15, 0.055, 0.05], [1.4, 0.05, 0.035]];
     for (const [a, h, len] of cw) {
       const b = dirOf(Math.PI * 0.9 + a * 0.25, 1.22), m = dirOf(Math.PI * 0.9 + a * 0.4, 1.05 + len), e = dirOf(Math.PI * 0.95 + a * 0.6, 0.9 + len);
-      add([[b, 0.01], [m, h * 0.6], [e, h]], 0.028, 0.012, 0.7, 1.4, true);
+      add([[b, 0.01], [m, h * 0.6], [e, h]], 0.04, 0.016, 0.7, 1.4, true);
     }
     return L;
   }
@@ -419,17 +420,18 @@ const { FEZA, ITEMS } = (function () {
   const NECK_P = [[0, 0.76], [0.06, 0.765], [0.058, 0.84], [0.06, 0.92], [0, 0.95]];
   const ARM_P = [[0, 0.455], [0.03, 0.458], [0.041, 0.47], [0.043, 0.5], [0.046, 0.56], [0.047, 0.605], [0.05, 0.65], [0.053, 0.7], [0.054, 0.74], [0.05, 0.775], [0.035, 0.79], [0, 0.795]];
   const LEG_P = [[0, 0.06], [0.03, 0.063], [0.043, 0.08], [0.046, 0.11], [0.057, 0.17], [0.059, 0.2], [0.056, 0.245], [0.06, 0.29], [0.068, 0.35], [0.072, 0.4], [0.07, 0.45], [0.05, 0.48], [0, 0.49]];
-  const SLEEVE_P = [[0.055, 0.628], [0.066, 0.632], [0.069, 0.66], [0.068, 0.71], [0.062, 0.755], [0.048, 0.785], [0.026, 0.8], [0, 0.803]];
+  const SLEEVE_P = [[0.055, 0.628], [0.064, 0.632], [0.066, 0.66], [0.065, 0.71], [0.058, 0.745], [0.044, 0.766], [0.024, 0.777], [0, 0.78]];   // (x-ışını gölgesi; yeni alçak omuzla aynı)
   // uzun eşofman paçası (bilekte lastik), uzun kol, çorap
   const PANTLEG_P = [[0.042, 0.158], [0.057, 0.161], [0.062, 0.172], [0.064, 0.186], [0.07, 0.21], [0.075, 0.24], [0.077, 0.27], [0.08, 0.3], [0.087, 0.34],
     [0.09, 0.38], [0.093, 0.41], [0.091, 0.44], [0.07, 0.455], [0, 0.46]];
-  const LSLEEVE_P = [[0.036, 0.462], [0.054, 0.465], [0.058, 0.48], [0.057, 0.51], [0.059, 0.56], [0.062, 0.605], [0.065, 0.65], [0.068, 0.7], [0.069, 0.74], [0.064, 0.775],
-    [0.048, 0.795], [0.026, 0.805], [0, 0.808]];
+  // (cila) ince üst kol, alçak omuz başı: kollar balon gibi kabarık değil, omuz çizgisi boyundan kola yumuşakça iner
+  const LSLEEVE_P = [[0.036, 0.462], [0.054, 0.465], [0.058, 0.48], [0.057, 0.51], [0.058, 0.56], [0.06, 0.605], [0.062, 0.65], [0.063, 0.695], [0.061, 0.727], [0.055, 0.75],
+    [0.043, 0.767], [0.023, 0.777], [0, 0.78]];
   const SOCK_P = (() => { const P = [[0.03, 0.085]]; for (let y = 0.09; y <= 0.181; y += 0.006) P.push([y < 0.1 ? 0.049 : y > 0.165 ? 0.056 : 0.051 + (y - 0.1) * 0.06, y]); P.push([0.044, 0.184], [0, 0.185]); return P; })();
   const sockCol = (() => { const A = new THREE.Color(0xff8a3d), B = new THREE.Color(0x35b8a8), Y = new THREE.Color(0xffd84a), c = new THREE.Color();
     return (x, y) => { const k = Math.floor((y - 0.085) / 0.012); return c.copy(y > 0.165 ? Y : k % 2 ? B : A); }; })();
-  const SHIRT_P = [[0, 0.425], [0.14, 0.423], [0.186, 0.432], [0.196, 0.452], [0.195, 0.48], [0.191, 0.52], [0.187, 0.55], [0.178, 0.61], [0.17, 0.67], [0.163, 0.72],
-    [0.152, 0.76], [0.13, 0.79], [0.1, 0.81], [0.07, 0.822], [0.056, 0.826], [0, 0.827]];
+  const SHIRT_P = [[0, 0.425], [0.14, 0.423], [0.186, 0.432], [0.196, 0.452], [0.195, 0.48], [0.191, 0.52], [0.187, 0.55], [0.178, 0.61], [0.17, 0.67], [0.164, 0.72],
+    [0.156, 0.755], [0.138, 0.785], [0.108, 0.806], [0.074, 0.82], [0.056, 0.826], [0, 0.827]];
   const SHORTS_P = [[0, 0.375], [0.1, 0.378], [0.155, 0.398], [0.178, 0.43], [0.187, 0.47], [0.186, 0.5], [0.18, 0.52], [0, 0.525]];
   let BODY = null;
   function buildBody() {
@@ -439,10 +441,31 @@ const { FEZA, ITEMS } = (function () {
     // Dev Ev kıyafeti: uzun kollu çizgili tişört, koyu gri eşofman altı (lastikli paça), renkli çizgili çoraplar
     const capCream = (g, y0) => { const u = g.attributes.uv, P = g.attributes.position; for (let i = 0; i < u.count; i++) if (P.getY(i) > y0) u.setXY(i, 0.5, 0.968); return g; };   // omuz tepesi: halka yerine düz krem
     const cream = g => { const u = g.attributes.uv; for (let i = 0; i < u.count; i++) u.setXY(i, 0.5, 0.968); return g; };   // ribanalar: çizgisiz krem
+    // (cila) omuz başının dış yanı aşağı eğilir (yuvarlak top değil, boyundan kola inen omuz çizgisi)
+    const slope = (g, cx, s) => {
+      const P = g.attributes.position;
+      for (let i = 0; i < P.count; i++) { const o = (P.getX(i) - cx) * s, y = P.getY(i); if (o > 0 && y > 0.68) P.setY(i, y - 0.4 * o * sstep(0.68, 0.77, y)); }
+      g.computeVertexNormals();
+      // dikiş ve tepe noktasında aynı yerdeki köşelerin normallerini ortala (çizgi / yıldız gölgesi olmasın)
+      const N = g.attributes.normal, grp = new Map(), n = v3();
+      for (let i = 0; i < P.count; i++) { const k = Math.round(P.getX(i) * 1e4) + ',' + Math.round(P.getY(i) * 1e4) + ',' + Math.round(P.getZ(i) * 1e4); (grp.get(k) || grp.set(k, []).get(k)).push(i); }
+      for (const ids of grp.values()) if (ids.length > 1) { n.set(0, 0, 0); for (const i of ids) n.x += N.getX(i), n.y += N.getY(i), n.z += N.getZ(i); n.normalize(); for (const i of ids) N.setXYZ(i, n.x, n.y, n.z); }
+      return g;
+    };
     const PANT = 0x474b54, PANT_D = 0x3a3d45;
-    skin.push({ geo: headGeo(), bone: 3 });
+    // (cila) yumuşak gölge: perçemin altında alın, saçın altında şakaklar, çene altında boyun biraz koyu ve sıcak tonlu
+    // (saç başın üstüne oturur, baş boyundan ayrılır; yüz düz bir disk gibi görünmez). Köşe rengi: ek çizim yok.
+    const aoC = new THREE.Color(), warmAO = a => aoC.setRGB(a, Math.pow(a, 1.3), Math.pow(a, 1.45));
+    const headAO = (x, y, z) => {
+      const dx = x - HC.x, dy = y - HB - HC.y, dz = z - HC.z, ph = Math.asin(clamp(dy / Math.max(1e-6, Math.hypot(dx, dy, dz)), -1, 1)), at = Math.abs(Math.atan2(dx, dz));
+      let a = 1 - 0.2 * sstep(0.14, 0.42, ph) * (1 - sstep(1.0, 1.5, at));                                    // alın, perçemin altı
+      a *= 1 - 0.1 * sstep(0.75, 1.15, at) * (1 - sstep(2.1, 2.5, at)) * sstep(-0.45, -0.05, ph);            // şakaklar / kulak çevresi
+      a *= 1 - 0.14 * sstep(-0.85, -1.3, ph);                                                                 // çene altı
+      return warmAO(a);
+    };
+    skin.push({ geo: headGeo(), bone: 3, color: headAO });
     for (const s of [1, -1]) skin.push({ geo: earGeo(s), bone: 3 });
-    skin.push({ geo: lathe(NECK_P, 16, 0, 0.004, 1, 0.92), w: (x, y) => [2, 3, sstep(0.8, 0.87, y)] });
+    skin.push({ geo: lathe(NECK_P, 16, 0, 0.004, 1, 0.92), w: (x, y) => [2, 3, sstep(0.8, 0.87, y)], color: (x, y) => warmAO(1 - 0.26 * sstep(0.805, 0.885, y)) });
     for (const s of [1, -1]) {
       const up = s > 0 ? 4 : 6, fo = up + 1, th = s > 0 ? 8 : 10, sh = th + 1, ax = 0.175 * s;
       skin.push({ geo: lathe(ARM_P.filter(p => p[1] < 0.5), 12, ax, -0.005, 1, 0.95), bone: fo });   // bilek (kolun gerisi kolluğun içinde)
@@ -451,7 +474,7 @@ const { FEZA, ITEMS } = (function () {
         k.add(G.sphere(10), 0xffffff, [ax - 0.034 * s, 0.432, 0.026], [0, 0, 0.5 * s], [0.017, 0.026, 0.018]);
         for (let i = 0; i < 4; i++) k.add(G.sphere(8), 0xffffff, [ax + (i - 1.5) * 0.0165 * s * -1 + 0.004 * s, 0.395 - (i === 1 || i === 2 ? 0.004 : 0), 0.034 - Math.abs(i - 1.5) * 0.004], [0, 0, 0], [0.0125, 0.02, 0.0135]);   // (G4) parmak ucu kabarcıkları
       }), bone: fo, color: 0xfff0ea });
-      cloth.push({ geo: capCream(lathe(LSLEEVE_P, 18, ax * 0.985, -0.005, 1, 0.95, TILE), 0.79), w: (x, y) => y > 0.66 ? [2, up, sstep(0.8, 0.72, y)] : [up, fo, sstep(0.64, 0.57, y)], color: 0xffffff });
+      cloth.push({ geo: capCream(slope(lathe(LSLEEVE_P, 18, ax * 0.985, -0.005, 1, 0.95, TILE), ax * 0.985, s), 0.762), w: (x, y) => y > 0.66 ? [2, up, sstep(0.8, 0.72, y)] : [up, fo, sstep(0.64, 0.57, y)], color: 0xffffff });
       cloth.push({ geo: cream(kitGeo(k => k.add(G.torus(TAU, 0.2, 20), 0xffffff, [ax, 0.468, -0.005], [Math.PI / 2, 0, 0], [0.054, 0.051, 0.054]))), bone: fo, color: 0xf6f0e6 });   // kol ağzı ribanası
       pants.push({ geo: lathe(PANTLEG_P, 18, 0.09 * s, 0, 1, 0.95, TILE), w: (x, y) => y > 0.37 ? [1, th, sstep(0.43, 0.37, y)] : [th, sh, sstep(0.28, 0.21, y)],
         color: (x, y, z) => new THREE.Color(PANT).lerp(new THREE.Color(PANT_D), 0.5 * Math.exp(-sq((y - 0.27) / 0.03)) + 0.35 * sstep(0.2, 0.16, y)) });
@@ -2257,7 +2280,8 @@ const EDGE = V2ON ? 'outgoingLight *= 1.0 - 0.2 * smoothstep(0.68, 1.0, 1.0 - sa
       add('chest', kitC('dkVest', k => {
         for (const s of [-1, 1]) k.add(bodyPlate(0.5, 0.78, v => 0.055 + 0.01 * Math.sin(v * Math.PI), 0.028, 1, 10, 10, 0.02), OR, [s * 0.07, 0, 0]);
         k.add(bodyPlate(0.5, 0.8, v => 0.15, 0.024, -1, 14, 10, 0.018), OR);
-        for (const y of [0.56, 0.68]) k.add(G.torus(TAU, 0.06, 40), WH, [0, y, 0], [Math.PI / 2, 0, 0], [torsoR(y) + 0.035, torsoR(y) * 0.8 + 0.035, 0.2]);
+        // (cila) kayışlar yanlarda gövdeye sarılır (eskiden kolların içinden geçen beyaz halka gibi görünüyordu)
+        for (const y of [0.56, 0.68]) k.add(G.torus(TAU, 0.06, 40), WH, [0, y, 0], [Math.PI / 2, 0, 0], [torsoR(y) + 0.012, torsoR(y) * 0.8 + 0.035, 0.2]);
         k.add(flatGeo(starShape(0.035, 0.016), 0.01, 0.004), 0xffd23f, [0.075, 0.72, torsoZ(0.075, 0.72) + 0.05], [-0.15, 0.2, 0.2], 1);
       }), gloss('dkVest'));
       // denizci şapkası (beyaz, lacivert bantlı, altın çapa) ve üstünde şnorkel maskesi
@@ -2703,7 +2727,13 @@ const EDGE = V2ON ? 'outgoingLight *= 1.0 - 0.2 * smoothstep(0.68, 1.0, 1.0 - sa
       const move = clamp(st.move || 0, 0, 1), dead = !!st.dead, spin = !!st.spin && !dead, cheer = !!st.cheer && !dead;
       const idleT = st.idleT || 0;
       S.wRun = dmp(S.wRun, dead ? 0 : move, 12);
-      S.ph += dt * (6 + 10 * move) * (S.wRun > 0.02 ? 1 : 0);
+      // (cila) adım sıklığı gerçek yer hızından: adım boyu × sıklık = hız, yere basan ayak kaymaz (eskiden tam hızda
+      // ayaklar yerden hızlı geri kayıyordu, yavaşta öne kayıyordu). Duvara dayanınca yerinde yavaşça koşar.
+      { const rx = root.position.x, rz = root.position.z, d = S.pxPrev === undefined ? 1e9 : Math.hypot(rx - S.pxPrev, rz - S.pzPrev);
+        if (dt <= 0 || d > 2.5) S.gv = move;
+        else S.gv = damp(S.gv === undefined ? move : S.gv, Math.min(1.6, d / dt / (5.2 * (root.scale.x || 1.15) / 1.15)), 10, dt);
+        S.pxPrev = rx; S.pzPrev = rz; }
+      S.ph += dt * 12.8 * clamp(Math.max(S.gv, 0.6 * move) / Math.max(S.wRun, 0.35), 0.45, 1.35) * (S.wRun > 0.02 ? 1 : 0);
       S.wDead = dmp(S.wDead, dead ? 1 : 0, dead ? 4.5 : 7);
       if ((S.wDead > 0.3) !== !!S.hatNap) { S.hatNap = S.wDead > 0.3; kostVis(); }
       S.wSpin = dmp(S.wSpin, spin ? 1 : 0, 12);
@@ -2935,6 +2965,23 @@ const EDGE = V2ON ? 'outgoingLight *= 1.0 - 0.2 * smoothstep(0.68, 1.0, 1.0 - sa
         // koşuya başlarken / dururken öne-geriye yaslanma (yaylı), her adımda hafif çöküp toparlanma
         { const tgt = clamp((clamp(st.move || 0, 0, 1) - S.wRun) * 1.6, -1, 1) * (dead ? 0 : 1);
           S.lean = dmp(S.lean, tgt, 7); P[C.bRX] += 0.16 * S.lean * (1 - S.airW); P[C.bZ] += 0.01 * S.lean; P[C.kRX] -= 0.07 * S.lean; }
+        // (cila) dönüşler: koşarken dönüşün içine yatar (bisikletçi gibi), baş ve gövde dönüşe önden bakar; baş dik kalır.
+        // Yerinde dönerken minik adımlar atar (ayaklar yerde kaymaz).
+        { const free = (1 - Math.max(S.atkW, S.castW, S.wSpin, S.wCheer, S.wKucak)) * (1 - S.wDead) * (1 - (S.wRide || 0)) * (st.sitRead ? 0 : 1);
+          const yr = clamp(S.yawRate || 0, -9, 9), runK = sstep(0.15, 0.6, S.wRun) * (1 - S.airW) * free;
+          S.bank = dmp(S.bank || 0, clamp(-yr * 0.032, -0.2, 0.2) * runK, 9);
+          P[C.bRZ] += S.bank; P[C.hRZ] -= 0.25 * S.bank; P[C.kRZ] -= 0.55 * S.bank;
+          const lead = clamp(yr * 0.05, -0.32, 0.32) * free * (0.5 + 0.5 * runK);
+          P[C.kRY] += lead; P[C.cRY] += 0.35 * lead;
+          const tk = sstep(0.7, 1.8, Math.abs(yr)) * (1 - sstep(0.05, 0.35, S.wRun)) * free * (1 - S.airW);
+          S.turnK = dmp(S.turnK || 0, tk, tk > (S.turnK || 0) ? 14 : 6);
+          if (S.turnK > 0.01) {
+            S.turnPh = (S.turnPh || 0) + dt * (7 + 1.6 * Math.abs(yr));
+            const a = Math.max(0, Math.sin(S.turnPh)) * S.turnK, b = Math.max(0, -Math.sin(S.turnPh)) * S.turnK;
+            P[C.tLX] -= 0.38 * a; P[C.sL] += 0.7 * a; P[C.tRX] -= 0.38 * b; P[C.sR] += 0.7 * b;
+            P[C.bY] += 0.012 * (a + b) - 0.008 * S.turnK; P[C.bRZ] += 0.03 * (b - a);
+          } else S.turnPh = 0;
+        }
         // adım: ayak yere basınca (her yarım döngüde bir) minik toz + kısa çömelme
         if (S.wRun > 0.55 && S.airW < 0.3 && !dead) {
           const n = Math.floor((S.ph - Math.PI / 2) / Math.PI);

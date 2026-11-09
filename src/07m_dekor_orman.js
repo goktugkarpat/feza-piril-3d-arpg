@@ -19,6 +19,12 @@ const ORMAN_DEKOR = (() => {
     // ── uzak/orta ağaç katmanları: yürünmez bölgede kenardan 2.2..14 m dışarıda ──
     const lay = [[3.2, 6.5, 0.14, 'near'], [6, 11, 0.06, 'mid'], [11, 17, 0.025, 'far']];
     const hides = (x, z, h) => { for (let t = 1.2; t < h * 0.8; t += 1.2) for (const o of [-1, -0.5, 0, 0.5, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * (1.5 + t * 0.7))]) return true; return false; };
+    // GÖRSEL HATA (tur 1, QA dikey): Kral'ın bahçesinin güneyindeki 9 m'lik bir ağaç kameranın önüne giriyor, ekranın alt yarısını koca
+    // bulanık yeşil bir lekeyle kapatıyordu. Kamera oyuncunun ~14 m güneyinde ve ~10.7 m yukarıda: h m'lik ağaç, kuzeyindeki (h-1)/0.67 m'ye
+    // dek yürünür zemine bakan kamerayı keser. Böyle ağaçlar konmaz (zaten kameranın arkasında kalan uzak ağaçlar da gider: üçgen azalır).
+    // (rastgele sayı sırası değişmesin diye ağacın değerleri yine çekilir, yalnız yerleştirilmez)
+    const camBlocks = (x, z, h) => { for (let t = h * 0.8; t < Math.min(18, (h - 1) / 0.67); t += 1) for (const o of [-1, 0, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * 1.6)]) return true; return false; };
+    const noPlace = () => {};
     for (let j = 0; j < F.H; j++) for (let i = 0; i < F.W; i++) {
       if (F.floor[j * F.W + i]) continue;
       const x = i + 0.5, z = j + 0.5, d = F.dout(x, z);
@@ -27,14 +33,15 @@ const ORMAN_DEKOR = (() => {
         const px = x + (rnd() - 0.5) * 0.9, pz = z + (rnd() - 0.5) * 0.9, r0 = rnd(), s = 0.75 + rnd() * 0.5;
         if (hides(px, pz, (nm === 'near' ? 9 : 14) * s)) continue;
         const k = (rnd() * 4) | 0, mk = nm === 'near' ? 'shinyNS' : 'decor', yaw = rnd() * TAU;
+        const place = camBlocks(px, pz, (nm === 'near' ? 9 : 14) * s) ? noPlace : E.placeSmall;
         if (nm === 'near') {
-          if (r0 < 0.38) E.placeSmall(api, 'pine', k, px, pz, (5.5 + rnd() * 3.5) * s, { yaw, leaf: pick([0x3f8a4a, 0x4a9a50, 0x2f7a46]) });
-          else if (r0 < 0.7) E.placeSmall(api, 'round', k, px, pz, (5 + rnd() * 3) * s, { yaw, leaf: pick(GREENS) });
-          else if (r0 < 0.85) E.placeSmall(api, 'birch', k, px, pz, (4.5 + rnd() * 2.5) * s, { yaw, leaf: pick(r0 < 0.78 ? GREENS : AUTUMN) });
-          else E.placeSmall(api, 'poplar', k, px, pz, (6.5 + rnd() * 3) * s, { yaw, leaf: pick(GREENS) });
+          if (r0 < 0.38) place(api, 'pine', k, px, pz, (5.5 + rnd() * 3.5) * s, { yaw, leaf: pick([0x3f8a4a, 0x4a9a50, 0x2f7a46]) });
+          else if (r0 < 0.7) place(api, 'round', k, px, pz, (5 + rnd() * 3) * s, { yaw, leaf: pick(GREENS) });
+          else if (r0 < 0.85) place(api, 'birch', k, px, pz, (4.5 + rnd() * 2.5) * s, { yaw, leaf: pick(r0 < 0.78 ? GREENS : AUTUMN) });
+          else place(api, 'poplar', k, px, pz, (6.5 + rnd() * 3) * s, { yaw, leaf: pick(GREENS) });
         } else {   // orta/uzak: yalnız silüet ağaçlar, daha büyük + sisle solar
           const c = nm === 'mid' ? pick([0x3f8a4a, 0x4a9a50, 0x5aa044]) : pick([0x4f8a5a, 0x5a9a68, 0x6aa078]);
-          E.placeSmall(api, r0 < 0.6 ? 'pine' : 'round', k, px, pz, (nm === 'mid' ? 9 : 12) * s + rnd() * 3, { yaw, leaf: c, wood: 0xb0a090, mat: 'shinyNS' });
+          place(api, r0 < 0.6 ? 'pine' : 'round', k, px, pz, (nm === 'mid' ? 9 : 12) * s + rnd() * 3, { yaw, leaf: c, wood: 0xb0a090, mat: 'shinyNS' });
         }
         st.far++; void mk;
       }

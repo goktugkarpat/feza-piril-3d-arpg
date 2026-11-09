@@ -71,6 +71,8 @@ const MABET_DEKOR = (() => {
     const K = ctx.K;
     if (!K || typeof MANTAR_DEKOR === 'undefined' || !P.column || !P.TEMA.mabet) return false;
     if (K.lowShadow) K.lowShadow(api, 99);
+    // ölçüm aracı (yalnız ?mbstat): hangi süs kaç kez / kaç üçgen konuyor → window.__mbst (oyunda çalışmaz)
+    if (location.search.includes('mbstat')) { const p0 = api.put, ST = window.__mbst = {}; api.put = function (g, x, y, z, sx, sy, sz, c, yw, rx, rz, cls) { const k = (g && g.name || '?') + '|' + (cls || ''), n = g ? (g.index ? g.index.count : g.attributes.position.count) / 3 : 0, e = ST[k] || (ST[k] = { n: 0, t: 0 }); e.n++; e.t += n; return p0.apply(this, arguments); }; }
     const rnd = api.rnd, put = api.put, T = P.TEMA.mabet, isF = (x, z) => api.isFloor(x, z);
     const pick = a => a[(rnd() * a.length) | 0];
     const coneH = (x, z) => { for (let d = 0.5; d <= 14; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return 0.5 + d * 0.85; } return 99; };
@@ -185,6 +187,7 @@ const MABET_DEKOR = (() => {
       const R0 = rm.r || 7, n = Math.round(R0 * 1.45);
       for (let t = 0; t < n; t++) {
         const a = rnd() * TAU, d = Math.sqrt(rnd()) * R0 * 1.05, x = rm.x + Math.sin(a) * d, z = rm.z + Math.cos(a) * d;
+        if (rm.kind === 'boss' && d < R0 * 0.8) continue;   // boss salonunun ortası boş: çiçek sapı boss'un/uyarı işaretlerinin önüne çıkmasın
         if (!isF(x, z) || nearPath(x, z) < 3.0 || busy(x, z)) continue;
         const r = rnd();
         if (r < 0.4) flowers(x, z, 4 + ((rnd() * 3) | 0), 0.9);

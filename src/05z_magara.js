@@ -26,11 +26,25 @@ const HZ_MAGARA = (() => {
     ['cakilTop', 'Çakıl Top', 'golem', 'agir', { hp: 16, dmg: 3, speed: 2.6, atkCd: 2.6, windup: 0.9, r: 0.5, height: 0.9, slamR: 1.2 }, { boyut: 0.4 }],
     ['kristalSalyangoz', 'Kristal Salyangoz', 'salyangoz', 'uzak', { hp: 24, dmg: 2, speed: 1.1, atkCd: 3.4, windup: 1.0, shot: { kind: 'bubble', speed: 3.0, r: 0.35 } }, { tint: '#ffc24a' }],
   ];
+  // CİLA: salyangoz kabuğundaki lila/mor bantlar nane yeşiline döner (3B oyunda mor yalnız Pırıl'ın); pembe bantlar ve gövde aynı kalır
+  function morYok(root) {
+    if (!root || !root.traverse) return;
+    const c = new THREE.Color(), hsl = { h: 0, s: 0, l: 0 };
+    root.traverse(o => {
+      const g = o.geometry; if (!g || !g.attributes || !g.attributes.color || g.userData.morYok) return;
+      const a = g.attributes.color;
+      for (let i = 0; i < a.count; i++) {
+        c.setRGB(a.getX(i), a.getY(i), a.getZ(i)); c.getHSL(hsl);
+        if (hsl.s > 0.25 && hsl.h > 0.64 && hsl.h < 0.86) { c.setHSL(0.45, Math.min(0.7, hsl.s * 0.85), Math.min(0.8, hsl.l * 1.04)); a.setXYZ(i, c.r, c.g, c.b); }
+      }
+      a.needsUpdate = true; g.userData.morYok = true;
+    });
+  }
   for (const [id, ad, base, saldiri, stats, ex] of T) {
     const def = Object.assign({ ad, base, saldiri, stats, ilkSoz: 'pr_ilk_' + id }, ex && ex.boyut ? { boyut: ex.boyut } : {});
     if (HAS && ex && ex.tint) {   // Kristal Salyangoz: amber ton (kabuğu kristal gibi parlak)
-      def.model = o => { const m = EMODEL.buildRaw(base, o || {}); try { if (m.root) m.root.traverse(q => { if (q.isMesh && q.material && q.material.color && !q.userData.noTint) { q.material = q.material.clone(); q.material.color.lerp(new THREE.Color(ex.tint), 0.55); } }); } catch (e) { /* yok */ } return m; };
-    }
+      def.model = o => { const m = EMODEL.buildRaw(base, o || {}); try { morYok(m.root); if (m.root) m.root.traverse(q => { if (q.isMesh && q.material && q.material.color && !q.userData.noTint) { q.material = q.material.clone(); q.material.color.lerp(new THREE.Color(ex.tint), 0.55); } }); } catch (e) { /* yok */ } return m; };
+    } else if (HAS && base === 'salyangoz') def.model = o => { const m = EMODEL.buildRaw(base, o || {}); try { morYok(m.root); } catch (e) { /* yok */ } return m; };
     HUYSUZ.type(id, def);
   }
 
@@ -64,18 +78,22 @@ const HZ_MAGARA = (() => {
   const geo = (k, f) => geos[k] || (geos[k] = (() => { const g = f(); g.userData.keep = true; return g; })());
   const place = o => { if (typeof scene !== 'undefined') scene.add(o); return o; };
   const drop = o => { if (o && o.parent) o.parent.remove(o); };
+  // CİLA (performans): toprak topu ve kristal artık tek parça (eskiden top 7, kristal 3 ayrı parçaydı → her biri ayrı çizim + gölge)
+  const vmat = (k, em, ei, rough) => mats[k] || (mats[k] = (() => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: rough ?? 0.7, emissive: em || 0x000000, emissiveIntensity: em ? ei : 0 }); m.userData.keep = true; return m; })());
   function ballMesh() {
-    const g = new THREE.Group();
-    const m = new THREE.Mesh(geo('ball', () => new THREE.IcosahedronGeometry(1, 1)), mat('ball', 0x8a6a4a)); m.scale.setScalar(0.62); m.castShadow = true; g.add(m);
-    for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(geo('pb', () => new THREE.IcosahedronGeometry(1, 0)), mat('pb', 0xb89a74)); const a = i * 1.7; p.position.set(Math.sin(a) * 0.5, Math.cos(i * 2.1) * 0.4, Math.cos(a) * 0.5); p.scale.setScalar(0.16); g.add(p); }
-    return g;
+    const g = geo('ballK', () => { const k = new Kit(); k.add(G.ico(1), 0x8a6a4a, [0, 0, 0], null, 0.62);
+      for (let i = 0; i < 6; i++) { const a = i * 1.7; k.add(G.ico(0), 0xb89a74, [Math.sin(a) * 0.5, Math.cos(i * 2.1) * 0.4, Math.cos(a) * 0.5], [i, a, 0], 0.16); }
+      return k.build(); });
+    const m = new THREE.Mesh(g, vmat('ballV', 0, 0, 0.85)); m.castShadow = true; m.name = 'magara-toprak-topu';
+    return m;
   }
   function crystalMesh() {
-    const g = new THREE.Group();
-    const m = mat('tq', 0x2ad8c8, 0x18a89c);
-    const c = geo('cone6', () => new THREE.ConeGeometry(1, 1, 6));
-    for (const [x, z, s, h] of [[0, 0, 0.42, 1.5], [0.4, 0.1, 0.28, 0.9], [-0.35, -0.15, 0.3, 1.0]]) { const q = new THREE.Mesh(c, m); q.scale.set(s, h, s); q.position.set(x, h / 2, z); q.castShadow = true; g.add(q); }
-    return g;
+    const g = geo('crysK', () => { const k = new Kit();
+      for (const [x, z, s, h, c] of [[0, 0, 0.42, 1.5, 0x2ad8c8], [0.4, 0.1, 0.28, 0.9, 0x5fe8dc], [-0.35, -0.15, 0.3, 1.0, 0x48e0d2]]) k.add(G.cone(6), c, [x, h / 2, z], [0, x * 2, 0], [s, h, s]);
+      k.add(G.octa(), 0xe8fffc, [0, 1.52, 0], null, [0.06, 0.1, 0.06]);   // ucunda minik ışıltı
+      return k.build(); });
+    const m = new THREE.Mesh(g, vmat('tqV', 0x18a89c, 0.5, 0.35)); m.castShadow = true; m.name = 'magara-boss-kristal';
+    return m;
   }
   function holeMesh() {
     const g = new THREE.Group();

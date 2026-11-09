@@ -319,7 +319,7 @@ const HIS = (() => {
     const t = S.t;
     if (!FEZA_KIND[h.kind]) {   // Aytuğ Hala'nın pasta topu, Bilbo, takım hamlesi: esneme + konfeti, ama kombo Feza'nın
       squash(h.e, h.kind === 'team');
-      if (t - S.lastConf > 0.08) { S.lastConf = t; burst('confetti', h.x, h.y + 0.2, h.z, { count: 5 }); }
+      if (!h.kill && t - S.lastConf > 0.08) { S.lastConf = t; burst('confetti', h.x, h.y + 0.2, h.z, { count: 4 }); }
       return;
     }
     S.combo = t - S.lastHit < 1.5 ? S.combo + 1 : 1; S.lastHit = t;
@@ -330,10 +330,12 @@ const HIS = (() => {
     }
     if (t - S.lastBoing > 0.13) { S.lastBoing = t; sfx('bounce', { vol: h.boss ? 0.3 : 0.42, pitch: h.boss ? 0.8 : rnd(1.05, 1.4), x: h.x, z: h.z }); }
     squash(h.e, h.crit);
-    if (t - S.lastConf > 0.05) {
+    // One clear effect per hit (the saber's own zap is already there): a few confetti, the little star only on a big hit —
+    // and none on the hit that cheers it up, whose hearts + confetti burst (onHappy) comes in the same frame.
+    if (!h.kill && t - S.lastConf > 0.05) {
       S.lastConf = t;
-      burst('confetti', h.x, h.y + 0.2, h.z, { count: h.crit ? 12 : 6 });
-      burst('star', h.x, h.y + 0.4, h.z, { count: 1 });
+      burst('confetti', h.x, h.y + 0.2, h.z, { count: h.crit ? 8 : 4 });
+      if (h.crit) burst('star', h.x, h.y + 0.4, h.z, { count: 1 });
     }
     if (t - S.lastShake > 0.1 && fxOk('shake')) { S.lastShake = t; FX.shake(0.035 + Math.min(10, c) * 0.004); }
     const cele = typeof UI !== 'undefined' && UI._S && UI._S.t < (UI._S.celeUntil || 0);   // boss kutlamasında kombo susar
@@ -374,8 +376,9 @@ const HIS = (() => {
   // ── Neşelenme ──
   function onHappy(e) {
     const y = 1.2;
-    burst('hearts', e.x, y + 0.4, e.z, { count: e.boss ? 30 : e.elite ? 14 : 6 });
-    burst('confetti', e.x, y + 0.8, e.z, { count: e.boss ? 60 : e.elite ? 30 : 14 });
+    // One heart burst per cheer: 07_game's own (its 'cheer' hearts over the head; the boss's little heart burst) — this one
+    // used to add a second heart cloud + a big confetti pile on top of it. Now only a light confetti sprinkle above.
+    burst('confetti', e.x, y + 1.0, e.z, { count: e.boss ? 30 : e.elite ? 16 : 8 });
     sfx('heart', { vol: 0.5, x: e.x, z: e.z });
     if (e.boss) { setTimeout(() => addStarCandy(1, undefined, 'boss'), 6000); return; }   // (boss kutlamasında tek büyük an: oyunun kendisi)
     if (e.elite && Math.random() < 0.5) setTimeout(() => addStarCandy(1), 700);

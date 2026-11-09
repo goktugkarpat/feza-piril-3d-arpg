@@ -16,9 +16,16 @@
   html, body { margin: 0; height: 100%; overflow: hidden; background: #2a2f5a; touch-action: none; overscroll-behavior: none; }
   canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-    background: radial-gradient(circle at 50% 45%, #5a5aa0, #22264a); color: #fff; font: 800 26px "Avenir Next", system-ui, sans-serif; z-index: 50; }
-  #loading .ld { width: 64px; height: 64px; border-radius: 50%; border: 8px solid #ffffff33; border-top-color: #ffd66b; animation: ldspin 0.9s linear infinite; }
-  @keyframes ldspin { to { transform: rotate(360deg); } }
+    background: radial-gradient(circle at 50% 44%, #2c5da6 0%, #163a78 42%, #0a1d40 100%); color: #fff; font: 800 26px "Avenir Next", system-ui, sans-serif; z-index: 50; }
+  /* açılış: küçük Büyük Fener (ışığı iki yana yanıp söner) + zıplayan üç ışık — oyun içindeki yükleme perdesiyle aynı */
+  #loading .ld { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  #loading .ld svg { width: 132px; height: 176px; overflow: visible; filter: drop-shadow(0 6px 10px rgba(0, 8, 30, .45)); }
+  #loading .ldb { opacity: .05; animation: ldbeam 2.4s ease-in-out infinite; } #loading .ldb2 { animation-delay: -1.2s; }
+  @keyframes ldbeam { 0%, 100% { opacity: .04; } 50% { opacity: .9; } }
+  #loading .ldd { display: flex; gap: 12px; }
+  #loading .ldd i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fffbe6, #ffd86b 55%, #f2a93a); box-shadow: 0 0 10px rgba(255, 214, 90, .85); animation: lddot 1.1s ease-in-out infinite; }
+  #loading .ldd i:nth-child(2) { animation-delay: .16s; } #loading .ldd i:nth-child(3) { animation-delay: .32s; }
+  @keyframes lddot { 0%, 60%, 100% { transform: none; } 30% { transform: translateY(-14px) scale(1.12); } }
 </style>
 <link rel="stylesheet" href="src/ui.css">
 <link rel="stylesheet" href="src/hub.css">
@@ -28,7 +35,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="loading"><div class="ld"></div><div>Yükleniyor…</div></div>
+<div id="loading"><div class="ld"><svg viewBox="0 0 120 160" aria-hidden="true"><defs><radialGradient id="ldG"><stop offset="0" stop-color="#fff3b0" stop-opacity=".95"/><stop offset=".45" stop-color="#ffd86b" stop-opacity=".35"/><stop offset="1" stop-color="#ffd86b" stop-opacity="0"/></radialGradient><linearGradient id="ldR" gradientUnits="userSpaceOnUse" x1="60" y1="0" x2="124" y2="0"><stop offset="0" stop-color="#fff8d2"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></linearGradient><linearGradient id="ldL" gradientUnits="userSpaceOnUse" x1="60" y1="0" x2="-4" y2="0"><stop offset="0" stop-color="#fff8d2"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></linearGradient></defs><path class="ldb" d="M60 39L124 20V58Z" fill="url(#ldR)"/><path class="ldb ldb2" d="M60 39L-4 20V58Z" fill="url(#ldL)"/><circle cx="60" cy="39" r="30" fill="url(#ldG)"/><path d="M18 142Q28 126 46 127H74Q92 126 102 142Q60 153 18 142Z" fill="#4a5f9a"/><path d="M48 51L44 128H76L72 51Z" fill="#fff6e8"/><path d="M46.9 70H73.1L73.7 82H46.3Z" fill="#ff9fc0"/><path d="M45.7 94H74.3L74.9 106H45.1Z" fill="#7fd0f0"/><path d="M48 51L44 128H52L54 51Z" fill="#fff" opacity=".55"/><circle cx="60" cy="88" r="3.2" fill="#ffd86b"/><path d="M55 128V119Q60 113 65 119V128Z" fill="#c98a52"/><rect x="41" y="46" width="38" height="6" rx="3" fill="#6fb6e8"/><rect x="47" y="29" width="26" height="18" rx="4" fill="#ffe58a" stroke="#f3e2b8" stroke-width="2"/><rect x="51" y="32" width="18" height="12" rx="3" fill="#fffbe6"/><path d="M43 30Q60 9 77 30Z" fill="#ff8fb8"/><circle cx="60" cy="13" r="3.4" fill="#ffd86b"/><path d="M8 151q8-4 16 0t16 0t16 0t16 0t16 0t16 0t16 0" stroke="#bfe6ff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/></svg><div class="ldd"><i></i><i></i><i></i></div></div><div>Yükleniyor…</div></div>
 <script src="vendor/three.js"></script>
 <script src="src/00_i18n.js"></script>
 <script src="sesler.js"></script>

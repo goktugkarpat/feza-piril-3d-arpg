@@ -4,12 +4,14 @@
    · kayalık/uçurum blokları + çam · yer fenerleri (sıcak ışık) · unutulmuş oyuncak rafları · uzak taş köprü silüetleri
    · FENER: 9 yüzlü gövde (şeritli), balkon, 9 cam yüz (oyun kodu sırayla yakar), tepede boş yuva, süpüren yumuşak ışık huzmesi (tam yanınca).
    Gece havası: aşağıdaki ZEMIN + ATMO ayarları ve bölüm `isik` değerleri. Mor yok. */
-if (typeof ATMO !== 'undefined' && ATMO.P && ATMO.P.fener) Object.assign(ATMO.P.fener, { gl: [0, 0xa8c0ff, 0x0c1438, 0.1, 0.07], sh: 0x3a84e0, hi: 0xdceaff, con: 0.26, haze: [0x1c3070, 0.3, 0.42], rays: [0xffe8b0, 0.2], fog: [0.55, 0.7], dust: { n: 140, col: 0xfff2c0, size: 0.1, mode: 'mote', a: 0.9, h: 6 } });
+// cila (netlik): süzülen ışık tozu küçük ve seyrek (iri krem benekler ekranda bulanık lekeler gibiydi), üstteki lacivert pus ve sis hafif
+if (typeof ATMO !== 'undefined' && ATMO.P && ATMO.P.fener) Object.assign(ATMO.P.fener, { gl: [0, 0xa8c0ff, 0x0c1438, 0.1, 0.07], sh: 0x3a84e0, hi: 0xdceaff, con: 0.26, haze: [0x1c3070, 0.16, 0.5], rays: [0xffe8b0, 0.2], fog: [0.66, 0.82], dust: { n: 80, col: 0xfff2c0, size: 0.06, mode: 'mote', a: 0.62, h: 6 } });
 if (typeof ZEMIN !== 'undefined' && ZEMIN.TEMA && ZEMIN.TEMA.fener) {
   const T = ZEMIN.TEMA.fener;
-  Object.assign(T, { outT: 6, base: [2, 0x434f6c, 0x7a88a8, 0xa0aecc], alt: [0, 0x1e4450, 0x387470, 0x5aa896], path: [7, 0x6a5c4c, 0xa89a82, 0xcdbf9f], rim: 0x34405a, out: 0x222e48, outK: 0.7, pmoss: 0.3,
-    macro: [0xb0c4ff, 0xffe6bc], patch: 0.34, dapple: [0xa8c0ff, 0.12] });
-  if (T.cover) T.cover = T.cover.map(c => c.k === 'tuft' ? Object.assign({}, c, { col: [0x2a5a58, 0x3a7a6a, 0x4a8a78, 0x2e6a5a] }) : c.k === 'flower' ? Object.assign({}, c, { col: [0xe8f0ff, 0xffe8a0, 0xb0c8ff] }) : c.k === 'pebble' ? Object.assign({}, c, { col: [0x6a7088, 0x8a90a8, 0x586070] }) : c);
+  // cila: yol (arnavut taşı) ay ışığında kömür grisi bir leke gibiydi → sıcak, açık krem taş: Feza'ya yolu gösteren temiz bir şerit
+  Object.assign(T, { outT: 6, base: [2, 0x4a5776, 0x8290b0, 0xa8b6d2], alt: [0, 0x1e4450, 0x387470, 0x5aa896], path: [7, 0xa08e74, 0xdccaa6, 0xf2e4c4], rim: 0x34405a, out: 0x222e48, outK: 0.7, pmoss: 0.12,
+    macro: [0xb0c4ff, 0xffe6bc], patch: 0.3, dapple: [0xa8c0ff, 0.12] });
+  if (T.cover) T.cover = T.cover.map(c => c.k === 'tuft' ? Object.assign({}, c, { col: [0x2a5a58, 0x3a7a6a, 0x4a8a78, 0x2e6a5a] }) : c.k === 'flower' ? Object.assign({}, c, { col: [0xe8f0ff, 0xffe8a0, 0xb0c8ff] }) : c.k === 'pebble' ? Object.assign({}, c, { col: [0x9aa2b8, 0xb4bccf, 0xc8c0aa] }) : c);
 }
 const FENER_DEKOR = (() => {
   'use strict';
@@ -19,35 +21,51 @@ const FENER_DEKOR = (() => {
   // ── Büyük Fener: gövde (birleşik, taş) + 9 cam yüz (ayrı malzeme: oyun yakar) + ışık topu yuvası + halo + huzme ──
   function kule(api, x, z, CAM, kp) {
     const THREE_ = api.THREE, t = Y.fenerKulesi(), g = new THREE_.Group(); g.position.set(x, 0, z);
-    api.put(t.m, x, 0, z, SC, SC, SC, 0xffffff, 0, 0, 0, 'shinyNS');
+    // cila: kırmızı şeritler gece mavisinde mor/erik gibi görünüyordu (mor yalnız Pırıl'ın) → kopya gövdede sıcak mercan kırmızısı (kurulumda bir kez)
+    let body = t.m;
+    try {
+      body = t.m.clone(); body.userData = {}; api.tmp(body); const C = body.attributes.color;
+      if (C) { const a = C.array; for (let i = 0; i < a.length; i += 3) { const r = a[i], gg = a[i + 1], b = a[i + 2]; if (r > gg * 1.8 && r > b * 1.8) { a[i] = Math.min(1, r * 1.22); a[i + 1] = gg * 1.5; a[i + 2] = b * 0.82; } } C.needsUpdate = true; }
+    } catch (e) { body = t.m; }
+    api.put(body, x, 0, z, SC, SC, SC, 0xffffff, 0, 0, 0, 'shinyNS');
     const N = 9, yb = 22 * SC, LH = 3.6 * SC, LR = (2.4 - 0.2) * SC, face = 2 * LR * Math.sin(PI / N);
     const pg = kp(new THREE_.BoxGeometry(face * 0.78, LH * 0.82, 0.1)); api.tmp(pg);
-    const panes = [];
+    // cila (performans): 9 cam yüz tek çizimde (önceden 9 ayrı malzeme/çizim). Oyun kodu p.m.color.setHex(renk) ile yakar → yanan cam hafif parlar
+    const pm = new THREE_.MeshBasicMaterial({ color: 0xffffff }); api.dispose(pm);
+    const pim = new THREE_.InstancedMesh(pg, pm, N), q = new THREE_.Object3D(), tc = new THREE_.Color(), panes = [];
     for (let i = 0; i < N; i++) {
-      const am = 0.2 + (i + 0.5) / N * TAU, m = new THREE_.MeshBasicMaterial({ color: 0x8b93a0, transparent: true, opacity: 0.94 }); api.dispose(m);
-      const p = new THREE_.Mesh(pg, m); const r = LR * Math.cos(PI / N) * 0.985; p.position.set(Math.sin(am) * r, yb + LH * 0.5, Math.cos(am) * r); p.rotation.y = am; g.add(p); panes.push({ m, c: CAM[i] });
+      const am = 0.2 + (i + 0.5) / N * TAU, r = LR * Math.cos(PI / N) * 0.985;
+      q.position.set(Math.sin(am) * r, yb + LH * 0.5, Math.cos(am) * r); q.rotation.set(0, am, 0); q.updateMatrix(); pim.setMatrixAt(i, q.matrix);
+      pim.setColorAt(i, tc.setHex(0x8b93a0));
+      const col = { setHex: h => { tc.setHex(h); if (h !== 0x8b93a0) tc.multiplyScalar(1.25); pim.setColorAt(i, tc); pim.instanceColor.needsUpdate = true; return col; } };
+      panes.push({ m: { color: col }, c: CAM[i] });
     }
+    pim.instanceMatrix.needsUpdate = true; if (pim.instanceColor) pim.instanceColor.needsUpdate = true; g.add(pim); api.dispose(pim);
     const sk = new THREE_.Mesh(kp(new THREE_.SphereGeometry(0.26, 12, 8)), new THREE_.MeshBasicMaterial({ color: 0x8b93a0 })); sk.position.y = (22 + 3.6 + 2.45) * SC; g.add(sk); api.dispose(sk.material);
     const hc = document.createElement('canvas'); hc.width = hc.height = 128; { const cx = hc.getContext('2d'), gr = cx.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); cx.fillStyle = gr; cx.fillRect(0, 0, 128, 128); }
     const htex = new THREE_.CanvasTexture(hc); api.dispose(htex);
     const halo = new THREE_.Mesh(kp(new THREE_.PlaneGeometry(16, 16)), new THREE_.MeshBasicMaterial({ color: 0xffe9a8, map: htex, transparent: true, opacity: 0, depthWrite: false, side: THREE_.DoubleSide, fog: false }));
     halo.position.y = yb + LH * 0.5; halo.renderOrder = 6; g.add(halo);
     // yumuşak içten ışık: odanın kendisi (cam arkası) gri iken sönük; yandıkça ısınır
-    const tw = { g, panes, socket: sk, halo, lit: 0, H: yb + LH * 0.5 - 1 };
+    // beamK: oyun kodu huzmeyi bir planda kısabilir (0..1; final ejderha planları)
+    const tw = { g, panes, socket: sk, halo, lit: 0, H: yb + LH * 0.5 - 1, beamK: 1 };
     api.add(g);
     // süpüren ışık huzmesi: düz yelpaze (yatay), iki yönlü, yavaş döner; opaklık = yanan cam sayısı / 9
+    // cila: kameraya yakın kısmı söner (final planlarında ekranı boydan boya kesen soluk şerit/çokgen yoktu olsun), uç daha erken ve yumuşak söner
     const bm = new THREE_.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE_.AdditiveBlending, side: THREE_.DoubleSide, fog: false, uniforms: { uA: { value: 0 }, uCol: { value: new THREE_.Color(0xffe6a8) } },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'varying vec2 vUv; uniform float uA; uniform vec3 uCol; void main(){ float e = smoothstep(0.0, 0.18, vUv.x) * smoothstep(1.0, 0.25, vUv.x); float c = 1.0 - abs(vUv.y - 0.5) * 2.0; c = pow(max(c, 0.0), 1.6); gl_FragColor = vec4(uCol * 1.4, e * c * uA * 0.55); if (gl_FragColor.a < 0.003) discard; }' });
-    const bg = new THREE_.BufferGeometry(), L0 = 60;
+      vertexShader: 'varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: 'varying vec2 vUv; varying vec3 vW; uniform float uA; uniform vec3 uCol; void main(){ float e = smoothstep(0.0, 0.16, vUv.x) * smoothstep(1.0, 0.2, vUv.x); float c = 1.0 - abs(vUv.y - 0.5) * 2.0; c = pow(max(c, 0.0), 1.8); float cd = smoothstep(7.0, 20.0, distance(vW, cameraPosition)); gl_FragColor = vec4(uCol * 1.4, e * c * cd * uA * 0.4); if (gl_FragColor.a < 0.003) discard; }' });
+    const bg = new THREE_.BufferGeometry(), L0 = 46;
     const pos = [], uv = [], idx = [];
-    for (let s = 0; s <= 1; s++) for (const sg of [1, -1]) { void s; }
-    // iki kol: +x ve -x yönünde, tepe genişliği 0.8 → uç genişliği 13
-    for (const sg of [1, -1]) { const b = pos.length / 3; pos.push(0, 0, -0.4, sg * L0, 0, -6.5, sg * L0, 0, 6.5, 0, 0, 0.4); uv.push(0, 0, 1, 0, 1, 1, 0, 1); idx.push(b, b + 1, b + 2, b, b + 2, b + 3); }
+    // iki kol: +x ve -x yönünde, tepe genişliği 0.8 → uç genişliği 10; her kolda yatay + dikey yelpaze (yandan bakınca da ince çizgi değil yumuşak ışık konisi)
+    for (const sg of [1, -1]) {
+      let b = pos.length / 3; pos.push(0, 0, -0.4, sg * L0, 0, -5, sg * L0, 0, 5, 0, 0, 0.4); uv.push(0, 0, 1, 0, 1, 1, 0, 1); idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      b = pos.length / 3; pos.push(0, -0.4, 0, sg * L0, -4, 0, sg * L0, 4, 0, 0, 0.4, 0); uv.push(0, 0, 1, 0, 1, 1, 0, 1); idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    }
     bg.setAttribute('position', new THREE_.Float32BufferAttribute(pos, 3)); bg.setAttribute('uv', new THREE_.Float32BufferAttribute(uv, 2)); bg.setIndex(idx);
     const beam = new THREE_.Mesh(bg, bm); beam.position.set(x, yb + LH * 0.5, z); beam.renderOrder = 7; beam.frustumCulled = false; api.add(beam); api.dispose(bm); api.dispose(bg);
     let T = 0, a = 0;
-    api.anim(dt => { T += dt; a += dt * 0.45; beam.rotation.y = a; const want = tw.lit >= 9 ? 1 : tw.lit / 9 * 0.35; bm.uniforms.uA.value += (want - bm.uniforms.uA.value) * Math.min(1, dt * 1.5); halo.material.opacity = Math.max(halo.material.opacity, 0.05 + 0.05 * Math.sin(T)); });
+    api.anim(dt => { T += dt; a += dt * 0.45; beam.rotation.y = a; const want = (tw.lit >= 9 ? 1 : tw.lit / 9 * 0.35) * (tw.beamK == null ? 1 : tw.beamK); bm.uniforms.uA.value += (want - bm.uniforms.uA.value) * Math.min(1, dt * 1.5); beam.visible = bm.uniforms.uA.value > 0.004; halo.material.opacity = Math.max(halo.material.opacity, 0.05 + 0.05 * Math.sin(T)); });
     return tw;
   }
 

@@ -65,6 +65,9 @@ const FENER = (() => {
     });
   }
 
+  // köprü bayraklarının yeri (kur: direkler/ip toplu süse; kurSon: flamalar) — ikisi aynı noktaları kullanır
+  const bayrakYer = F => { const k = F && F.kopru; if (!k) return []; const a = []; for (let i = 0; i < 9; i++) a.push({ x: k.x - k.r * 0.8 + i * (k.r * 1.6 / 8), z: k.z - k.r * 0.7 - 0.2 }); return a; };
+
   // (ebeveyn: fener yuva mini oyunu kaldırıldı — bitiş sahnesi doğrudan gelir)
 
   // ════════════════ Büyük Fener modeli ════════════════
@@ -105,7 +108,8 @@ const FENER = (() => {
 
   // ════════════════ Dekor ════════════════
   function kur(L, api) {
-    try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'fener'); } catch (e) { console.warn('SUS610', e); }
+    // cila (netlik): SUS610 süsü bu bölümde YOK — 3 soluk "yıldız kulesi" + dönen koni ışıkları Büyük Fener'le yarışıyordu,
+    // havada süzülen 16 iri krem top ekranda bulanık lekeler gibiydi (her karede 4 çizim). Bölümün tek kahramanı Büyük Fener.
     const F = L.fn || {}, rnd = api.rnd;
     try {
       const fl = api.floor || L.floorMesh;
@@ -142,7 +146,13 @@ const FENER = (() => {
       F.masa = { x: tx, z: tz };
       // QA (güzelleştirme; çizim sayısı artmaz: hepsi toplu dekor + zemine pişmiş ışık): masaya örtü, yanında yastık yığını;
       // meydanın kenarında sıcak sokak fenerleri (yürünen alanın hemen dışında; kuzeyde Büyük Fener ve giriş yolları boş). Örtü masadan ≥5 cm yukarıda (iPad derinlik kavgası olmasın)
-      api.box(tx, 0.645, tz, 1.5, 0.04, 1.26, 0xfff2c4); for (const sz of [-1, 1]) api.box(tx, 0.53, tz + sz * 0.64, 1.5, 0.2, 0.02, 0xf08a5e);   // sıcak krem örtü + mercan saçak (ay ışığında morumsu görünmesin: mor yalnız Pırıl'da)
+      api.box(tx, 0.645, tz, 1.5, 0.04, 1.26, 0xffe2b0); for (const sz of [-1, 1]) api.box(tx, 0.53, tz + sz * 0.64, 1.5, 0.2, 0.02, 0xf08a5e);   // sıcak şeftali-krem örtü (ay ışığında gri görünüyordu) + mercan saçak (mor yalnız Pırıl'da)
+      // cila: masada küçük, sıcak bir köşe (toplu süs; çizim artmaz): mercan çaydanlık, iki fincan, minik mum
+      { const y0 = 0.665, px = tx + 0.38, pz = tz - 0.12;
+        P(sph, px, y0 + 0.12, pz, 0.17, 0.13, 0.17, 0xf28a6a); P(sph, px, y0 + 0.25, pz, 0.07, 0.05, 0.07, 0xffd45a);
+        api.put(cone, px + 0.19, y0 + 0.15, pz, 0.035, 0.16, 0.035, 0xf28a6a, 0, 0, -0.85, 'shiny');
+        P(cyl, tx - 0.25, y0 + 0.04, tz + 0.22, 0.06, 0.08, 0.06, 0xfff6ea); P(cyl, tx + 0.02, y0 + 0.04, tz + 0.32, 0.06, 0.08, 0.06, 0xfff6ea);
+        P(cyl, tx - 0.48, y0 + 0.08, tz - 0.26, 0.045, 0.16, 0.045, 0xfff2d8); api.put(sph, tx - 0.48, y0 + 0.2, tz - 0.26, 0.04, 0.07, 0.04, 0xffc860, 0, 0, 0, 'glow'); }
       if (typeof YAPI !== 'undefined' && YAPI.fener) {
         const fl = YAPI.fener();
         const twz = ar.z - ar.r - 4.2; let n = 0;
@@ -157,6 +167,13 @@ const FENER = (() => {
       if (!yeni) { rainbow(api, ar.x - ar.r - 9, ar.z + 2, 1.6, PI / 2); rainbow(api, ar.x + ar.r + 9, ar.z + 2, 1.6, -PI / 2); }
     }
     if (F.kopru && !yeni) { for (const sd of [-1, 1]) rainbow(api, F.kopru.x + sd * (F.kopru.r + 6), F.kopru.z, 1.0, sd * PI / 2); }
+    // köprü bayrak direkleri (toplu süs: çizim sayısı artmaz): krem direk + altın tepe topu + direk tepelerini birleştiren ince şenlik ipi
+    { const bs = bayrakYer(F);
+      if (bs.length) {
+        for (const b of bs) { api.put(cyl, b.x, 1.4, b.z, 0.055, 2.8, 0.055, 0xe9e1cf, 0, 0, 0, 'shiny'); api.put(sph, b.x, 2.86, b.z, 0.1, 0.1, 0.1, 0xffd45a, 0, 0, 0, 'shiny'); }
+        const a = bs[0], z = bs[bs.length - 1], L0 = hyp(z.x - a.x, z.z - a.z);
+        api.put(cyl, (a.x + z.x) / 2, 2.76, (a.z + z.z) / 2, 0.02, L0, 0.02, 0xfff0d0, 0, 0, PI / 2, 'shiny');
+      } }
   }
 
   // ════════════════ kurSon: dostlar, bayraklar, konuşmalar, final ════════════════
@@ -167,18 +184,21 @@ const FENER = (() => {
     sus = false; let T = 0; const TQ = []; const later = (sn, fn) => { TQ.push({ t: T + sn, fn }); };
     const S = { started: 0, area: -1, flags: 0, endT: 0, endStep: 0, lamp: -1, lampT: 0, final: false, ejd: [], dostPos: null };
     // dost bayrakları (köprü): 9 renkli, Feza yürüdükçe sırayla yanar
+    // cila (performans + güzellik): direkler, tepe topları ve flama ipi kur()'da toplu süse pişti; 9 flama tek çizim (önceden 18 ayrı çizim).
+    // Oyun mantığı aynı: f.m.color.setHex(renk) yakar, yanan flama rüzgârda dalgalanır.
     const flags = [];
-    if (F.kopru) {
-      for (let i = 0; i < 9; i++) {
-        const x = F.kopru.x - F.kopru.r * 0.8 + i * (F.kopru.r * 1.6 / 8), z = F.kopru.z - F.kopru.r * 0.7 - 0.2;
-        if (!api.isFloor(x, z + 1.2)) { /* kenarda: yürünen alanın dışında bile olsa dursun */ }
-        const gp = new THREE.Group(); gp.position.set(x, 0, z);
-        const pole = new THREE.Mesh(geo('pole', () => kp(new THREE.CylinderGeometry(0.05, 0.06, 2.8, 8))), kp(new THREE.MeshStandardMaterial({ color: 0xe9e1cf }))); pole.position.y = 1.4; gp.add(pole);
-        const m = new THREE.MeshBasicMaterial({ color: 0x9aa2b0, side: THREE.DoubleSide }); api.dispose(m);
-        // QA (güzelleştirme): düz dikdörtgen yerine şenlik flaması (üçgen), direğe bağlı; yanınca hafifçe dalgalanır
-        const f = new THREE.Mesh(geo('flag3', () => { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.4, 0, 0, -0.4, 0, 1.15, -0.04, 0], 3)); q.computeVertexNormals(); return kp(q); }), m); f.position.set(0.04, 2.35, 0); gp.add(f);
-        api.add(gp); flags.push({ m, c: CAM[i], x, z, on: false, f, ph: i * 0.7 });
-      }
+    const spots = bayrakYer(F);
+    if (spots.length) {
+      const fm = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }); api.dispose(fm);
+      const fg = geo('flag3', () => { const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.4, 0, 0, -0.4, 0, 1.15, -0.04, 0], 3)); q.computeVertexNormals(); return kp(q); });
+      const fim = new THREE.InstancedMesh(fg, fm, spots.length), tc = new THREE.Color();   // (r170: görünürlük kutusu örneklerden hesaplanır)
+      const Q = new THREE.Object3D(); F.bayrakIM = fim; F.bayrakQ = Q;
+      spots.forEach(({ x, z }, i) => {
+        Q.position.set(x + 0.04, 2.35, z); Q.rotation.set(0, 0, 0); Q.updateMatrix(); fim.setMatrixAt(i, Q.matrix); fim.setColorAt(i, tc.setHex(0x9aa2b0));
+        const col = { setHex: h => { tc.setHex(h); fim.setColorAt(i, tc); fim.instanceColor.needsUpdate = true; } };
+        flags.push({ m: { color: col }, c: CAM[i], x, z, on: false, ph: i * 0.7, i });
+      });
+      fim.instanceMatrix.needsUpdate = true; if (fim.instanceColor) fim.instanceColor.needsUpdate = true; api.add(fim); api.dispose(fim);   // (bölüm değişince örnek tamponları da bırakılır)
     }
     // dostlar (Baba, Kartal, Hala) + anne ejderha (mor; tanımadan sonra) — Bilbo motorun yoldaşı
     let baba = null, kartal = null, hala = null, halaPos = { x: 0, z: 0 }, anne = null, annePos = { x: 0, z: 0 };
@@ -215,7 +235,7 @@ const FENER = (() => {
     L.finaleBekle = () => S.endStep > 0 && !S.finalDone;
     on('happy', e => { if (e && e.boss && e.type === 'unutulanKralTonton') { S.endT = T; S.endStep = 1; sus = true; TQ.length = 0; } });
 
-    const sonBitti = () => { if (S.finalDone) return; S.finalDone = true; S.oynaBekle = 0; for (let i = 0; i < 9; i++) lit(i); S.lamp = 9; S.dostGo = true; if (F.tower) F.tower.socket.material.color.setHex(0xffd45a); };   // KİLİT YOK: final ne olursa olsun biter
+    const sonBitti = () => { if (S.finalDone) return; S.finalDone = true; S.oynaBekle = 0; for (let i = 0; i < 9; i++) lit(i); S.lamp = 9; S.dostGo = true; if (F.tower) { F.tower.socket.material.color.setHex(0xffd45a); F.tower.beamK = 1; } };   // KİLİT YOK: final ne olursa olsun biter
     function sonSahne() {   // Kral neşelendikten sonra: fener yanar → dostlar → ejderha selamı (tek sinematik, atlanabilir)
       if (S.final) return; S.final = true;
       if (!g0 || !g0.sinematik) { sonBitti(); return; }
@@ -226,7 +246,9 @@ const FENER = (() => {
       S.dostPos = { baba: [tx + spots[0][0], tz + spots[0][1] + 3], kartal: [tx + spots[1][0], tz + spots[1][1] + 3], hala: [tx + spots[2][0], tz + spots[2][1] + 3], anne: [tx + 6, tz + 5] };
       const tele = (x, z) => { try { g0.teleport(x, z); } catch (e) { /* yok */ } };
       // QA: Feza artık denize ışınlanmaz (kamera ejderhalara kendisi gider; Feza dostlarla arenada kalır). Kamera her ejderhaya yüzünden bakar.
-      const ejd = (tur, soz) => { const s = sleepers.find(q => q.tur === tur); if (!s) return null; return { sure: 4.6, bak: { x: s.x, z: s.z, y: 2.6 }, zoom: 1.15, pitch: 0.62, yaw: s.yaw || 0, gecis: 0.25, soz, fn: () => { kamK(40); s.t0 = T; } }; };
+      // cila: ejderha planlarında fener huzmesi kısılır (kamera huzmenin altından bakınca ekranı soluk bir şerit kesiyordu); son geniş planda yeniden yanar
+      const huzme = k => { if (tw) tw.beamK = k; };
+      const ejd = (tur, soz) => { const s = sleepers.find(q => q.tur === tur); if (!s) return null; return { sure: 4.6, bak: { x: s.x, z: s.z, y: 2.6 }, zoom: 1.15, pitch: 0.62, yaw: s.yaw || 0, gecis: 0.25, soz, fn: () => { kamK(40); huzme(0); s.t0 = T; } }; };
       // QA: ejderhalar arası kamera kayarken fener kulesinin içinden geçiyordu (ekranı dev sarı ışık kaplıyordu) → ejderha planları kısa kesme ile geçer
       const kamK = k => { try { if (g0.kameraIstek) g0.kameraIstek.k = k; } catch (e) { /* yok */ } };
       // QA: plan süresi cümleden kısaydı → sözler her planda biraz daha geride kalıyordu (Ateş Dede'nin sözü Toprak ejderhasının planında). Süre ≥ cümle + ara
@@ -237,7 +259,7 @@ const FENER = (() => {
         { sure: 4.0, bak: lamp, zoom: 1.75, pitch: 0.34, soz: 'b10_fener_oldu', fn: () => { S.dostGo = true; } },
         { sure: 4.0, bak: { x: tx, z: tz + 6, y: 1.5 }, zoom: 1.15, soz: 'b10_dostlar_son', fn: () => { tele(tx, tz + 9); } },
         ejd('su', 'b10_ejder_su'), ejd('ates', 'b10_ejder_ates'), ejd('toprak', 'b10_ejder_toprak'),   // sıra: Su (batı) → Ateş (kuzey) → Toprak (doğu); aralarda kısa kesme
-        { sure: 4.6, bak: { x: tx, z: tz + 6, y: 3.5 }, zoom: 2.0, pitch: 0.48, gecis: 0.25, soz: 'b10_bes_ejder', fn: () => { kamK(40); } },   // geniş plan: yanan fener + dibinde toplanan dostlar
+        { sure: 4.6, bak: { x: tx, z: tz + 6, y: 3.5 }, zoom: 2.0, pitch: 0.48, gecis: 0.25, soz: 'b10_bes_ejder', fn: () => { kamK(40); huzme(1); } },   // geniş plan: yanan fener + dibinde toplanan dostlar
       ].filter(Boolean).map(sur);
       // başka bir sinematik sürüyorsa kısa aralarla yeniden dene (anim döngüsü: S.oynaBekle); olmazsa final yine de biter
       const oyna = () => { if (S.finalDone) return; if (g0.sinematik.oyna({ adimlar: adim, atlanabilir: true, bitti: () => { kamK(3); sonBitti(); } })) { S.oynaBekle = 0; return; } S.oynaBekle = S.oynaBekle || T; S.oynaTekrar = T + 0.5; };   // (b10_kral_son yok: motorun final cümlesi onu hemen kesiyordu)
@@ -265,7 +287,11 @@ const FENER = (() => {
         s.d.update(dt);
         if (s.t0 >= 0) { const u = (T - s.t0) / 4.2; const k = u < 0 ? 0 : u > 1 ? 0 : Math.sin(u * PI); s.d.root.position.y = 0.0 + k * 0.5; s.d.root.rotation.x = -k * 0.18; if (u > 1) { s.t0 = -1; s.d.root.rotation.x = 0; s.d.root.position.y = 0; } }
       }
-      for (const fl of flags) fl.f.rotation.y = fl.on ? Math.sin(T * 2.2 + fl.ph) * 0.32 : 0;   // yanan flama rüzgârda hafifçe dalgalanır
+      if (S.flags && F.bayrakIM) {   // yanan flama rüzgârda hafifçe dalgalanır (yalnız 9 matris; kare başı nesne yok)
+        const Q = F.bayrakQ, im = F.bayrakIM;
+        for (const fl of flags) { if (!fl.on) continue; Q.position.set(fl.x + 0.04, 2.35, fl.z); Q.rotation.set(0, Math.sin(T * 2.2 + fl.ph) * 0.32, Math.sin(T * 3.1 + fl.ph) * 0.05); Q.updateMatrix(); im.setMatrixAt(fl.i, Q.matrix); }
+        im.instanceMatrix.needsUpdate = true;
+      }
       // köprü bayrakları: Feza yürüdükçe renkleri sırayla yanar
       // QA: eskiden yalnız soldan sağa yürüyünce ve yanlış alan numarasında (P.area>=3; köprü 2. alan) yanıyordu → hiç yanmıyordu. Şimdi köprü adasındayken her 0.35 sn'de bir sonraki bayrak yanar.
       if (F.kopru && S.flags < flags.length && live() && hyp(P.pos.x - F.kopru.x, P.pos.z - F.kopru.z) < F.kopru.r + 1.5 && T - (S.flagT || 0) > 0.35) {

@@ -31,6 +31,27 @@ const KALE = (() => {
   const kp = o => { if (o) o.userData.keep = true; return o; };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const later = (s, fn) => { const g = G_(); if (g && g.later) g.later(s, fn); else setTimeout(fn, s * 1000); };
+  // birleştirilmiş tek geometri (yalnız kurulumda, bir kez; parça başına çizim çağrısı olmasın): parts = [[geo, Matrix4], ...]
+  const M4 = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+  function mergeG(parts) {
+    let nv = 0, ni = 0;
+    for (const [g] of parts) { const n = g.attributes.position.count; nv += n; ni += g.index ? g.index.count : n; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+    let vo = 0, io = 0;
+    for (const [g, m] of parts) {
+      const P = g.attributes.position, N = g.attributes.normal; nm.getNormalMatrix(m);
+      for (let i = 0; i < P.count; i++) {
+        v.fromBufferAttribute(P, i).applyMatrix4(m); pos[(vo + i) * 3] = v.x; pos[(vo + i) * 3 + 1] = v.y; pos[(vo + i) * 3 + 2] = v.z;
+        v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(vo + i) * 3] = v.x; nor[(vo + i) * 3 + 1] = v.y; nor[(vo + i) * 3 + 2] = v.z;
+      }
+      if (g.index) for (let k = 0; k < g.index.count; k++) idx[io++] = g.index.getX(k) + vo; else for (let k = 0; k < P.count; k++) idx[io++] = vo + k;
+      vo += P.count;
+    }
+    const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); out.setIndex(new THREE.BufferAttribute(idx, 1));
+    out.computeBoundingSphere(); return out;
+  }
+  // süs koyucu: kale sur gizleyicisini (kur içindeki api.put sarmalayıcısı) atlar — oda içindeki alçak eşyalar (beşik, yuva, fırın) gizlenmesin
+  const hamPut = api => api.hamPut || api.put.bind(api);
 
   // ════════════════ Yerleşim ════════════════
   function yerlesim(L, api) {
@@ -81,46 +102,101 @@ const KALE = (() => {
     gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
     const t = new THREE.CanvasTexture(c); t.userData = { keep: true }; return (GM.haloT = t);
   };
+  const sisTex = () => {
+    if (GM.sisT) return GM.sisT;
+    const W = 128, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    const gv = x.createLinearGradient(0, 0, 0, H); gv.addColorStop(0, 'rgba(255,255,255,0)'); gv.addColorStop(0.42, 'rgba(255,255,255,0.55)'); gv.addColorStop(0.75, 'rgba(255,255,255,0.95)'); gv.addColorStop(1, 'rgba(255,255,255,0.9)');
+    x.fillStyle = gv; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 9; i++) {   // üst kenarda yumuşak bulut topakları (düz çizgi değil)
+      const px = (i + 0.5) * W / 9, py = H * (0.36 + 0.06 * Math.sin(i * 2.1)), r = W * (0.1 + 0.03 * ((i * 7) % 3));
+      const gr = x.createRadialGradient(px, py, 0, px, py, r); gr.addColorStop(0, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+    x.globalCompositeOperation = 'destination-in';
+    const gh = x.createLinearGradient(0, 0, W, 0); gh.addColorStop(0, 'rgba(0,0,0,0)'); gh.addColorStop(0.12, 'rgba(0,0,0,1)'); gh.addColorStop(0.88, 'rgba(0,0,0,1)'); gh.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = gh; x.fillRect(0, 0, W, H);
+    const t = new THREE.CanvasTexture(c); t.userData = { keep: true }; return (GM.sisT = t);
+  };
   // eski resim: soluk, rengi silik büyük ejderha + küçük yumurta (korku yok)
   function paintTex(k) {
-    const key = 'paint' + k; if (GM[key]) return GM[key];
-    const W = 384, H = 480, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-    x.fillStyle = '#d9cfc0'; x.fillRect(0, 0, W, H);
-    for (let i = 0; i < 500; i++) { x.fillStyle = 'rgba(' + (180 + Math.random() * 50 | 0) + ',' + (170 + Math.random() * 50 | 0) + ',' + (155 + Math.random() * 50 | 0) + ',0.2)'; x.fillRect(Math.random() * W, Math.random() * H, 4 + Math.random() * 16, 3 + Math.random() * 10); }
-    x.strokeStyle = 'rgba(150,120,80,0.8)'; x.lineWidth = 14; x.strokeRect(10, 10, W - 20, H - 20);
-    x.globalAlpha = 0.5; x.fillStyle = '#bdb8b4';   // silik gri-inci ejderha
-    x.beginPath(); x.ellipse(190, 290, 110, 70, 0, 0, TAU); x.fill();
-    x.beginPath(); x.ellipse(110, 210, 46, 38, -0.3, 0, TAU); x.fill();
-    x.beginPath(); x.moveTo(250, 230); x.quadraticCurveTo(330, 120, 300, 200); x.quadraticCurveTo(330, 260, 260, 270); x.fill();
-    x.beginPath(); x.moveTo(290, 330); x.quadraticCurveTo(360, 360, 340, 400); x.quadraticCurveTo(300, 380, 270, 340); x.fill();
-    x.fillStyle = '#6a625a'; x.beginPath(); x.arc(96, 206, 6, 0, TAU); x.arc(128, 202, 6, 0, TAU); x.fill();
-    if (k % 2 === 0) { x.fillStyle = '#e9dcc0'; x.beginPath(); x.ellipse(95, 380, 26, 34, 0, 0, TAU); x.fill(); x.fillStyle = '#9fbf9a'; for (const q of [[88, 372], [102, 384], [92, 394]]) { x.beginPath(); x.arc(q[0], q[1], 4, 0, TAU); x.fill(); } }
-    x.globalAlpha = 1;
-    const gr = x.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(235,228,216,0.4)'); gr.addColorStop(1, 'rgba(235,228,216,0.6)'); x.fillStyle = gr; x.fillRect(0, 0, W, H);
+    // (yeniden çizildi: eskisi birkaç gri lekeydi, ejderha olduğu seçilmiyordu. Şimdi sevimli ejderha biçimi + yumurta, yine RENKSİZ/silik — "rengi silinmiş")
+    const key = 'paint2_' + k; if (GM[key]) return GM[key];
+    const W = 320, H = 400, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    let sd = 11 + k * 7; const rr = () => (sd = (sd * 16807) % 2147483647) / 2147483647;   // (sabit tohum: her açılışta aynı resim)
+    const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#efe6d6'); bg.addColorStop(0.62, '#e2d6c2'); bg.addColorStop(1, '#d6c8b0'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 220; i++) { x.fillStyle = 'rgba(' + (190 + rr() * 40 | 0) + ',' + (178 + rr() * 40 | 0) + ',' + (160 + rr() * 40 | 0) + ',0.16)'; x.beginPath(); x.ellipse(rr() * W, rr() * H, 4 + rr() * 14, 3 + rr() * 9, rr() * 3, 0, TAU); x.fill(); }
+    x.fillStyle = 'rgba(170,160,145,0.22)'; x.fillRect(0, H * 0.8, W, H * 0.2);   // zemin bandı
+    const cx = W * 0.5 + (k % 2 ? 18 : -6), cy = H * 0.6;
+    x.lineJoin = 'round'; x.lineCap = 'round';
+    const ink = (fill, a) => { x.fillStyle = fill; x.fill(); x.strokeStyle = 'rgba(112,104,98,' + a + ')'; x.lineWidth = 4; x.stroke(); };
+    // kanatlar (arkada)
+    for (const sx of [-1, 1]) { x.beginPath(); x.moveTo(cx + sx * 34, cy - 46); x.quadraticCurveTo(cx + sx * 132, cy - 132, cx + sx * 122, cy - 34); x.quadraticCurveTo(cx + sx * 96, cy - 54, cx + sx * 84, cy - 22); x.quadraticCurveTo(cx + sx * 66, cy - 40, cx + sx * 44, cy - 6); x.closePath(); ink('rgba(184,178,174,0.6)', 0.5); }
+    // kıvrık kuyruk
+    x.beginPath(); x.moveTo(cx + 40, cy + 66); x.quadraticCurveTo(cx + 118, cy + 96, cx + 112, cy + 44); x.quadraticCurveTo(cx + 108, cy + 22, cx + 92, cy + 34); x.lineWidth = 16; x.strokeStyle = 'rgba(168,162,158,0.6)'; x.stroke();
+    // gövde + karın
+    x.beginPath(); x.ellipse(cx, cy + 26, 64, 72, 0, 0, TAU); ink('rgba(190,184,180,0.62)', 0.55);
+    x.beginPath(); x.ellipse(cx, cy + 36, 38, 50, 0, 0, TAU); x.fillStyle = 'rgba(222,216,206,0.7)'; x.fill();
+    for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(cx - 30, cy + 10 + i * 18); x.quadraticCurveTo(cx, cy + 18 + i * 18, cx + 30, cy + 10 + i * 18); x.strokeStyle = 'rgba(150,142,136,0.35)'; x.lineWidth = 2.5; x.stroke(); }
+    // ayaklar
+    for (const sx of [-1, 1]) { x.beginPath(); x.ellipse(cx + sx * 34, cy + 96, 22, 12, 0, 0, TAU); ink('rgba(186,180,176,0.65)', 0.5); }
+    // baş + boynuz + kulaklar
+    x.beginPath(); x.moveTo(cx - 10, cy - 104); x.lineTo(cx, cy - 136); x.lineTo(cx + 10, cy - 104); x.closePath(); ink('rgba(176,170,166,0.6)', 0.5);
+    for (const sx of [-1, 1]) { x.beginPath(); x.moveTo(cx + sx * 40, cy - 82); x.quadraticCurveTo(cx + sx * 74, cy - 92, cx + sx * 66, cy - 62); x.closePath(); ink('rgba(186,180,176,0.6)', 0.45); }
+    x.beginPath(); x.ellipse(cx, cy - 66, 54, 46, 0, 0, TAU); ink('rgba(194,188,184,0.66)', 0.55);
+    x.beginPath(); x.ellipse(cx, cy - 46, 26, 16, 0, 0, TAU); x.fillStyle = 'rgba(218,212,204,0.75)'; x.fill();   // burun
+    for (const sx of [-1, 1]) { x.beginPath(); x.arc(cx + sx * 20, cy - 74, 10, 0, TAU); x.fillStyle = 'rgba(96,90,86,0.7)'; x.fill(); x.beginPath(); x.arc(cx + sx * 20 + 3, cy - 78, 3.2, 0, TAU); x.fillStyle = 'rgba(250,248,244,0.9)'; x.fill(); }
+    // küçük benekli yumurta (çift sıradaki resimlerde ejderhanın yanında)
+    if (k % 2 === 0) { const ex = cx - 92, ey = cy + 84; x.beginPath(); x.ellipse(ex, ey, 22, 28, 0, 0, TAU); ink('rgba(232,224,206,0.85)', 0.45); x.fillStyle = 'rgba(150,176,150,0.55)'; for (const q of [[-7, -8], [8, 2], [-3, 12], [9, -14]]) { x.beginPath(); x.arc(ex + q[0], ey + q[1], 4, 0, TAU); x.fill(); } }
+    const gr = x.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(240,234,224,0.3)'); gr.addColorStop(1, 'rgba(240,234,224,0.18)'); x.fillStyle = gr; x.fillRect(0, 0, W, H);   // soluk vernik
+    x.strokeStyle = 'rgba(176,140,84,0.85)'; x.lineWidth = 10; x.strokeRect(5, 5, W - 10, H - 10); x.strokeStyle = 'rgba(232,206,150,0.8)'; x.lineWidth = 3; x.strokeRect(13, 13, W - 26, H - 26);   // altın iç çerçeve
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData = { keep: true }; return (GM[key] = t);
   }
+  // resim şövalede durur: çerçeve rafın üstünde, arkada iki direk + destek ayağı (eskiden 0,75 m havada asılı duruyordu).
+  // Kök yerde: Feza resmin kuzeyine geçince şövaleyle birlikte yere doğru söner. Çerçeve + şövale tek parça (çizim çağrısı aynı: 2).
   function frame(api, x, y, z, yaw, k) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw;
-    const wood = geo('fWoodM', () => kp(new THREE.MeshStandardMaterial({ color: 0xb48a58, roughness: 0.7 })));   // (malzemeler bir kez yapılır: her yüklemede yenisi birikmesin)
-    const back = new THREE.Mesh(geo('fBox', () => kp(new THREE.BoxGeometry(1, 1, 1))), wood); back.scale.set(2.3, 2.9, 0.16); g.add(back);
+    const wood = geo('fWoodM2', () => kp(new THREE.MeshStandardMaterial({ color: 0xc99a5c, roughness: 0.62 })));   // (malzemeler bir kez yapılır: her yüklemede yenisi birikmesin)
+    const body = geo('fEasel', () => {
+      const b = new THREE.BoxGeometry(1, 1, 1), o = mergeG([
+        [b, M4(0, 1.8, 0, 0, 0, 0, 2.1, 2.62, 0.14)],                 // çerçeve
+        [b, M4(0, 0.44, 0.1, 0, 0, 0, 2.3, 0.09, 0.34)],              // raf (resim üstüne oturur)
+        [b, M4(-0.8, 1.66, -0.15, 0, 0, -0.07, 0.1, 3.3, 0.1)],       // sol direk (çerçevenin üstünden biraz çıkar)
+        [b, M4(0.8, 1.66, -0.15, 0, 0, 0.07, 0.1, 3.3, 0.1)],         // sağ direk
+        [b, M4(0, 1.5, -0.66, 0.33, 0, 0, 0.09, 3.15, 0.09)],         // arka destek ayağı
+        [b, M4(0, 3.22, -0.15, 0, 0, 0, 1.5, 0.08, 0.1)]]);           // tepe çıtası
+      b.dispose(); return kp(o);
+    });
+    g.add(new THREE.Mesh(body, wood));
     const pm = new THREE.MeshBasicMaterial({ map: paintTex(k), fog: false });
-    const pic = new THREE.Mesh(geo('fPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); pic.scale.set(2.0, 2.6, 1); pic.position.z = 0.09; g.add(pic);
+    const pic = new THREE.Mesh(geo('fPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); pic.scale.set(1.84, 2.36, 1); pic.position.set(0, 1.8, 0.075); g.add(pic);
     api.add(g); api.dispose(pm); return g;
   }
   // beşik + kırık kabuk (iki yarım): kabuk parlaması tek efekt
   function cradle(api, x, z) {
     const g = new THREE.Group(); g.position.set(x, 0, z);
-    const wood = geo('crWoodM', () => kp(new THREE.MeshStandardMaterial({ color: 0xcaa070, roughness: 0.75 }))), cloth = geo('crClothM', () => kp(new THREE.MeshStandardMaterial({ color: 0xf3c9d6, roughness: 0.95 })));
-    const bowl = new THREE.Mesh(geo('cr', () => kp(new THREE.SphereGeometry(1, 20, 10, 0, TAU, PI * 0.5, PI * 0.5))), wood); bowl.scale.set(1.6, 0.9, 1.0); bowl.position.y = 0.95; g.add(bowl);
-    // pembe yorgan: beşiği dolduran kabarık tümsek (eskisi içi boş çanaktı: üstten bakınca beşik boş bir kayık gibiydi, ayaklar içinden görünüyordu)
-    const pad = new THREE.Mesh(geo('crp2', () => kp(new THREE.SphereGeometry(1, 18, 8))), cloth); pad.scale.set(1.42, 0.26, 0.86); pad.position.y = 0.93; g.add(pad);
-    // iki ayak yerine iki sallanan kızak (beşik olduğu belli olsun)
-    for (const sz of [-0.55, 0.55]) { const rk = new THREE.Mesh(geo('crk', () => kp(new THREE.TorusGeometry(1, 0.07, 6, 18, PI).rotateZ(PI))), wood); rk.scale.set(1.75, 0.58, 1); rk.position.set(0, 0.62, sz); g.add(rk); }
-    // kabuk yarımları: ağzı yukarı açık, içi görünen yumurta kabuğu (eskiden ters kapalı kubbeydi, iki ekmek topu gibi duruyordu)
-    const sm = new THREE.MeshStandardMaterial({ color: 0xf6eedc, roughness: 0.5, emissive: 0xffb0c8, emissiveIntensity: 0, side: THREE.DoubleSide }); api.dispose(sm);
-    const half = geo('shellC', () => kp(new THREE.SphereGeometry(1, 16, 8, 0, TAU, PI * 0.4, PI * 0.6)));
-    const h1 = new THREE.Mesh(half, sm); h1.scale.set(0.42, 0.52, 0.42); h1.position.set(2.0, 0.5, 1.4); h1.rotation.z = 0.28;
-    const h2 = new THREE.Mesh(half, sm); h2.scale.set(0.4, 0.48, 0.4); h2.position.set(2.7, 0.46, 1.2); h2.rotation.z = -0.3; h2.rotation.y = 1.4;
+    // beşik: bal rengi ahşap tekne + koyu kenar + iki sallanan kızak, baş ucunda pembe kumaş tente, beyaz yastık, kabarık pembe yorgan.
+    // Hepsi birleştirilmiş süs parçası (eskiden 4 ayrı parça = 4 çizim çağrısıydı; uzaktan "tabakta pembe pasta" gibi duruyordu)
+    const P = hamPut(api);
+    const low = geo('crL', () => kp(new THREE.SphereGeometry(1, 22, 8, 0, TAU, PI * 0.5, PI * 0.5))), sph = geo('crS', () => kp(new THREE.SphereGeometry(1, 18, 9))),
+      rim = geo('crR', () => kp(new THREE.TorusGeometry(1, 0.07, 6, 32).rotateX(PI / 2))), rk = geo('crk', () => kp(new THREE.TorusGeometry(1, 0.07, 6, 18, PI).rotateZ(PI))),
+      hood = geo('crH', () => kp(new THREE.SphereGeometry(1, 16, 7, -PI / 2, PI, 0, PI / 2))), hoodRim = geo('crHR', () => kp(new THREE.TorusGeometry(1, 0.06, 6, 16, PI).rotateY(PI / 2)));
+    P(low, x, 0.95, z, 1.5, 0.7, 0.92, 0xdcaa72, 0, 0, 0, 'shiny');          // tekne
+    P(rim, x, 0.95, z, 1.5, 1.0, 0.92, 0xb98450, 0, 0, 0, 'shiny');          // kenar
+    for (const sz of [-0.55, 0.55]) P(rk, x, 0.62, z + sz, 1.75, 0.58, 1, 0xb98450, 0, 0, 0, 'shiny');   // kızaklar
+    P(sph, x + 0.28, 0.99, z, 1.18, 0.27, 0.8, 0xf5b6ca, 0, 0, 0, 'shinyNS');   // yorgan
+    P(sph, x + 0.55, 1.2, z + 0.05, 0.16, 0.1, 0.16, 0xffe2ea, 0, 0, 0, 'shinyNS'); P(sph, x - 0.05, 1.21, z - 0.22, 0.13, 0.08, 0.13, 0xffe2ea, 0, 0, 0, 'shinyNS');   // yorgan benekleri
+    P(sph, x - 0.92, 1.12, z, 0.32, 0.16, 0.55, 0xfff5ee, 0, 0, 0, 'shinyNS');   // yastık
+    P(hood, x - 0.62, 0.95, z, 0.92, 0.8, 0.95, 0xf7cddb, 0, 0, 0, 'shinyNS');   // tente
+    P(hoodRim, x - 0.62, 0.95, z, 1, 0.8, 0.95, 0xe89ab4, 0, 0, 0, 'shinyNS');   // tente kenarı
+    // kabuk yarımları: ağzı yukarı açık, kenarı zikzak kırık yumurta kabuğu; yumuşak pembe minderin üstünde (hatıra)
+    P(sph, x + 2.35, 0.07, z + 1.3, 0.95, 0.1, 0.62, 0xf3c8d6, 0, 0, 0, 'shinyNS');
+    const sm = new THREE.MeshStandardMaterial({ color: 0xf8f0e0, roughness: 0.5, emissive: 0xffb0c8, emissiveIntensity: 0, side: THREE.DoubleSide }); api.dispose(sm);
+    const half = geo('shellZ', () => {
+      const s = new THREE.SphereGeometry(1, 18, 8, 0, TAU, PI * 0.36, PI * 0.64), p = s.attributes.position;
+      for (let i = 0; i <= 18; i++) p.setY(i, p.getY(i) + (i % 2 ? 0.17 : -0.05));   // ilk sıra = kenar: dişli kırık kenar
+      s.computeVertexNormals(); return kp(s);
+    });
+    const h1 = new THREE.Mesh(half, sm); h1.scale.set(0.42, 0.5, 0.42); h1.position.set(2.0, 0.6, 1.4); h1.rotation.z = 0.24;
+    const h2 = new THREE.Mesh(half, sm); h2.scale.set(0.4, 0.46, 0.4); h2.position.set(2.72, 0.56, 1.2); h2.rotation.z = -0.26; h2.rotation.y = 1.4;
     g.add(h1, h2);
     api.add(g);
     const glow = { t: 0, d: 0 };
@@ -129,16 +205,40 @@ const KALE = (() => {
   // sıcak yuva: pembe-altın taş çukur, üstünde minik fener; yumurta "ısınınca" pembeleşir
   function nestMesh(api, x, z) {
     const g = new THREE.Group(); g.position.set(x, 0, z);
-    const bowl = new THREE.Mesh(geo('nb', () => kp(new THREE.LatheGeometry([[0, 0.03], [0.5, 0.05], [0.85, 0.16], [1.05, 0.3], [1.2, 0.34], [1.25, 0.2], [1.1, 0.02]].map(q => new THREE.Vector2(q[0], q[1])), 20))), geo('nbM', () => kp(new THREE.MeshStandardMaterial({ color: 0xe8b8a0, roughness: 0.85 }))));
-    g.add(bowl);
-    // saman: kalın, kabarık tek simit (eskisi ince halkaydı; çanak kenarı + saman + sarı halka "iç içe üç halka" gibi görünüyordu)
-    const hay = new THREE.Mesh(geo('nh2', () => kp(new THREE.TorusGeometry(0.8, 0.3, 7, 18).rotateX(PI / 2))), geo('nhM', () => kp(new THREE.MeshStandardMaterial({ color: 0xf0d49a, roughness: 1 })))); hay.position.y = 0.26; hay.scale.y = 0.6; g.add(hay);   // (soluk saman rengi: koyu turuncu "simit" gibi durmasın; pembe taş çanak kenarı görünsün)
-    // minik fener: havada asılı top yerine kısa direğin ucunda
-    const lamp = new THREE.Mesh(geo('nl', () => kp(new THREE.SphereGeometry(0.16, 10, 8))), geo('nlM', () => kp(new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd070).multiplyScalar(1.2) })))); lamp.position.set(1.45, 0.98, 0); g.add(lamp);
-    const post = new THREE.Mesh(geo('np', () => kp(new THREE.CylinderGeometry(0.05, 0.07, 0.9, 6).translate(0, 0.45, 0))), geo('npM', () => kp(new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.9 })))); post.position.set(1.45, 0, 0); g.add(post);
+    // sabit parçalar birleştirilmiş süs (eskiden yuva başına 4 ayrı parça = 4 çizim çağrısı): pembe taş çanak, örülmüş saman yuva + dışa taşan saman çöpleri,
+    // direğin ucunda şapkalı minik fener (parlayan). Yalnız hedef halkası ayrı (nabız atar).
+    const P = hamPut(api);
+    P(geo('nb', () => kp(new THREE.LatheGeometry([[0, 0.03], [0.5, 0.05], [0.85, 0.16], [1.05, 0.3], [1.2, 0.34], [1.25, 0.2], [1.1, 0.02]].map(q => new THREE.Vector2(q[0], q[1])), 20))), x, 0, z, 1, 1, 1, 0xeab7a4, 0, 0, 0, 'shiny');
+    // saman yuva: düz simit yerine iç içe geçmiş, hafif eğik saman demetleri (örülmüş kuş yuvası gibi tümsekli; uzaktan "çörek" gibi durmasın)
+    P(geo('nh4', () => kp(new THREE.TorusGeometry(0.8, 0.22, 6, 18).rotateX(PI / 2))), x, 0.24, z, 1, 0.6, 1, 0xe8d29e, 0, 0, 0, 'shinyNS');
+    const lump = geo('nlu', () => kp(new THREE.SphereGeometry(1, 9, 6)));
+    for (let k = 0; k < 12; k++) { const a = k * TAU / 12 + (k % 2) * 0.12, r = 0.8 + ((k * 5) % 3 - 1) * 0.05; P(lump, x + Math.sin(a) * r, 0.33 + (k % 3) * 0.025, z + Math.cos(a) * r, 0.44, 0.17, 0.25, k % 3 === 0 ? 0xe2c486 : k % 3 === 1 ? 0xf2deae : 0xead09a, a, 0, k % 2 ? 0.32 : -0.28, 'shinyNS'); }
+    const stick = geo('nst', () => kp(new THREE.CylinderGeometry(0.03, 0.03, 1, 5)));
+    for (let k = 0; k < 7; k++) { const a = k * TAU / 7 + 0.35, r = 0.86 + (k % 3) * 0.08; P(stick, x + Math.sin(a) * r, 0.42 + (k % 2) * 0.04, z + Math.cos(a) * r, 1, 0.5 + (k % 3) * 0.1, 1, k % 2 ? 0xdcbc82 : 0xeed8a6, a, 0, 1.25 + (k % 3) * 0.1, 'shinyNS'); }   // dışa taşan saman çöpleri
+    P(geo('np', () => kp(new THREE.CylinderGeometry(0.05, 0.07, 0.9, 6).translate(0, 0.45, 0))), x + 1.45, 0, z, 1, 1, 1, 0x8f6c4a, 0, 0, 0, 'shinyNS');
+    P(geo('nl2', () => kp(new THREE.SphereGeometry(1, 10, 8))), x + 1.45, 0.99, z, 0.17, 0.17, 0.17, 0xe6ac4c, 0, 0, 0, 'glow');   // minik fener (sıcak ışık)
+    P(geo('ncap', () => kp(new THREE.ConeGeometry(1, 1, 8))), x + 1.45, 1.22, z, 0.19, 0.15, 0.19, 0xd07a62, 0, 0, 0, 'shinyNS');   // fener şapkası
     // tek hedef halkası: çanaktan ayrık (1.55–1.75; eskisi çanak kenarına yapışık "iç içe halka" gibiydi), zeminden yukarıda + öne çekik (iPad'de zeminle titreşmesin)
     const ring = new THREE.Mesh(geo('nr2', () => kp(new THREE.RingGeometry(1.55, 1.75, 40).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd470, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ring.position.y = 0.07; ring.renderOrder = 2; g.add(ring);
     api.dispose(ring.material); api.add(g); return { g, ring };
+  }
+  // Hala'nın ışık ekmeği fırını: krem taş kaide + sıcak kiremit kubbe, ağzı güneye (kameraya) bakan kor, minik baca, kaidede iki somun, yanında odun.
+  // (eskisi iki kutuydu ve "uzun eşya" sayılıp sur gizleyicisine takılıyordu: hiç çizilmiyor, yerde sahipsiz turuncu ışık kalıyordu)
+  function firin(api, x, z) {
+    const P = hamPut(api);
+    const box = geo('fBox', () => kp(new THREE.BoxGeometry(1, 1, 1))), dome = geo('frD', () => kp(new THREE.SphereGeometry(1, 18, 8, 0, TAU, 0, PI / 2))), sph = geo('crS', () => kp(new THREE.SphereGeometry(1, 18, 9))),
+      cyl = geo('frC', () => kp(new THREE.CylinderGeometry(1, 1, 1, 10))), mouth = geo('frM', () => kp(new THREE.CircleGeometry(1, 14, 0, PI))), arch = geo('frA', () => kp(new THREE.TorusGeometry(1, 0.14, 6, 14, PI)));
+    P(box, x, 0.17, z, 1.95, 0.34, 1.5, 0xeadcc4, 0, 0, 0, 'shiny');            // kaide
+    P(dome, x, 0.34, z - 0.08, 0.95, 0.92, 0.8, 0xf2c6a8, 0, 0, 0, 'shiny');      // kubbe (krem-şeftali taş)
+    P(mouth, x, 0.36, z + 0.74, 0.4, 0.44, 1, 0x3a1406, 0, 0, 0, 'glow');        // fırın ağzı: koyu iç
+    P(sph, x, 0.43, z + 0.76, 0.27, 0.1, 0.05, 0xe2701e, 0, 0, 0, 'glow');       // içte turuncu kor yığını
+    P(arch, x, 0.36, z + 0.74, 0.44, 0.48, 0.9, 0xf6ead6, 0, 0, 0, 'shinyNS');   // ağız kemeri
+    P(cyl, x + 0.38, 1.18, z - 0.32, 0.13, 0.5, 0.13, 0xc98a6c, 0, 0, 0, 'shinyNS');   // baca
+    P(cyl, x + 0.38, 1.45, z - 0.32, 0.17, 0.07, 0.17, 0xb07458, 0, 0, 0, 'shinyNS');
+    P(sph, x - 0.68, 0.43, z + 0.5, 0.25, 0.12, 0.15, 0xe2a24e, 0.25, 0, 0, 'shinyNS');  // somunlar
+    P(sph, x - 0.42, 0.42, z + 0.6, 0.21, 0.1, 0.13, 0xd8954a, -0.4, 0, 0, 'shinyNS');
+    P(cyl, x + 0.72, 0.45, z + 0.5, 0.1, 0.5, 0.1, 0xa0704a, 0, 0, PI / 2, 'shinyNS');   // odunlar
+    P(cyl, x + 0.72, 0.45, z + 0.27, 0.09, 0.46, 0.09, 0x8f6440, 0.15, 0, PI / 2, 'shinyNS');
   }
   function bridgeFlags(api, K) {   // köprü odasının kenarında gökkuşağı bayrakları (mor yok)
     if (!K.bridge) return;
@@ -163,8 +263,9 @@ const KALE = (() => {
     for (let o = 0; o <= 7; o += 0.5) { if (api.isFloor(gate.x - nx * o, gate.z - nz * o)) lo = o; else break; }
     const w0 = -lo - 0.6, w1 = hi + 0.6, wd = w1 - w0, cx = (w0 + w1) / 2;
     const grp = new THREE.Group(); grp.position.set(gate.x, 0, gate.z); grp.rotation.y = Math.atan2(nx, nz) - PI / 2; api.add(grp);
-    const pm = new THREE.MeshBasicMaterial({ color: 0xf6dcd8, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 3.6, 1); panel.position.set(cx, 1.9, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
+    // yumuşak sis dokusu: altı dolu, üstü bulut gibi dalgalı ve saydam, yanları eriyen (eskisi düz pembe bir levhaydı)
+    const pm = new THREE.MeshBasicMaterial({ color: 0xfbe4e0, map: sisTex(), transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.8, 3.8, 1); panel.position.set(cx, 1.9, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
     const solids = [];
     for (let o = w0 + 0.2; o <= w1 - 0.2 + 0.01; o += 0.8) { const so = { x: gate.x + nx * o, z: gate.z + nz * o, r: 0.7, alive: true, tag: 'sisPerdesi' }; L.solids.push(so); solids.push(so); }
     L._sh = null;
@@ -196,7 +297,7 @@ const KALE = (() => {
       }
       return false;
     };
-    const rawPut = api.put.bind(api);
+    const rawPut = api.put.bind(api); api.hamPut = rawPut;   // (kurSon: beşik/yuva parçaları gizleyiciye takılmasın)
     const sphLow = api.tmp(new THREE.SphereGeometry(1, 9, 6));
     const hidAt = new Map();
     // (12. değer = malzeme anahtarı: eskiden düşüyordu → bütün kale süsleri 'shiny' oluyordu: sur/kuleler avluya kocaman koyu gölge
@@ -229,7 +330,7 @@ const KALE = (() => {
         if (api.isFloor(x, z) || z > K.galeri.z - 1) continue;   // yalnız kuzey kenar: kamerayı kapatmaz
         if (K.frames.some(f => hyp(f.position.x - x, f.position.z - z) < 1)) continue;
         if (pass === 0 && yolAgzi(x, z)) continue;   // 2. tur (resim az kaldıysa): yine konur, Feza kuzeyine geçince söner (kurSon)
-        K.frames.push(frame(api, x, 2.2, z, Math.atan2(K.galeri.x - x, K.galeri.z - z), n++));
+        K.frames.push(frame(api, x, 0, z, Math.atan2(K.galeri.x - x, K.galeri.z - z), n++));
       }
     }
     // salon: ateş yuvası + hala'nın fırını (basit)
@@ -238,8 +339,8 @@ const KALE = (() => {
       const near = (x, z) => [...(K.eggs || []), ...(K.nests || [])].some(q => hyp(q.x - x, q.z - z) < 2.6);
       let x = K.salon.x + K.salon.r * 0.55, z = K.salon.z - K.salon.r * 0.35;
       for (const [sx, sz] of [[0.55, -0.35], [-0.55, -0.35], [0.55, 0.35], [-0.55, 0.35]]) { const cx = K.salon.x + K.salon.r * sx, cz = K.salon.z + K.salon.r * sz; if (api.isFloor(cx, cz) && !near(cx, cz)) { x = cx; z = cz; break; } }
-      api.box(x, 0.45, z, 1.6, 0.9, 1.0, 0xb08a6a, 0); api.box(x, 1.0, z, 1.4, 0.3, 0.8, 0x6b4a36, 0);
-      api.glow(x, z + 0.4, 2.4, 0xffa040, 0.28); K.oven = { x, z };
+      firin(api, x, z); try { api.solid(x, z - 0.05, 0.9, 'firin'); } catch (e) { /* yok */ }   // (içinden geçilmesin; yol kesilirse motor kaldırır)
+      api.glow(x, z + 1.0, 2.2, 0xffa040, 0.24); K.oven = { x, z };
     }
     void rnd;
   }
@@ -257,7 +358,9 @@ const KALE = (() => {
     if (gatePts[arenaK]) S.perde = perde(api, L, gatePts[arenaK]);
     // kırık kabuk + beşik (arena)
     let cr = null;
-    if (K.arena) { cr = cradle(api, K.arena.x - K.arena.r * 0.55, K.arena.z + K.arena.r * 0.2); K.shell = { x: cr.shellX, z: cr.shellZ }; K.shellGlow = sn => { cr.glow.t = 0; cr.glow.d = sn; }; if (K.arena) S.golge = golge(api, K.arena.x, K.arena.z - K.arena.r - 7); }
+    if (K.arena) { cr = cradle(api, K.arena.x - K.arena.r * 0.55, K.arena.z + K.arena.r * 0.2); K.shell = { x: cr.shellX, z: cr.shellZ };
+      try { const bx = K.arena.x - K.arena.r * 0.55, bz = K.arena.z + K.arena.r * 0.2; if (api.isFloor(bx, bz) && api.circleFree(bx, bz, 1.3)) { api.solid(bx, bz, 1.25, 'besik'); L._sh = null; } } catch (e) { /* yok */ }   // (Feza beşiğin içinden geçmesin)
+      K.shellGlow = sn => { cr.glow.t = 0; cr.glow.d = sn; }; if (K.arena) S.golge = golge(api, K.arena.x, K.arena.z - K.arena.r - 7); }
     // yumurtalar ve yuvalar — son kontrol: bütün eşyalar konduktan sonra yer hâlâ boş mu? (değilse en yakın boş zemine kaydır; Feza yuvaya varamazsa yumurta elde kalırdı)
     const HA0 = g0 && g0.halaApi;
     const bosYer = (p, r) => {
@@ -271,7 +374,7 @@ const KALE = (() => {
     (K.eggs || []).forEach((p, i) => {
       let egg = null;
       try { if (typeof EJDERHA !== 'undefined' && EJDERHA.yumurta) egg = EJDERHA.yumurta(i); } catch (e) { egg = null; }
-      const mesh = new THREE.Group(); if (egg) { egg.root.scale.setScalar(1.7); mesh.add(egg.root); }
+      const mesh = new THREE.Group(); if (egg) { egg.root.scale.setScalar(1.7); mesh.add(egg.root); try { egg.mesh.material.color.set(0xdde9ff); } catch (e) { /* yok */ } }   // soğuk yumurta: hafif buz mavisi (yuvada pembeleşince fark net olsun)
       const ring = new THREE.Mesh(geo('er', () => kp(new THREE.RingGeometry(0.9, 1.1, 32).rotateX(-PI / 2))), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ring.position.y = 0.07; ring.renderOrder = 2; mesh.add(ring); api.dispose(ring.material);   // (öne çekik: iPad'de zeminle titreşmesin)
       const o = { id: 'yum' + i, tur: 'tasinir', x: p.x, z: p.z, r: 1.3, y: 0, mesh, kucakY: 1.05, kabulId: 'yuva', ringM: ring, egg, renk: YC[i % 3] };
       o.aldi = () => { ring.visible = false; if (i === 0) say('b09_yumurta_p', { force: true }); S.hint = 0; };   // (ipucu sayacı sıfırlanır: yoksa yumurtayı alır almaz "Yuvaya götür" denirdi)
@@ -282,7 +385,7 @@ const KALE = (() => {
     });
     function eggWarm(o) {
       S.delivered++; S.hint = 0;   // (kalp + pırıltı patlaması motorda zaten var: ikinci kalp patlaması üst üste biniyordu)
-      if (o.egg && o.egg.mesh && o.egg.mesh.material) { const m = o.egg.mesh.material; m.emissive = new THREE.Color(0xff9ab8); m.emissiveIntensity = 0.45; try { m.color.lerp(new THREE.Color(0xffc8d8), 0.45); } catch (e) { /* yok */ } }
+      if (o.egg && o.egg.mesh && o.egg.mesh.material) { const m = o.egg.mesh.material; m.emissive = new THREE.Color(0xff9ab8); m.emissiveIntensity = 0.45; try { m.color.set(0xffd8e4); } catch (e) { /* yok */ } }   // (buz mavisinden sıcak pembeye; ara ton lilaya kaçmasın diye doğrudan)
       try { if (o.egg) o.egg.kir(); } catch (e) { /* yok */ }
       if (S.delivered === 1) say('b09_yuva_tamam', { force: true, once: false });
       else if (S.delivered === 2) say('b09_yuva_tamam', { force: true, once: false });
@@ -357,6 +460,7 @@ const KALE = (() => {
         else if (pd.anim < 1) { pd.anim = Math.min(1, pd.anim + dt / 1.8); pd.pm.opacity = 0.5 * (1 - pd.anim); pd.panel.position.y = 1.9 + pd.anim * 2.4; if (pd.anim >= 1) { pd.panel.visible = false; for (const so of pd.solids) so.alive = false; L._sh = null; } }
         // perde önünde (≤6 m) toplam süre birikir (durmak da, geri gelmek de sayılır): 4 sn'de Pırıl perdeyi açar.
         // (Eski "yumurtayı yuvaya taşı" ipucu kaldırıldı: Feza'yı geri gönderiyor, 3 sn sonra kapı zaten açılıyordu → kafa karışıklığı.)
+        if (!pd.open && P.area === arenaK) pd.open = true;   // Feza zaten salonun içindeyse (ışınlama / kayıttan dönüş) perde sessizce kalkar: kameranın önünde pembe bant kalmasın
         if (!pd.open && playing && yakinPerde(pd, P.pos.x, P.pos.z)) {   // perdenin herhangi bir yerine yakın (kapı noktası perdenin ucunda kalabilir)
           S.perdeNear = (S.perdeNear || 0) + dt;
           if (S.perdeNear >= 4) perdeYedekAc();

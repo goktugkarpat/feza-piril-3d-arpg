@@ -556,7 +556,7 @@ const { SKILLS, SKILLS_update, SKILLS_clear } = (function () {
     }
     smash(x, z, R);
     SPIN.n++;
-    if (fxOk('slash')) FX.slash(x, 0.75, z, SPIN.ang, 1, '#dff8ff', 2.0, 2.6);
+    if (SPIN.n % 2 && fxOk('slash')) FX.slash(x, 0.75, z, SPIN.ang, 1, '#dff8ff', 2.0, 2.6);   // (every other tick: one white arc at a time, not a stack)
     if (SPIN.n % 3 === 0) fxRing(x, z, { r0: 1.2, r1: R + 0.2, dur: 0.3, color: '#ffe2b0', width: 0.2 });
     if (SPIN.n % 3 === 1) sfx('whoosh', { vol: 0.5, pitch: 1 + (SPIN.n % 2) * 0.1, x, z });
   }
@@ -568,8 +568,9 @@ const { SKILLS, SKILLS_update, SKILLS_clear } = (function () {
     const x = P.pos.x, z = P.pos.z;
     SPIN.grp.position.set(x, 0, z);
     const el = SPIN.dur - SPIN.t, a = smooth01(el / 0.18) * smooth01(SPIN.t / 0.35);
-    SPIN.inner.material.uniforms.uA.value = a * 0.7;
-    SPIN.outer.material.uniforms.uA.value = a * 0.48;
+    // (the inner funnel wraps Feza himself: softer, so the kid still sees him spin inside it — the stars and the swirl carry the show)
+    SPIN.inner.material.uniforms.uA.value = a * 0.45;
+    SPIN.outer.material.uniforms.uA.value = a * 0.42;
     SPIN.floor.material.uniforms.uA.value = a * 0.55;
     SPIN.inner.rotation.y += dt * 9; SPIN.outer.rotation.y += dt * 6; SPIN.floor.rotation.y += dt * 4;
     SPIN.inner.scale.setScalar(0.8 + 0.2 * a); SPIN.outer.scale.set(0.75 + 0.25 * a, 0.6 + 0.4 * a, 0.75 + 0.25 * a);
@@ -653,7 +654,7 @@ const { SKILLS, SKILLS_update, SKILLS_clear } = (function () {
         const a = frand(0, TAU), r = Math.sqrt(frand()) * 3.6;
         x = MET.cx + Math.sin(a) * r; z = MET.cz + Math.cos(a) * r;
         let ok = isFloor(x, z) && inSight(MET.fx, MET.fz, { x, z });   // (floor Feza can see: not the room behind the wall)
-        for (let j = Math.max(0, MET.spots.length - 6); ok && j < MET.spots.length; j += 2) if (dist2(x, z, MET.spots[j], MET.spots[j + 1]) < 2.2) ok = false;
+        for (let j = Math.max(0, MET.spots.length - 6); ok && j < MET.spots.length; j += 2) if (dist2(x, z, MET.spots[j], MET.spots[j + 1]) < 4.4) ok = false;   // (≥ 2.1 m apart: the landing rings do not pile up)
         found = ok;
       }
       if (!found) { x = MET.cx; z = MET.cz; }   // (castMeteor made the centre visible floor)
@@ -677,7 +678,10 @@ const { SKILLS, SKILLS_update, SKILLS_clear } = (function () {
       if (age < 0) continue;
       if (m.st === 1) {
         meteorSpot(m);
-        circle(m.x, m.z, m.col, MET.r * 0.82, MET_LAND + 0.03, 1, false);
+        // "here it lands": a smaller, softer ring (was 0.82 × the blast radius at full brightness — five or six 2 m rainbow
+        // rings lay on top of each other); the blast itself still reaches MET.r
+        const rc = circle(m.x, m.z, m.col, MET.r * 0.55, MET_LAND + 0.03, 1, false);
+        if (rc) rc.alpha = 0.8;
         m.st = 2;
       }
       if (m.st === 2 && age >= MET_FALL0) {

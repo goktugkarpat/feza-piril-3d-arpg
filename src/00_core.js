@@ -5,6 +5,8 @@
 // ── Temel yardımcılar ──
 const Q = new URLSearchParams(location.search);
 const SILENT = Q.has('sessiz'), ICON = Q.has('ikon'), DEBUG = Q.has('debug'), BASIC = Q.has('basit');
+// ?netlik=0: the picture as it was before the sharpness pass (tablet 1.25×, no sharpening, full vignette/shadow tint/haze/fog) — for A/B tests.
+const NETLIK = Q.get('netlik') !== '0';
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -65,15 +67,16 @@ renderer.setTransparentSort((a, b) => a.groupOrder !== b.groupOrder ? a.groupOrd
 const ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 // msaa = samples of the HDR scene target: 4× on desktop and tablets, 2× on other touch devices (?msaa=N overrides).
 // tablet: iPad (also in its "Mac" desktop mode), Android, phones — not PCs (a Windows touch laptop stays a PC); ?tablet / ?pc force it.
-// Tablets run at 60 FPS (UI frame()) with MSAA 4× and resolution 1.25× (parent's choice). A ProMotion iPad could not hold a steady 120
-// even at 1.0×, and 90 FPS can't be shown evenly on a 120 Hz screen; 60 is even. PC/Mac: resolution 1.5×, 120 FPS as before.
+// Tablets run at 60 FPS (UI frame()) with MSAA 4× and resolution 1.5× (was 1.25×: the parent asked for a sharper picture on the M1 iPad Pro;
+// a slower device steps down by itself, see perfTablet). A ProMotion iPad could not hold a steady 120 even at 1.0×, and 90 FPS can't be
+// shown evenly on a 120 Hz screen; 60 is even. PC/Mac: resolution 1.5×, 120 FPS as before.
 // Desktop resolution adapts before MSAA; a low-load rAF measurement supplies the display/browser target (at most 120).
 const QUALITY = (() => {
   const tablet = Q.has('tablet') || (!Q.has('pc') && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
     (/Mac/i.test(navigator.platform) && navigator.maxTouchPoints > 1)));
   return {
     tablet,
-    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : 1.25) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
+    dpr: tablet ? Math.min(window.devicePixelRatio || 1, Q.has('hd') ? 2 : NETLIK ? 1.5 : 1.25) : Q.has('hd') ? 2 : 1.5, minDpr: 1,
     msaa: Q.has('msaa') ? clamp(parseInt(Q.get('msaa'), 10) || 0, 0, 8) : (Q.has('hd') || tablet || !(navigator.maxTouchPoints > 1) ? 4 : 2),
   };
 })();
@@ -226,9 +229,12 @@ function setEnvironment(sky, horizon, ground, intensity = 1) {
 setEnvironment(0x8fc4ff, 0xf3e6d0, 0x5a4a3a, 1);
 
 // ── Son işlem: HDR sahne → parlama (bloom) → renk tonu → ekran ──
+// sharp: final-pass sharpening (?keskin=0 turns it off, ?keskin=0.8 tries another amount). vigK: every zone's vignette × this
+// (the darker screen corners made the picture look dim and blurry on the iPad).
 const POST = { on: !PLAIN, strength: 0.22, threshold: 1.45, exposure: 1.0, saturation: 1.08, vignette: 0.2, tint: new THREE.Color(1, 0.1, 0.15), tintAmt: 0,
-  // ATMO (G2): bölüm renk ayarı, uzak sis perdesi, ışık huzmeleri — src/03g_atmosfer.js doldurur
-  grade: { on: 0, sh: new THREE.Color(1, 1, 1), hi: new THREE.Color(1, 1, 1), con: 0, haze: new THREE.Color(), hazeAmt: 0, hazeFrom: 0.4, rayCol: new THREE.Color(), rays: 0 } };
+  sharp: Q.has('keskin') ? clamp(parseFloat(Q.get('keskin')) || 0, 0, 1.5) : NETLIK ? 0.5 : 0, vigK: NETLIK ? 0.6 : 1,
+  // ATMO (G2): bölüm renk ayarı, uzak sis perdesi, ışık huzmeleri — src/03g_atmosfer.js doldurur. shW: gölge tonunun ağırlığı (0.35 → 0.22)
+  grade: { on: 0, sh: new THREE.Color(1, 1, 1), hi: new THREE.Color(1, 1, 1), con: 0, haze: new THREE.Color(), hazeAmt: 0, hazeFrom: 0.4, rayCol: new THREE.Color(), rays: 0, shW: NETLIK ? 0.22 : 0.35 } };
 const FS_GEO = new THREE.BufferGeometry();
 FS_GEO.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
 const FS_CAM = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -259,13 +265,13 @@ const matUp = new THREE.ShaderMaterial({
 const matComp = new THREE.ShaderMaterial({
   uniforms: {
     tScene: { value: null }, tBloom: { value: null }, strength: { value: 0.55 }, expo: { value: 1 }, sat: { value: 1.08 },
-    vig: { value: 0.32 }, tint: { value: new THREE.Color() }, tintAmt: { value: 0 },
+    vig: { value: 0.32 }, tint: { value: new THREE.Color() }, tintAmt: { value: 0 }, px: { value: new THREE.Vector2() }, sharp: { value: 0 },
     gOn: { value: 0 }, gSh: { value: new THREE.Color() }, gHi: { value: new THREE.Color() }, gCon: { value: 0 }, gHaze: { value: new THREE.Color() }, gHazeAmt: { value: 0 }, gHazeFrom: { value: 0.4 },
-    gRayCol: { value: new THREE.Color() }, gRays: { value: 0 }, uT: TIME.u,   // ATMO (G2)
+    gRayCol: { value: new THREE.Color() }, gRays: { value: 0 }, gShW: { value: 0.22 }, uT: TIME.u,   // ATMO (G2)
   },
   vertexShader: FS_VS, depthTest: false, depthWrite: false,
-  fragmentShader: `uniform sampler2D tScene, tBloom; uniform float strength, expo, sat, vig, tintAmt; uniform vec3 tint; varying vec2 vUv;
-    uniform float gOn, gCon, gHazeAmt, gHazeFrom, gRays, uT; uniform vec3 gSh, gHi, gHaze, gRayCol;   // ATMO (G2)
+  fragmentShader: `uniform sampler2D tScene, tBloom; uniform float strength, expo, sat, vig, tintAmt, sharp; uniform vec3 tint; uniform vec2 px; varying vec2 vUv;
+    uniform float gOn, gCon, gHazeAmt, gHazeFrom, gRays, uT, gShW; uniform vec3 gSh, gHi, gHaze, gRayCol;   // ATMO (G2)
     vec3 neutral(vec3 color) {   // Khronos PBR Neutral: keeps a kids' game colourful
       const float startCompression = 0.76; const float desaturation = 0.15;
       float x = min(color.r, min(color.g, color.b));
@@ -281,14 +287,21 @@ const matComp = new THREE.ShaderMaterial({
     }
     vec3 toSRGB(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
     void main() {
-      vec3 c = texture2D(tScene, vUv).rgb + texture2D(tBloom, vUv).rgb * strength;
+      vec3 c = texture2D(tScene, vUv).rgb;
+      if (sharp > 0.0) {   // NETLİK: hafif keskinleştirme (√ ≈ göze göre). Sonuç komşuların arasında kalır → kenarda hale/halka olmaz.
+        vec3 a = sqrt(texture2D(tScene, vUv + vec2(px.x, 0.0)).rgb), b = sqrt(texture2D(tScene, vUv - vec2(px.x, 0.0)).rgb);
+        vec3 d = sqrt(texture2D(tScene, vUv + vec2(0.0, px.y)).rgb), e = sqrt(texture2D(tScene, vUv - vec2(0.0, px.y)).rgb), s = sqrt(c);
+        s = clamp(s + (s - (a + b + d + e) * 0.25) * sharp, min(min(min(a, b), min(d, e)), s), max(max(max(a, b), max(d, e)), s));
+        c = s * s;
+      }
+      c += texture2D(tBloom, vUv).rgb * strength;
       c *= expo;
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c = max(mix(vec3(l), c, sat), 0.0);
       c = neutral(c);
       if (gOn > 0.5) {   // ATMO (G2): gölge/ışık tonu, kontrast, uzak sis perdesi (ekranın üstü = uzak), ışık huzmeleri
         float lm = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        c *= mix(mix(vec3(1.0), gSh, 0.35), mix(vec3(1.0), gHi, 0.4), smoothstep(0.05, 0.7, lm));
+        c *= mix(mix(vec3(1.0), gSh, gShW), mix(vec3(1.0), gHi, 0.4), smoothstep(0.05, 0.7, lm));   // (gölge tonu 0.35 → 0.22: gölgeler daha temiz, daha az lacivert)
         c = clamp(c, 0.0, 1.0); c = mix(c, c * c * (3.0 - 2.0 * c), gCon);
         float hz = smoothstep(gHazeFrom, 1.0, vUv.y); c = mix(c, gHaze, hz * hz * gHazeAmt);
         if (gRays > 0.0) {
@@ -383,9 +396,10 @@ function renderFrame() {
   renderer.autoClear = true;
   const cu = matComp.uniforms;
   cu.tScene.value = rtMain.texture; cu.tBloom.value = MIPS[0].texture; cu.strength.value = POST.strength;
-  cu.expo.value = POST.exposure; cu.sat.value = POST.saturation; cu.vig.value = POST.vignette;
+  cu.expo.value = POST.exposure; cu.sat.value = POST.saturation; cu.vig.value = POST.vignette * POST.vigK;
+  cu.sharp.value = POST.sharp; cu.px.value.set(1 / rtMain.width, 1 / rtMain.height);
   cu.tint.value.copy(POST.tint); cu.tintAmt.value = POST.tintAmt;
-  { const G = POST.grade; cu.gOn.value = G.on; cu.gSh.value.copy(G.sh); cu.gHi.value.copy(G.hi); cu.gCon.value = G.con; cu.gHaze.value.copy(G.haze); cu.gHazeAmt.value = G.hazeAmt; cu.gHazeFrom.value = G.hazeFrom; cu.gRayCol.value.copy(G.rayCol); cu.gRays.value = G.rays; }   // ATMO (G2)
+  { const G = POST.grade; cu.gOn.value = G.on; cu.gSh.value.copy(G.sh); cu.gHi.value.copy(G.hi); cu.gCon.value = G.con; cu.gHaze.value.copy(G.haze); cu.gHazeAmt.value = G.hazeAmt; cu.gHazeFrom.value = G.hazeFrom; cu.gRayCol.value.copy(G.rayCol); cu.gRays.value = G.rays; cu.gShW.value = G.shW; }   // ATMO (G2)
   renderer.setRenderTarget(null);
   renderer.render(sceneComp, FS_CAM);
 }
@@ -394,7 +408,7 @@ function renderFrame() {
 // Loaded gameplay may prove a faster cadence, but never lowers the known target: GPU-limited 60 on a 120 Hz display
 // is not evidence of a 60 Hz cap. Desktop tries resolution first; the existing tablet quality policy stays separate.
 const PERF = { acc: 0, n: 0, fps: 60, target: 60, cadence: 0, measured: false,   // conservative until measured (hidden boot / timer fallback)
-  level: 0, ladder: [], probe: null, raised: null, rollback: null, capFps: 0, good: 0, bad: 0,
+  level: 0, ladder: [], probe: null, raised: null, rollback: null, capFps: 0, good: 0, bad: 0, slow: 0,
   upWait: QUALITY.tablet ? 10 : 17.5, upJust: false, retry: 0, noGainWait: 60, grace: 0, was: false };
 const PERF_RAF = { last: null, idle: null, warm: 4, samples: [], span: 0 };
 function perfRaf(ts, idle = false) {
@@ -443,9 +457,13 @@ function perfLadder() {
   const push = (dpr, msaa) => L.push({ dpr, msaa });
   push(d0, m0);
   if (QUALITY.tablet) {
+    // Sharpness before smoothness: 1.5× 4× → 1.5× 2× → 1.25× 2× → 1.25× 0 → 1× 0. (A start at ≤ 1.25× keeps the old MSAA-first order.)
     if (m0 > 2) push(d0, 2);
-    if (m0 > 0) push(d0, 0);
-    for (let d = d0; d > QUALITY.minDpr + 1e-3;) { d = Math.max(QUALITY.minDpr, d - 0.25); push(d, 0); }
+    const m1 = Math.min(m0, 2);
+    let d = d0;
+    if (m1 > 0 && d0 > 1.25 + 1e-3) { d = Math.max(QUALITY.minDpr, d0 - 0.25); push(d, m1); }
+    if (m0 > 0) push(d, 0);
+    while (d > QUALITY.minDpr + 1e-3) { d = Math.max(QUALITY.minDpr, d - 0.25); push(d, 0); }
   } else {
     let d = d0;
     while (d > QUALITY.minDpr + 1e-3) { d = Math.max(QUALITY.minDpr, d - 0.25); push(d, m0); }
@@ -467,7 +485,7 @@ function perfReset(grace = 1) {
   // Interrupted comparisons are not evidence. Undo the unproven step on the next gameplay frame, not in the menu.
   if (PERF.probe) PERF.rollback = PERF.probe.best !== undefined ? PERF.probe.best : PERF.probe.from;
   if (PERF.raised) PERF.rollback = PERF.raised.from;
-  PERF.probe = PERF.raised = null; PERF.good = PERF.bad = 0; PERF.retry = 0; PERF.noGainWait = 60; PERF.was = false;
+  PERF.probe = PERF.raised = null; PERF.good = PERF.bad = PERF.slow = 0; PERF.retry = 0; PERF.noGainWait = 60; PERF.was = false;
   perfWindow(grace);
 }
 function perfActive() {
@@ -534,22 +552,27 @@ function perfTick(rawDt, active) {
     perfSet(PERF.level - 1); perfWindow(0.75);
   }
 }
-// The tablet/phone path retains its existing MSAA-first ladder, 60 FPS thresholds and cap protection.
+// The tablet/phone path: 60 FPS target, 2.5 s windows, cap protection (a step that brings no real gain is undone and remembered).
+// Down: one window under 42 FPS, or 5 s under 52 (a sharper start must not settle at a jerky 45–50). Up: 10 s at ≥ 57 FPS; a raise that
+// costs frames (next window under 54) is undone at once and the next try waits twice as long (10 → 160 s), so levels don't flip-flop.
 function perfTablet(fps, win) {
   if (PERF.probe) {
     const pr = PERF.probe; PERF.probe = null;
-    if (fps < 50 && fps < pr.fps * 1.12) { PERF.capFps = pr.fps; perfSet(pr.from); perfWindow(1); return; }
+    if (fps < 57 && fps < pr.fps * 1.1) { PERF.capFps = pr.fps; PERF.slow = 0; perfSet(pr.from); perfWindow(1); return; }
   }
   if (PERF.capFps && fps > PERF.capFps * 1.1) PERF.capFps = 0;
-  if (fps < 42) {
-    PERF.good = 0;
-    if (PERF.upJust) PERF.upWait = Math.min(PERF.upWait * 2, 160);
-    PERF.upJust = false;
+  if (PERF.upJust && fps < 54) {
+    PERF.upJust = false; PERF.good = PERF.slow = 0; PERF.upWait = Math.min(PERF.upWait * 2, 160);
+    perfSet(PERF.level + 1); perfWindow(0.5); return;
+  }
+  PERF.upJust = false;
+  PERF.slow = fps < 52 ? (PERF.slow || 0) + win : 0;
+  if (fps < 42 || PERF.slow >= 5) {
+    PERF.good = 0; PERF.slow = 0;
     if (PERF.capFps && fps > PERF.capFps * 0.9) return;
     if (PERF.level < PERF.ladder.length - 1) { PERF.probe = { from: PERF.level, fps }; perfSet(PERF.level + 1); perfWindow(0.5); }
     return;
   }
-  PERF.upJust = false;
   if (fps < 57) { PERF.good = 0; return; }
   PERF.capFps = 0; PERF.good += win;
   if (PERF.level > 0 && PERF.good >= PERF.upWait) { PERF.good = 0; PERF.upJust = true; perfSet(PERF.level - 1); perfWindow(0.5); }

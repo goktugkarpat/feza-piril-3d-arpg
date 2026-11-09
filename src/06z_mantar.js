@@ -328,7 +328,11 @@ const MANTAR = (() => {
     const put = api.put;
     const isF = (x, z) => api.isFloor(x, z);
     // kameraya göre yükseklik sınırı: kuzeydeki ±35° koni içinde yürünür zemin varsa (Feza o tarafta olabilir) alçak kalmalı
-    const coneH = (x, z) => { for (let d = 0.5; d <= 14; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return 0.5 + d * 0.85; } return 99; };   // (kamera ~49° eğik: Feza'nın 1 m üstünden geçen bakış m başına ~1,15 m yükselir)
+    // GÜZEL3 (kadraj): kamera güneyde, 40° eğik, uzaklık 15,5 (dikey ekranda ×1,2 = 18,6), görüş 40°. Eski sınır (0,5 + d·0,85) yalnız
+    //   Feza'yı örtmemeyi sağlıyordu: zeminin hemen güneyindeki ön plan bandında 3-6 m'lik dev şapkalar ekranın altını kaplıyordu
+    //   (dikeyde ekranın %40'ı tek şapka; Feza'nın dibinde pembe şapka). Şimdi: ekranda görünen ön bantta (≤ 7,4 m) alçak
+    //   (0,75 + d·0,2 ≤ 1,75 m); daha güneyde (kameranın altı) ekranın alt kenarının altında kalacak kadar.
+    const coneH = (x, z) => { for (let d = 0.5; d <= 15; d += 0.75) { const w = d * 0.45 + 0.8; for (let dx = -w; dx <= w; dx += 0.9) if (isF(x + dx, z - d)) return d <= 7.4 ? 0.75 + Math.min(d, 5) * 0.2 : Math.max(1.75, 11.6 - (14.2 - d) * 1.74); } return 99; };
     const fN = (x, z) => (K ? K.floorNorth(L, x, z, 9) : 99), fD = (x, z, m = 8) => (K ? K.floorDist(L, x, z, m) : 9);
     const stem = api.tmp(lathe(THREE, STEM_P, 14)), cap = api.tmp(lathe(THREE, CAP_P, 18)), shelf = api.tmp(lathe(THREE, SHELF_P, 14));
     const sph = api.tmp(new THREE.SphereGeometry(1, 12, 8)), sphL = api.tmp(new THREE.SphereGeometry(1, 6, 4)), dode = api.tmp(new THREE.DodecahedronGeometry(1, 1));
@@ -362,8 +366,8 @@ const MANTAR = (() => {
       for (let k = 0; k < 8; k++) {
         const lim = Math.min(coneH(x, z) - top * s, coneH(x, z - s * 0.95), coneH(x - s * 0.7, z - s * 0.7), coneH(x + s * 0.7, z - s * 0.7), coneH(x - s * 0.95, z), coneH(x + s * 0.95, z));
         if (h <= lim) return [h, s];
-        if (lim >= Math.max(0.6, s * 0.9)) return [lim, s];
-        s *= 0.8;
+        if (lim >= Math.max(0.6, s * 1.5)) return [lim, s];   // GÜZEL3: kısaltılan mantarın şapkası da orantılı küçülür (alçak ama kocaman şapka ön planda leke gibiydi)
+        s *= 0.8; h *= 0.85;   // GÜZEL3: boy da birlikte küçülür (uzun sap + minicik şapka "çivi" gibi duruyordu)
       }
       return null;
     };
@@ -585,32 +589,68 @@ const MANTAR = (() => {
     const stemG = api.dispose(lathe(THREE, STEM_P, 16)), capG = api.dispose(lathe(THREE, CAP_P, 24));
     const mats = {};
     const mm = (key, o) => mats[key] || (mats[key] = api.dispose(new THREE.MeshStandardMaterial(o)));
-    const glowM = (key, c, k) => mats[key] || (mats[key] = api.dispose(new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) })));
+    // PERF3: canlı mantarlar (zıplatan, şarkı söyleyen, dansçı, peri halkası) parça başına ayrı çizim yerine birleşik geometri + TEK
+    //   ortak malzeme. Renk köşelere işlenir; aE köşe değeri: ≥ 0 → ışık alan parça (aE × renk kadar kendi ışığı: şapka 0,17),
+    //   < 0 → yalnız ışıklı parça (|aE| × renk; eski MeshBasic ×2,0 ışıklı benek / kenar ile aynı). Gölge düşürmezler (§13).
+    const canliMat = (() => {
+      const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0 });
+      m.onBeforeCompile = sh => {
+        sh.vertexShader = 'attribute float aE;\nvarying float vMzE;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvMzE = aE;');
+        sh.fragmentShader = 'varying float vMzE;\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= step(0.0, vMzE);')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vColor.rgb * abs(vMzE);');
+      };
+      m.customProgramCacheKey = () => 'mantar-canli';
+      return api.dispose(m);
+    })();
+    const _m4 = new THREE.Matrix4(), _q0 = new THREE.Quaternion(), _v3 = new THREE.Vector3(), _p3 = new THREE.Vector3(), _s3 = new THREE.Vector3(), _nm = new THREE.Matrix3(), _cc = new THREE.Color();
+    // parts: [geometri, ton, aE, ölçek [sx,sy,sz]?, konum [x,y,z]?] → tek geometri (köşe rengi × ton)
+    function mergeTint(parts) {
+      let nv = 0, ni = 0;
+      for (const p of parts) { const n = p[0].attributes.position.count; nv += n; ni += p[0].index ? p[0].index.count : n; }
+      const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), ae = new Float32Array(nv), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+      let vo = 0, io = 0;
+      for (const [g, tint, e, sc, at] of parts) {
+        const P = g.attributes.position, N = g.attributes.normal, C = g.attributes.color; _cc.set(tint);
+        _m4.compose(_p3.set(...(at || [0, 0, 0])), _q0, _s3.set(...(sc || [1, 1, 1]))); _nm.getNormalMatrix(_m4);
+        for (let i = 0; i < P.count; i++) {
+          const o = (vo + i) * 3;
+          _v3.fromBufferAttribute(P, i).applyMatrix4(_m4); pos[o] = _v3.x; pos[o + 1] = _v3.y; pos[o + 2] = _v3.z;
+          if (N) { _v3.fromBufferAttribute(N, i).applyMatrix3(_nm).normalize(); nor[o] = _v3.x; nor[o + 1] = _v3.y; nor[o + 2] = _v3.z; }
+          col[o] = (C ? C.getX(i) : 1) * _cc.r; col[o + 1] = (C ? C.getY(i) : 1) * _cc.g; col[o + 2] = (C ? C.getZ(i) : 1) * _cc.b; ae[vo + i] = e;
+        }
+        if (g.index) { for (let i = 0; i < g.index.count; i++) idx[io + i] = g.index.getX(i) + vo; io += g.index.count; } else { for (let i = 0; i < P.count; i++) idx[io + i] = vo + i; io += P.count; }
+        vo += P.count;
+      }
+      const out = new THREE.BufferGeometry();
+      out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      out.setAttribute('color', new THREE.BufferAttribute(col, 3)); out.setAttribute('aE', new THREE.BufferAttribute(ae, 1));
+      out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere();
+      return api.dispose(out);
+    }
+    const mushGeo = {};
     function liveMush(x, z, h, s, capC, o = {}) {
       if (!HAS) return liveMushOld(x, z, h, s, capC, o);
       return liveMushKit(x, z, h, s, capC, o);
     }
-    function liveMushKit(x, z, h, s, capC, o = {}) {   // (G3) PROPKIT parçalarıyla: lifli gövde, benekli/solungaçlı şapka, ışıklı kenar
+    function liveMushKit(x, z, h, s, capC, o = {}) {   // (G3) PROPKIT parçalarıyla: lifli gövde, benekli/solungaçlı şapka, ışıklı kenar (PERF3: 7 çizim → 2)
       const KP = PROPKIT, g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rnd() * TAU;
       const lod = s > 0.7 ? 0 : 1, gc = o.gc || 0xfff0a0;
-      const vm = (key, c, extra) => mats[key] || (mats[key] = api.dispose(new THREE.MeshStandardMaterial(Object.assign({ vertexColors: true, color: c, roughness: 0.55 }, extra || {}))));
-      const gm = (key, c) => mats[key] || (mats[key] = api.dispose(new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(c).multiplyScalar(2.0) })));
-      const sw = Math.max(0.16, s * 0.34);
-      const st = new THREE.Mesh(KP.stem('plain', lod), vm('kstem', 0xf6ecdf)); st.scale.set(sw, h, sw); st.castShadow = true; g.add(st);
-      if (h >= 1) { const rt = new THREE.Mesh(KP.roots(5, lod), vm('kroot', 0xd9c4a8)); rt.scale.set(sw, sw, sw); g.add(rt); }   // GÜZEL2: kısa/tombul mantarda kökler şapkanın altından diş gibi taşıyordu → yalnız uzun saplıda
+      const sw = Math.max(0.16, s * 0.34), kS = 's' + lod + '|' + h.toFixed(3) + '|' + sw.toFixed(3), kC = 'c' + lod + '|' + capC + '|' + gc;
+      // GÜZEL2: kısa/tombul mantarda kökler şapkanın altından diş gibi taşıyordu → yalnız uzun saplıda
+      const sg = mushGeo[kS] || (mushGeo[kS] = mergeTint([[KP.stem('plain', lod), 0xf6ecdf, 0, [sw, h, sw]]].concat(h >= 1 ? [[KP.roots(5, lod), 0xd9c4a8, 0, [sw, sw, sw]]] : [])));
+      const cg = mushGeo[kC] || (mushGeo[kC] = mergeTint([[KP.cap('dome', lod), capC, 0.17], [KP.gills(lod), 0xffe6d2, 0], [KP.capSpots('dome', lod, false), capC === 0xff7ec8 ? 0xffd0ec : 0xfff4e0, 0],
+        [KP.capSpots('dome', lod, true), gc, -2.0], [KP.rim(lod), gc, -2.0]]));
+      g.add(new THREE.Mesh(sg, canliMat));
       const cp = new THREE.Group(); cp.position.y = h * 0.96; cp.scale.set(s, s * 0.75, s); g.add(cp);
-      const cm = new THREE.Mesh(KP.cap('dome', lod), vm('kcap' + capC, capC, { emissive: new THREE.Color(capC), emissiveIntensity: 0.14 })); cm.castShadow = true; cp.add(cm);
-      cp.add(new THREE.Mesh(KP.gills(lod), vm('kgill', 0xffe6d2)));
-      cp.add(new THREE.Mesh(KP.capSpots('dome', lod, false), vm('kspot' + capC, capC === 0xff7ec8 ? 0xffd0ec : 0xfff4e0)));
-      cp.add(new THREE.Mesh(KP.capSpots('dome', lod, true), gm('kgs' + gc, gc)));
-      cp.add(new THREE.Mesh(KP.rim(lod), gm('kgr' + gc, gc)));
+      cp.add(new THREE.Mesh(cg, canliMat));
       api.add(g);
       return { g, cp, gl: new THREE.Group(), h, s };
     }
     function liveMushOld(x, z, h, s, capC, o = {}) {
       const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rnd() * TAU;
-      const st = new THREE.Mesh(stemG, mm('stem', { color: 0xf6ecdf, roughness: 0.6 })); st.scale.set(s * 0.32, h, s * 0.32); st.castShadow = true; g.add(st);
-      const cp = new THREE.Mesh(capG, mm('cap' + capC, { color: capC, roughness: 0.45, emissive: new THREE.Color(capC), emissiveIntensity: 0.18 })); cp.position.y = h * 0.96; cp.scale.set(s, s * 0.75, s); cp.castShadow = true; g.add(cp);
+      const st = new THREE.Mesh(stemG, mm('stem', { color: 0xf6ecdf, roughness: 0.6 })); st.scale.set(s * 0.32, h, s * 0.32); g.add(st);
+      const cp = new THREE.Mesh(capG, mm('cap' + capC, { color: capC, roughness: 0.45, emissive: new THREE.Color(capC), emissiveIntensity: 0.18 })); cp.position.y = h * 0.96; cp.scale.set(s, s * 0.75, s); g.add(cp);
       api.add(g);
       return { g, cp, gl: new THREE.Group(), h, s };
     }
@@ -639,7 +679,7 @@ const MANTAR = (() => {
     if (T) for (const p of L.mzPads || []) {
       const M = liveMush(p.x, p.z, 0.55, 1.05, 0xff7ec8, { gc: 0xa8fff4 });
       api.glow(p.x, p.z, 1.6, 0xff9fe0, 0.2);
-      let sq = 9;
+      let sq = 9, pt = rnd() * 9;
       const it = T.add({ x: p.x, z: p.z, r: 1.05, hint: { y: 1.9 }, line: p.g === 0 ? 'b01_ziplat' : null, near: 7, cd: 0.6, repeat: true, can: () => padYon(p),
         use: () => {
           sq = 0; sfx('mantarBoing', { x: p.x, z: p.z }); sfx('bounce', { x: p.x, z: p.z, pitch: 0.9 }); burst('sparkle', p.x, 0.8, p.z, { color: '#ffd0f4', count: 6 });
@@ -648,52 +688,82 @@ const MANTAR = (() => {
             tick: (u, x, z) => { if (Math.random() < 0.5) burst('sparkle', x, 1 + 4 * 2.2 * u * (1 - u), z, { color: '#fff0a8', count: 2 }); },
             end: () => { burst('dust', tx, 0.1, tz, { count: 3 }); if (!said.has('b01_ziplama')) say('b01_ziplama', { gap: 3 }); } });
           it.last -= 0; },
-        tick: dt => { sq += dt; const k = sq < 0.6 ? Math.sin(sq * 26) * Math.exp(-sq * 6) : 0; M.cp.scale.set(1.05 * (1 + 0.25 * k), 1.05 * 0.75 * (1 - 0.4 * k), 1.05 * (1 + 0.25 * k)); M.gl.scale.copy(M.cp.scale); } });
+        // GÜZEL3: boşta yumuşak yaylanır (şapka nefes alır gibi: "bana bas!"); basınca eski güçlü yay
+        tick: dt => { sq += dt; pt += dt; const k = sq < 0.6 ? Math.sin(sq * 26) * Math.exp(-sq * 6) : 0, b = 0.035 * Math.sin(pt * 3.4) * Math.min(1, Math.max(0, sq - 0.6) * 2);
+          M.cp.scale.set(1.05 * (1 + 0.25 * k + 0.6 * b), 1.05 * 0.75 * (1 - 0.4 * k - b), 1.05 * (1 + 0.25 * k + 0.6 * b)); } });
     }
     // şarkı söyleyen mantarlar (1. alan): her dokunuşta bir nota (sıra yok, istediği sırayla); hepsi → ezgi + şeker
     if (T && (L.mzSing || []).length) {
       const NOTES = [1.0, 1.122, 1.26, 1.335, 1.498], cols = [0xff7ec8, 0xffa86a, 0xfff07a, 0x7affa8, 0x7ac8ff];
-      const heard = new Set(); let done = false;
+      const heard = new Set(); let done = false, doneT = -1;
       L.mzSing.forEach((p, i) => {
         const M = liveMush(p.x, p.z, 0.75 + i * 0.08, 0.5, cols[i], { gc: cols[i] });
-        let b = 9;
+        let b = 9, st = i * 0.7;
         T.add({ x: p.x, z: p.z, r: 0.95, hint: i === 0 ? { y: 1.7 } : false, line: i === 0 ? 'b01_sarki' : null, near: 6, cd: 0.4, repeat: true,
           use: () => {
             b = 0; sfx('bell', { x: p.x, z: p.z, pitch: NOTES[i] * 1.2, vol: 0.7 }); burst('notes', p.x, 1.3, p.z, { count: 2 });
             if (done) return;
-            heard.add(i); if (heard.size === L.mzSing.length) { done = true; setTimeout(() => { L.mzSing.forEach((q, j) => setTimeout(() => { sfx('bell', { x: q.x, z: q.z, pitch: NOTES[j] * 1.2, vol: 0.6 }); burst('sparkle', q.x, 1.2, q.z, { color: '#fff0a8', count: 5 }); }, j * 160)); if (K) K.sugar(p.x, p.z, 8, 8); say('b01_sarkiBitti', { gap: 2 }); }, 300);  }
+            heard.add(i); if (heard.size === L.mzSing.length) { done = true; doneT = 0; setTimeout(() => { L.mzSing.forEach((q, j) => setTimeout(() => { sfx('bell', { x: q.x, z: q.z, pitch: NOTES[j] * 1.2, vol: 0.6 }); burst('sparkle', q.x, 1.2, q.z, { color: '#fff0a8', count: 5 }); }, j * 160)); if (K) K.sugar(p.x, p.z, 8, 8); say('b01_sarkiBitti', { gap: 2 }); }, 300);  }
           },
-          tick: dt => { b += dt; const k = b < 0.8 ? Math.sin(b * 22) * Math.exp(-b * 5) : 0; M.g.scale.set(1 + 0.18 * k, 1 - 0.22 * k, 1 + 0.18 * k); } });
+          // GÜZEL3: boşta mırıldanır gibi hafifçe sallanır (şapka yana yatar, gövde nefes alır); şarkı bitince 4 sn sırayla dalga dansı
+          tick: dt => { b += dt; st += dt; if (i === 0 && doneT >= 0 && doneT < 6) doneT += dt;
+            const k = b < 0.8 ? Math.sin(b * 22) * Math.exp(-b * 5) : 0, wv = doneT > 0.3 && doneT < 4.6 ? Math.max(0, Math.sin(doneT * 7 - i * 0.9)) * Math.min(1, 4.6 - doneT) : 0;
+            const br = 0.03 * Math.sin(st * 2.3);
+            M.g.scale.set(1 + 0.18 * k - 0.4 * br + 0.1 * wv, 1 - 0.22 * k + br + 0.22 * wv, 1 + 0.18 * k - 0.4 * br + 0.1 * wv);
+            M.g.position.y = 0.22 * wv; M.cp.rotation.z = 0.07 * Math.sin(st * 1.6 + 0.5) + 0.12 * wv * Math.sin(doneT * 3.5); } });
       });
     }
     // boss sonu dansçıları: minik mantarcıklar (önceden kurulu, gizli; boss neşelenince çevresinde zıplayıp dans eder)
     const dancers = [];
     if (ar) for (let i = 0; i < 5; i++) { const M = liveMush(ar.x, ar.z, 0.42, 0.4, [0xff7ec8, 0x6fa8ff, 0x5fd8e8, 0xffa86a, 0xfff07a][i], { gc: GLOWC[i] }); M.g.visible = false; dancers.push(M); }
     // pofuduk toplar: içine girince "püf!" parıltı + birkaç şeker; söner, 10 s sonra yeniden kabarır
-    if (T) for (const p of L.mzPuffs || []) {
-      const m = new THREE.Mesh(HAS ? PROPKIT.puff() : sphG, mm(HAS ? 'puff2' : 'puff', { vertexColors: HAS, color: 0xd8f4e4, roughness: 0.9, emissive: new THREE.Color(0xb8f0d8), emissiveIntensity: 0.05 }));   // GÜZEL2: bembeyaz parlayan taş gibi değil, yumuşak nane top
-      m.position.set(p.x, 0.42, p.z); m.scale.set(0.5, 0.42, 0.5); m.castShadow = true; api.add(m);
-      let t = 99;
-      T.add({ x: p.x, z: p.z, r: 0.9, hint: false, cd: 10, use: () => {
-        t = 0; sfx('bubblePop', { x: p.x, z: p.z, pitch: 0.7 }); burst('sparkle', p.x, 0.9, p.z, { color: '#e8ffb8', count: 11 });
-        if (K) K.sugar(p.x, p.z, 4, 4); say('b01_pofuduk', { gap: 3 });
-      }, tick: dt => { t += dt; const k = t < 0.3 ? 1 - t / 0.3 * 0.75 : t < 9 ? 0.25 : Math.min(1, 0.25 + (t - 9) * 0.75); m.scale.set(0.5 * k + 0.05, 0.42 * k + 0.04, 0.5 * k + 0.05); m.position.y = 0.42 * k; } });
+    // GÜZEL3: soluk taş gibi duruyorlardı → pastel pembe / nane / tereyağı / bebek mavisi, boşta nefes alır gibi kabarır.
+    //   PERF3: hepsi tek çizim (örnekli), gölge yok (§13: gölge yalnız Feza/Pırıl/boss)
+    const puffs = T ? (L.mzPuffs || []) : [];
+    if (puffs.length) {
+      const PC = [0xffd2e8, 0xc8f4dc, 0xfff0bc, 0xd0e2ff];
+      const IM = new THREE.InstancedMesh(HAS ? PROPKIT.puff() : sphG, mm(HAS ? 'puff3' : 'puff', { vertexColors: HAS, color: 0xffffff, roughness: 0.85, emissive: new THREE.Color(0xfff2f6), emissiveIntensity: 0.08 }), puffs.length);
+      IM.name = 'mantar-pofuduk-toplar'; IM.frustumCulled = false;
+      const pc = new THREE.Color(), pp = new THREE.Vector3(), ps = new THREE.Vector3(), pmx = new THREE.Matrix4(), UPV = new THREE.Vector3(0, 1, 0);
+      puffs.forEach((p, i) => { pc.set(PC[i % PC.length]); IM.setColorAt(i, pc); });
+      api.add(IM);
+      puffs.forEach((p, i) => {
+        const q = new THREE.Quaternion().setFromAxisAngle(UPV, rnd() * TAU);
+        let t = 99, bt = rnd() * 9;
+        const set = (k, br) => { pmx.compose(pp.set(p.x, 0.42 * k, p.z), q, ps.set((0.5 * k + 0.05) * (1 + br * 0.6), (0.42 * k + 0.04) * (1 - br), (0.5 * k + 0.05) * (1 + br * 0.6))); IM.setMatrixAt(i, pmx); IM.instanceMatrix.needsUpdate = true; };
+        set(1, 0);
+        T.add({ x: p.x, z: p.z, r: 0.9, hint: false, cd: 10, use: () => {
+          t = 0; sfx('bubblePop', { x: p.x, z: p.z, pitch: 0.7 }); burst('sparkle', p.x, 0.9, p.z, { color: '#e8ffb8', count: 11 });
+          if (K) K.sugar(p.x, p.z, 4, 4); say('b01_pofuduk', { gap: 3 });
+        }, tick: dt => { t += dt; bt += dt; const k = t < 0.3 ? 1 - t / 0.3 * 0.75 : t < 9 ? 0.25 : Math.min(1, 0.25 + (t - 9) * 0.75); set(k, k > 0.99 ? 0.045 * Math.sin(bt * 2.6) : 0); } });
+      });
     }
     // peri halkası (gizli): ortasına basınca mantarlar sırayla yanar → altın şeker + çıkartma
     if (T && L.mzRing) {
-      const R0 = L.mzRing, ms = [], off = mm('ringOff', { color: 0xdff4e8, roughness: 0.6 }), on = glowM('ringOn', 0xfff0a8, 2.4);
+      // PERF3: 9 sap + 9 şapka (18 çizim) → tek birleşik parça; yanan şapkanın köşe rengi/ışığı ve boyu bir kez güncellenir
+      const R0 = L.mzRing, ms = [], parts = [], nS = stemG.attributes.position.count, nC = capG.attributes.position.count, onC = new THREE.Color(0xfff0a8);
       for (let i = 0; i < 9; i++) {
         const a = i / 9 * TAU, x = R0.x + Math.sin(a) * 2.1, z = R0.z + Math.cos(a) * 2.1;
-        const st = new THREE.Mesh(stemG, mm('stem')); st.position.set(x, 0, z); st.scale.set(0.09, 0.3, 0.09); api.add(st);
-        const cp = new THREE.Mesh(capG, off); cp.position.set(x, 0.28, z); cp.scale.set(0.24, 0.2, 0.24); api.add(cp); ms.push(cp);
+        parts.push([stemG, 0xf6ecdf, 0, [0.09, 0.3, 0.09], [x, 0, z]], [capG, 0xdff4e8, 0, [0.24, 0.2, 0.24], [x, 0.28, z]]);
+        ms.push({ x, z, v0: i * (nS + nC) + nS });
       }
+      const ringG = mergeTint(parts), ringM = new THREE.Mesh(ringG, canliMat); ringM.name = 'mantar-peri-mantarlari'; api.add(ringM);
+      const light = i => {   // şapka i yanar: sarı ışık (eski MeshBasic ×2,4) ve ×1,3 boy
+        const m = ms[i], P = ringG.attributes.position, C = ringG.attributes.color, E = ringG.attributes.aE;
+        for (let v = m.v0; v < m.v0 + nC; v++) {
+          P.setXYZ(v, m.x + (P.getX(v) - m.x) * 1.3, 0.28 + (P.getY(v) - 0.28) * 1.3, m.z + (P.getZ(v) - m.z) * 1.3);
+          C.setXYZ(v, onC.r, onC.g, onC.b); E.setX(v, -2.4);
+        }
+        P.needsUpdate = C.needsUpdate = E.needsUpdate = true;
+      };
+      for (const m of ms) m.position = { x: m.x, z: m.z };
       api.glow(R0.x, R0.z, 2.6, 0xdfffe8, 0.14);
       let t = -1;
       T.add({ x: R0.x, z: R0.z, r: 0.9, hint: { y: 1.4 }, line: 'b01_halka', near: 5, once: true,
         use: () => { t = 0; sfx('unlock', { x: R0.x, z: R0.z, vol: 0.6 }); },
         tick: dt => {
           if (t < 0) return; const n0 = Math.floor(t / 0.18); t += dt; const n1 = Math.floor(t / 0.18);
-          for (let i = n0; i < Math.min(n1, 9); i++) { ms[i].material = on; ms[i].scale.multiplyScalar(1.3); sfx('bell', { x: R0.x, z: R0.z, pitch: 1 + i * 0.09, vol: 0.5 }); burst('sparkle', ms[i].position.x, 0.5, ms[i].position.z, { color: '#fff0a8', count: 3 }); }
+          for (let i = n0; i < Math.min(n1, 9); i++) { light(i); sfx('bell', { x: R0.x, z: R0.z, pitch: 1 + i * 0.09, vol: 0.5 }); burst('sparkle', ms[i].position.x, 0.5, ms[i].position.z, { color: '#fff0a8', count: 3 }); }
           if (n0 < 10 && n1 >= 10) {
             burst('star', R0.x, 1.6, R0.z, { count: 5 });
             const g = typeof GAME !== 'undefined' ? GAME : null;
@@ -716,7 +786,7 @@ const MANTAR = (() => {
         if (rs.length) spots.push(rs[(rnd() * rs.length) | 0]);
       }
       if (merdivenBase && isF(merdivenBase.x, merdivenBase.z)) spots.push(merdivenBase);
-      spots.forEach((s, i) => { K.treasure(api, T, s.x, s.z, acorn, { y: 0.35, sc: 1, line: i === 0 ? 'b01_palamut' : null, gold: 12, n: 7, gs: i === spots.length - 1, sticker: i === 1 ? 'mantar_palamut' : null, hintY: 2.0, cast: true }); api.glow(s.x, s.z, 1.6, 0xffd88a, 0.25); });
+      spots.forEach((s, i) => { K.treasure(api, T, s.x, s.z, acorn, { y: 0.35, sc: 1, line: i === 0 ? 'b01_palamut' : null, gold: 12, n: 7, gs: i === spots.length - 1, sticker: i === 1 ? 'mantar_palamut' : null, hintY: 2.0, cast: false }); api.glow(s.x, s.z, 1.6, 0xffd88a, 0.25); });
     }
     yield;
 
@@ -776,16 +846,19 @@ const MANTAR = (() => {
     // QA5: sis tünelin İLK odasında (ikinci oda arenanın dibindeydi: sis cümleleri boss uyanışıyla üst üste biniyordu)
     sis.room = a4rooms[0] || null;
     const lampStem = api.dispose(lathe(THREE, STEM_P, 10)), lampCap = api.dispose(lathe(THREE, CAP_P, 14));
+    // PERF3: tünel lambaları (her biri 3 çizim + kendi 3 malzemesi = 30 çizim) → tek birleşik parça; sönüp yanarken yalnız o
+    //   lambanın köşe renkleri güncellenir (değer değişince). Görünüş aynı: şapka gri ↔ kendi rengi, benekler sönük ↔ ışıl ışıl.
+    const LS = [];
+    let lampG = null;
     function lamp(x, z, ci) {
-      const c = CAPS[ci % CAPS.length], g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rnd() * TAU;
-      const sm0 = new THREE.MeshStandardMaterial({ color: 0xf6ecdf, roughness: 0.6 });
-      const st = new THREE.Mesh(lampStem, sm0); st.scale.set(0.16, 0.9, 0.16); g.add(st);
-      const cm = new THREE.MeshStandardMaterial({ color: c[0], roughness: 0.45, emissive: new THREE.Color(c[0]), emissiveIntensity: 0.3 });
-      const cp = new THREE.Mesh(lampCap, cm); cp.position.y = 0.88; cp.scale.set(0.5, 0.38, 0.5); g.add(cp);
-      const gm = new THREE.MeshBasicMaterial({ color: new THREE.Color(GLOWC[ci % GLOWC.length]).multiplyScalar(2) });
-      const gl = new THREE.Mesh(spotG, gm); gl.position.y = 0.88; gl.scale.set(0.5, 0.38, 0.5); g.add(gl);
-      api.add(g); api.dispose(sm0); api.dispose(cm); api.dispose(gm);
-      const o = { x, z, k: 1, c0: new THREE.Color(c[0]), gc: new THREE.Color(GLOWC[ci % GLOWC.length]), cm, gm, set(k) { this.k = k; cm.color.copy(grey).lerp(this.c0, k); cm.emissive.copy(this.c0); cm.emissiveIntensity = 0.02 + 0.3 * k; gm.color.copy(this.gc).multiplyScalar(0.1 + 1.9 * k); } };
+      const c = CAPS[ci % CAPS.length];
+      const o = { x, z, k: 1, hc: c[0], hg: GLOWC[ci % GLOWC.length], c0: new THREE.Color(c[0]), gc: new THREE.Color(GLOWC[ci % GLOWC.length]),
+        set(k) { if (k === this.k || !lampG) return; this.k = k;
+          const C = lampG.attributes.color, E = lampG.attributes.aE, gk = -(0.1 + 1.9 * k); _cc.copy(grey).lerp(this.c0, k);
+          for (let v = this.v0; v < this.v1; v++) { C.setXYZ(v, _cc.r, _cc.g, _cc.b); E.setX(v, 0.02 + 0.3 * k); }
+          for (let v = this.v1; v < this.v2; v++) E.setX(v, gk);
+          C.needsUpdate = E.needsUpdate = true; } };
+      LS.push(o);
       return o;
     }
     const grey = new THREE.Color(0x7a8896);
@@ -799,6 +872,16 @@ const MANTAR = (() => {
         const yaw = Math.atan2(p.x - prev.x, p.z - prev.z) + PI / 2, sd = n % 2 ? 1 : -1;
         for (let d = 1.3; d < 7; d += 0.5) { const x = p.x + Math.sin(yaw) * sd * d, z = p.z + Math.cos(yaw) * sd * d; if (!isF(x, z)) { sis.lamps.push(lamp(x + Math.sin(yaw) * sd * 0.7, z + Math.cos(yaw) * sd * 0.7, n)); n++; acc = 0; break; } }
       }
+    }
+    if (LS.length) {
+      const parts = [], nS = lampStem.attributes.position.count, nC = lampCap.attributes.position.count, nG = spotG.attributes.position.count;
+      let vo = 0;
+      for (const o of LS) {
+        parts.push([lampStem, 0xf6ecdf, 0, [0.16, 0.9, 0.16], [o.x, 0, o.z]], [lampCap, o.hc, 0.32, [0.5, 0.38, 0.5], [o.x, 0.88, o.z]], [spotG, o.hg, -2.0, [0.5, 0.38, 0.5], [o.x, 0.88, o.z]]);
+        o.v0 = vo + nS; o.v1 = o.v0 + nC; o.v2 = o.v1 + nG; vo = o.v2;
+      }
+      lampG = mergeTint(parts);
+      const lm = new THREE.Mesh(lampG, canliMat); lm.name = 'mantar-sis-lambalari'; api.add(lm);
     }
     // sis bulutu: tek çizim, büyük yumuşak gri-mavi lekeler (alçakta, Feza'nın ayak hizasında)
     const mistU = { uSis: { value: 0 } };

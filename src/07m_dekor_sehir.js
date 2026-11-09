@@ -26,7 +26,9 @@ const SEHIR_DEKOR = (() => {
     const used = [], cell = new Map();
     const hk = (x, z) => ((Math.floor(x / 6) + 500) * 1000 + Math.floor(z / 6) + 500);
     const free = (x, z, r) => { const cx = Math.floor(x / 6), cz = Math.floor(z / 6); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const q = cell.get((cx + a + 500) * 1000 + cz + b + 500); if (q) for (const u of q) if (hyp(u.x - x, u.z - z) < u.r + r) return false; } return true; };
-    const claim = (x, z, r) => { const k = hk(x, z); let q = cell.get(k); if (!q) cell.set(k, q = []); q.push({ x, z, r }); used.push({ x, z, r }); };
+    const claim = (x, z, r, g = false) => { const k = hk(x, z); let q = cell.get(k); if (!q) cell.set(k, q = []); q.push({ x, z, r, g }); used.push({ x, z, r }); };
+    // g: kamera önünde kaldığı için gizlenen evin yeri ("hayalet"); yalnız alçak pazar bandı bu yerleri kullanabilir
+    const freeP = (x, z, r) => { const cx = Math.floor(x / 6), cz = Math.floor(z / 6); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const q = cell.get((cx + a + 500) * 1000 + cz + b + 500); if (q) for (const u of q) if (hyp(u.x - x, u.z - z) < (u.g ? 0.8 + r * 0.5 : u.r + r)) return false; } return true; };   // (hayalet evin ortasında kalan küçük çalıya da değmesin)
     const floorAt = (x, z) => { const i = Math.floor(x), j = Math.floor(z); return i >= 0 && j >= 0 && i < L.W && j < L.H && grid[j * L.W + i] > 0; };
     const southFront = (x, z) => { for (let t = 2; t <= 10; t += 2) for (const o of [0, -3, 3]) if (floorAt(x + o, z - t)) return true; return false; };
     const keep = (x, z, r) => {
@@ -38,6 +40,11 @@ const SEHIR_DEKOR = (() => {
     const MESH = 'shinyNS';
     const awake = [];   // {geo, x,y,z, sx,sy,sz, yaw}
     const pr = (g, x, y, z, s, yaw, col = 0xffffff, mk = MESH, sy) => put(g, x, y, z, s, sy ?? s, s, col, yaw || 0, 0, 0, mk);
+    // alçak pazar süsü (≤ 2,6 m): dar gizleme kuralı (Z.lowHides) — yolların güneyi bomboş çimen kalmasın; yürünür alanın dibine konmaz
+    const prL = (g, x, y, z, s, yaw, h) => {
+      if (Z && Z.putRaw && Z.lowHides) { if (Z.lowHides(x, z, h)) return false; Z.putRaw(g, x, y, z, s, s, s, 0xffffff, yaw || 0, 0, 0, MESH); return true; }
+      pr(g, x, y, z, s, yaw); return true;
+    };
     const putYapi = (p, x, z, s, yaw, y = 0) => { pr(p.m, x, y, z, s, yaw); if (p.g) pr(p.g, x, y, z, s, yaw, 0xffffff, 'glow'); };
     const snap = a => Math.round(a / (PI / 8)) * (PI / 8);
     const toward = (x, z, f) => Math.atan2(f.fx - x, f.fz - z);   // +z yerel ön yüz → yürünür alana bak
@@ -65,7 +72,8 @@ const SEHIR_DEKOR = (() => {
       // ayak izi tamamen yürünmez olmalı
       let ok = true; for (let a = 0; a < 8 && ok; a++) if (floorAt(c.x + Math.sin(a * PI / 4) * R, c.z + Math.cos(a * PI / 4) * R)) ok = false; if (!ok) continue;
       const yaw = snap(toward(c.x, c.z, c.f));
-      pr(e.m, c.x, 0, c.z, s, yaw); claim(c.x, c.z, R); placedHouses.push({ x: c.x, z: c.z, s, yaw, h: e.h * s }); st.ev++;
+      const gz = !!(Z && Z.southHides && Z.southHides(c.x, c.z, e.h * s));
+      pr(e.m, c.x, 0, c.z, s, yaw); claim(c.x, c.z, R, gz); if (!gz) placedHouses.push({ x: c.x, z: c.z, s, yaw, h: e.h * s }); st.ev++;
     }
     // ── 1) ön bant (d 2.2–4.6): lamba, tezgâh, saksı, fıçı, araba, bank, küçük ağaç ──
     let lampGap = 0;
@@ -79,20 +87,37 @@ const SEHIR_DEKOR = (() => {
         claim(c.x, c.z, 1.6); lampsAt.push({ x: c.x, z: c.z, yaw }); st.lamba++;
       } else if (r0 < 0.6 && free(c.x, c.z, 2.0)) {   // pazar tezgâhı
         const k = (rnd() * 5) | 0, t = Y.tezgah(k), s = 1.0 + rnd() * 0.15;
-        pr(t.m, c.x, 0, c.z, s, yaw); awake.push({ geo: t.a, x: c.x, y: 0, z: c.z, sx: s, sy: s, sz: s, yaw });
+        if (prL(t.m, c.x, 0, c.z, s, yaw, 2.6)) awake.push({ geo: t.a, x: c.x, y: 0, z: c.z, sx: s, sy: s, sz: s, yaw, low: true });   // (tente gövdeyle aynı kuralla: havada tente kalmasın)
         for (const q of [[-0.7, 0.9], [0.1, 1.2], [0.8, 0.8]]) if (rnd() < 0.5 && isFinite(q[0])) { /* tezgâh önü boş bırak */ }
         claim(c.x, c.z, 2.2); st.tezgah++;
       } else if (r0 < 0.72 && free(c.x, c.z, 1.0)) {
         const m = rnd();
-        if (m < 0.34) { pr(Y.fici().m, c.x, 0, c.z, 1 + rnd() * 0.3, rnd() * TAU); pr(Y.fici().m, c.x + 0.6, 0, c.z + 0.2, 0.9, rnd() * TAU); claim(c.x, c.z, 1.1); }
-        else if (m < 0.6) { pr(Y.sandik().m, c.x, 0, c.z, 1.1, yaw); pr(Y.sandik().m, c.x + 0.1, 0.5, c.z, 0.8, yaw + 0.4); claim(c.x, c.z, 0.9); }
-        else if (m < 0.8) { pr(Y.saksi((rnd() * 4) | 0).m, c.x, 0, c.z, 1.1 + rnd() * 0.4, rnd() * TAU); pr(Y.saksi((rnd() * 4) | 0).m, c.x + 0.7, 0, c.z - 0.2, 0.9, rnd() * TAU); claim(c.x, c.z, 1.1); }
-        else { pr(Y.bank().m, c.x, 0, c.z, 1.2, yaw); claim(c.x, c.z, 1.1); }
+        if (m < 0.34) { prL(Y.fici().m, c.x, 0, c.z, 1 + rnd() * 0.3, rnd() * TAU, 1.1); prL(Y.fici().m, c.x + 0.6, 0, c.z + 0.2, 0.9, rnd() * TAU, 1.1); claim(c.x, c.z, 1.1); }
+        else if (m < 0.6) { prL(Y.sandik().m, c.x, 0, c.z, 1.1, yaw, 1.0); prL(Y.sandik().m, c.x + 0.1, 0.5, c.z, 0.8, yaw + 0.4, 1.0); claim(c.x, c.z, 0.9); }
+        else if (m < 0.8) { prL(Y.saksi((rnd() * 4) | 0).m, c.x, 0, c.z, 1.1 + rnd() * 0.4, rnd() * TAU, 1.0); prL(Y.saksi((rnd() * 4) | 0).m, c.x + 0.7, 0, c.z - 0.2, 0.9, rnd() * TAU, 1.0); claim(c.x, c.z, 1.1); }
+        else { prL(Y.bank().m, c.x, 0, c.z, 1.2, yaw, 1.0); claim(c.x, c.z, 1.1); }
         st.diger++;
       } else if (r0 < 0.78 && free(c.x, c.z, 2.0)) {
-        const a = Y.araba((rnd() * 2) | 0); pr(a.m, c.x, 0, c.z, 1.1, yaw + PI / 2 + (rnd() - 0.5) * 0.5); claim(c.x, c.z, 1.7); st.diger++;
+        const a = Y.araba((rnd() * 2) | 0); prL(a.m, c.x, 0, c.z, 1.1, yaw + PI / 2 + (rnd() - 0.5) * 0.5, 1.2); claim(c.x, c.z, 1.7); st.diger++;
       } else if (r0 < 0.9 && free(c.x, c.z, 2.3)) {   // küçük meyve/süs ağacı
         const h = 3.4 + rnd() * 1.8; PROPKIT.placeTree(api, rnd() < 0.5 ? 'round' : 'fruit', (rnd() * 4) | 0, c.x, c.z, h, { y: -0.06 * h, yaw: rnd() * TAU, mat: 'shinyNS', leaf: pick([0xb8dc78, 0x9fd070, 0xc4e080, 0x8cc86c]), fruit: pick([0xff7a6a, 0xffd060, 0xffa0b8]) }); claim(c.x, c.z, 1.7); st.agac++;
+      }
+    }
+    // ── 1b) pazar bandı: yolların güneyindeki/aralarındaki boş çimene (kamera önünde gizlenen evlerin yeri) alçak pazar süsleri
+    //        (tezgâh, araba, fıçı+sandık, bank+saksı; ≤ 2,6 m). Kamera bunların üstünden bakar; yürünür alanın dibine konmaz (Z.lowHides). ──
+    if (Z && Z.lowHides && Z.putRaw) {
+      let nP = 0; const perRoom = new Map(), RM = L.rooms || [];
+      const roomOf = (x, z) => { let bi = -1, bd = 1e9; for (let i = 0; i < RM.length; i++) { const dd = hyp(RM[i].x - x, RM[i].z - z) - (RM[i].r || 8); if (dd < bd) { bd = dd; bi = i; } } return bi; };
+      for (const c of cands) {
+        const d = c.f.d; if (d < 3.2 || d > 10 || nP >= 40 || rnd() > 0.3) continue;
+        const ri = roomOf(c.f.fx, c.f.fz); if ((perRoom.get(ri) || 0) >= 4) continue;   // her meydana birkaç tane: hepsi ilk odalara yığılmasın
+        if (api.linkDist(c.x, c.z) < 2.8 || keep(c.x, c.z, 2) || !freeP(c.x, c.z, 2.3)) continue;
+        const yaw = snap(toward(c.x, c.z, c.f)), r0 = rnd();
+        if (r0 < 0.42) { const k = (rnd() * 5) | 0, t = Y.tezgah(k), s = 1.0 + rnd() * 0.1; if (!prL(t.m, c.x, 0, c.z, s, yaw, 2.6)) continue; awake.push({ geo: t.a, x: c.x, y: 0, z: c.z, sx: s, sy: s, sz: s, yaw, low: true }); claim(c.x, c.z, 2.3); }
+        else if (r0 < 0.62) { if (!prL(Y.araba((rnd() * 2) | 0).m, c.x, 0, c.z, 1.1, yaw + PI / 2 + (rnd() - 0.5) * 0.5, 1.2)) continue; claim(c.x, c.z, 1.8); }
+        else if (r0 < 0.82) { if (!prL(Y.fici().m, c.x, 0, c.z, 1.1, rnd() * TAU, 1.1)) continue; prL(Y.fici().m, c.x + 0.65, 0, c.z + 0.25, 0.95, rnd() * TAU, 1.1); prL(Y.sandik().m, c.x - 0.6, 0, c.z + 0.3, 1.1, yaw, 1.0); claim(c.x, c.z, 1.4); }
+        else { if (!prL(Y.bank().m, c.x, 0, c.z, 1.2, yaw, 1.0)) continue; prL(Y.saksi((rnd() * 4) | 0).m, c.x + Math.cos(yaw) * 1.0, 0, c.z - Math.sin(yaw) * 1.0, 1.2, rnd() * TAU, 1.0); prL(Y.saksi((rnd() * 4) | 0).m, c.x - Math.cos(yaw) * 1.0, 0, c.z + Math.sin(yaw) * 1.0, 1.2, rnd() * TAU, 1.0); claim(c.x, c.z, 1.6); }
+        nP++; st.pazar = nP; perRoom.set(ri, (perRoom.get(ri) || 0) + 1);
       }
     }
     // ev aralarına: ağaç, saksı, fıçı, lamba (kuzey tarafı serbest alan)
@@ -146,7 +171,7 @@ const SEHIR_DEKOR = (() => {
   // tente/sancak/flamalar: tek geometri, özel malzeme (doygunluk + rüzgâr); k=Z.vis.k 0.4→1
   function bakeAwake(api, list, Y) {
     const THREE_ = api.THREE;
-    const items = list.filter(a => a.geo).map(a => ({ geo: a.geo, x: a.x, y: a.y, z: a.z, sx: a.sx, sy: a.sy, sz: a.sz, yaw: a.yaw, tint: [1, 1, 1] }));
+    const items = list.filter(a => a.geo).map(a => ({ geo: a.geo, x: a.x, y: a.y, z: a.z, sx: a.sx, sy: a.sy, sz: a.sz, yaw: a.yaw, tint: [1, 1, 1], low: !!a.low }));
     // direkler (sancaklar için)
     for (const a of list) if (a.pole) items.push({ geo: Y.sancakDirek(), x: a.x, y: a.y - a.pole, z: a.z, sx: 0.6, sy: a.pole / 4, sz: 0.6, yaw: 0, tint: [1, 1, 1] });
     if (!items.length) return null;
@@ -154,7 +179,7 @@ const SEHIR_DEKOR = (() => {
     const fl = new Float32Array(geo.attributes.position.count); let o = 0;
     for (const it of (PROPKIT.sonSecilen || items)) { const uv = it.geo.attributes.uv, n = it.geo.attributes.position.count; for (let i = 0; i < n; i++) fl[o + i] = uv && uv.getX(i) > 35 ? uv.getY(i) : 0; o += n; }
     geo.setAttribute('aFl', new THREE_.BufferAttribute(fl, 1));
-    const satU = { value: 0.25 }, mat = new THREE_.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE_.DoubleSide });
+    const satU = { value: 0.45 }, mat = new THREE_.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE_.DoubleSide });
     mat.onBeforeCompile = sh => {
       sh.uniforms.uSat = satU; sh.uniforms.uTime = TIME.u;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFl; uniform float uTime;').replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -165,7 +190,7 @@ const SEHIR_DEKOR = (() => {
     mat.customProgramCacheKey = () => 'sehirAwake';
     const mesh = new THREE_.Mesh(geo, mat); mesh.name = 'sehir-uyanis'; mesh.frustumCulled = false;
     api.add(mesh); api.dispose(mat); api.dispose(geo);
-    api.anim(() => { const V = api.L && api.L.sh && api.L.sh.vis; const k = V ? V.k : 1; satU.value += ((0.15 + 0.85 * Math.min(1, Math.max(0, (k - 0.4) / 0.6))) - satU.value) * 0.05; });
+    api.anim(() => { const V = api.L && api.L.sh && api.L.sh.vis; const k = V ? V.k : 1; satU.value += ((0.45 + 0.55 * Math.min(1, Math.max(0, (k - 0.4) / 0.6))) - satU.value) * 0.05; });   // (başta da yarı renkli: tenteler bembeyaz değil; şehir uyandıkça tam renk)
     return mesh;
   }
   return { olustur, mesafeAlani };

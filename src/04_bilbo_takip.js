@@ -239,6 +239,9 @@ const BILBO_FOLLOW = (() => {
   Object.assign(BILBO, {
     kur, kayit, HAVLA,
     bin: () => !!cur && cur.bin(), in: () => !!cur && cur.inis(), havla: o => cur ? cur.havla(o) : 0,
-    binebilir: () => !!cur && !cur.riding, get biniyor() { return !!cur && cur.riding; }, get aktif() { return cur; },
+    binebilir: () => !!cur && !cur.riding,
   });
+  // (Object.assign alıcıları bir kez okuyup sabit değere çeviriyordu: aktif hep null kalıyordu → canlı alıcı olarak tanımla)
+  Object.defineProperty(BILBO, 'biniyor', { get() { return !!cur && cur.riding; }, configurable: true });
+  Object.defineProperty(BILBO, 'aktif', { get() { return cur; }, configurable: true });
 })();

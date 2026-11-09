@@ -141,16 +141,17 @@ const MERCAN_DEKOR = (() => {
     const ok = (x, z, r = 0.5) => api.isFloor(x, z) && api.circleFree(x, z, r) && free(x, z, r);
     const hides = (x, z, h) => { for (let t = 1.2; t < h * 0.8; t += 1.2) for (const o of [-1, -0.5, 0, 0.5, 1]) if (F.floor[Math.floor(z - t) * F.W + Math.floor(x + o * (1.5 + t * 0.7))]) return true; return false; };
     // renk takımları (mor yok)
-    const AREAS = [
-      { coral: [0xff9a7a, 0xffc94a, 0x6fe0e8, 0xff7ab8], kelpc: [0xffffff, 0xd8ffc0] },
-      { coral: [0xff6f91, 0xff9a5a, 0xffc94a, 0x6fe0e8, 0x7fe0a0, 0xff7ab8], kelpc: [0xffffff] },
+    const AREAS = [   // CİLA: pembeler sıcak mercan tonunda (mavi su ışığı ve gölgede mora kaymasın)
+      { coral: [0xff9a7a, 0xffc94a, 0x6fe0e8, 0xff9a9a], kelpc: [0xffffff, 0xd8ffc0] },
+      { coral: [0xff7a72, 0xff9a5a, 0xffc94a, 0x6fe0e8, 0x7fe0a0, 0xffa0a0], kelpc: [0xffffff] },
       { coral: [0x7fe0a0, 0x6fe0e8, 0xffc94a, 0xff9a7a], kelpc: [0xffffff, 0xc8f0a0, 0xe8ffc0] },
       { coral: [0xbff4ff, 0xffd0e0, 0x6fe0e8, 0xfff0d0], kelpc: [0xd8fff0] },
       { coral: [0xbff4ff, 0xffd0e0, 0xfff0b0], kelpc: [0xd8fff0] },
     ];
     const pal = (x, z) => AREAS[Math.min(4, areaAt(L, x, z))];
     const stagAt = (x, z, h, c, yaw) => { const s = P.__noop, g = staghorn((rnd() * 4) | 0); put(g.body, x, 0, z, h, h, h, c, yaw ?? rnd() * TAU, 0, 0, 'shinyNS'); put(g.tips, x, 0, z, h, h, h, c, 0, 0, 0, 'glow'); st.stag++; void s; };
-    const tableAt = (x, z, h, c) => { put(tableCoral((rnd() * 3) | 0), x, 0, z, h, h, h, c, rnd() * TAU, 0, 0, 'shinyNS'); st.table++; };
+    const lite = (c, k) => { const a = new THREE.Color(c).lerp(new THREE.Color(0xfff6ea), k); return a.getHex(); };   // CİLA: geniş masa mercanları açık ton (gölgede koyu leylak leke gibi durmasın)
+    const tableAt = (x, z, h, c) => { put(tableCoral((rnd() * 3) | 0), x, 0, z, h, h, h, lite(c, Math.min(0.4, 0.12 + h * 0.06)), rnd() * TAU, 0, 0, 'shinyNS'); st.table++; };
     const fanAt = (x, z, h, c, yaw) => { put(seaFan((rnd() * 3) | 0), x, 0, z, h, h, h, c, yaw ?? rnd() * TAU, 0, 0, 'shinyNS'); st.fan++; };
     const brainAt = (x, z, h, c) => { put(brain((rnd() * 3) | 0), x, 0, z, h, h, h, c, rnd() * TAU, 0, 0, 'shinyNS'); st.brain++; };
     const tubesAt = (x, z, h, c) => { const g = tubes((rnd() * 3) | 0); put(g.body, x, 0, z, h, h, h, c, rnd() * TAU, 0, 0, 'shinyNS'); put(g.inner, x, 0, z, h, h, h, 0xffffff, 0, 0, 0, 'shinyNS'); st.tubes++; };
@@ -168,14 +169,20 @@ const MERCAN_DEKOR = (() => {
       const x = i + 0.5, z = j + 0.5, d = F.dout(x, z);
       if (d < 2.4 || d > 17) continue;
       const A = pal(x, z), arena = areaAt(L, x, z) === 4, r0 = rnd(), px = x + (rnd() - 0.5) * 0.9, pz = z + (rnd() - 0.5) * 0.9, c = pick(A.coral);
+      // CİLA (kadraj): görüş kontrolü süsün GERÇEK boyuyla yapılır — önceden 1,9×h boyundaki yelpazeler ve 5 m'lik yosunlar
+      //   h×1,3 sanılıyordu; yürünür alanın hemen güneyinde (kameranın önünde) dev mavi yelpazeler Feza'nın önünü kapatıyordu.
       if (d < 7) {
         if (rnd() > 0.2) continue;
-        const h = 1.1 + rnd() * 1.3, hh = h * 1.3; if (hides(px, pz, hh)) continue;
-        if (r0 < 0.28) stagAt(px, pz, h * 1.4, c); else if (r0 < 0.42) tableAt(px, pz, h * 1.6, c); else if (r0 < 0.58) fanAt(px, pz, h * 1.6, c, Math.atan2(F.dout(px, pz - 1) - F.dout(px, pz + 1), 1) * 0 + (rnd() * 0.8 - 0.4)); else if (r0 < 0.7) kelpAt(px, pz, 2.8 + rnd() * 2.6, pick(A.kelpc)); else if (r0 < 0.82) brainAt(px, pz, h * 1.5, c); else if (r0 < 0.92) tubesAt(px, pz, h * 1.7, c); else stoneAt(px, pz, h * 1.1);
+        const h = 1.1 + rnd() * 1.3, kh = 2.8 + rnd() * 2.6;
+        const ht = r0 < 0.28 ? h * 1.4 : r0 < 0.42 ? h * 0.9 : r0 < 0.58 ? h * 1.95 : r0 < 0.7 ? kh * 0.75 : r0 < 0.82 ? h * 0.6 : r0 < 0.92 ? h * 1.5 : h * 1.1;
+        if (hides(px, pz, ht * 1.15)) continue;
+        if (r0 < 0.28) stagAt(px, pz, h * 1.4, c); else if (r0 < 0.42) tableAt(px, pz, h * 1.6, c); else if (r0 < 0.58) fanAt(px, pz, h * 1.6, c, rnd() * 0.8 - 0.4); else if (r0 < 0.7) kelpAt(px, pz, kh, pick(A.kelpc)); else if (r0 < 0.82) brainAt(px, pz, h * 1.5, c); else if (r0 < 0.92) tubesAt(px, pz, h * 1.7, c); else stoneAt(px, pz, h * 1.1);
       } else {
         if (rnd() > 0.085) continue;
-        const h = 3 + rnd() * 3; if (hides(px, pz, h * 1.2)) continue;
-        if (r0 < 0.45) kelpAt(px, pz, 5 + rnd() * 4, pick(A.kelpc)); else if (r0 < 0.7) stagAt(px, pz, h, c); else if (r0 < 0.85) tableAt(px, pz, h * 1.1, c); else if (r0 < 0.95) fanAt(px, pz, h * 0.9, c); else stoneAt(px, pz, h * 0.8);
+        const h = 3 + rnd() * 3, kh = 5 + rnd() * 4;
+        const ht = r0 < 0.45 ? kh * 0.75 : r0 < 0.7 ? h : r0 < 0.85 ? h * 0.65 : r0 < 0.95 ? h * 1.1 : h * 0.8;
+        if (hides(px, pz, ht * 1.15)) continue;
+        if (r0 < 0.45) kelpAt(px, pz, kh, pick(A.kelpc)); else if (r0 < 0.7) stagAt(px, pz, h, c); else if (r0 < 0.85) tableAt(px, pz, h * 1.1, c); else if (r0 < 0.95) fanAt(px, pz, h * 0.9, c); else stoneAt(px, pz, h * 0.8);
       }
       // denizanası: bazı yerlerde havada
       if (d > 3.5 && d < 12 && !arena && rnd() < 0.02) jellyAt(px + 1, 2 + rnd() * 3, pz - 1, 0.9 + rnd() * 0.8);

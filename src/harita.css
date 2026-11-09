@@ -46,7 +46,7 @@
 .hm-stage .hm-isle:nth-of-type(10) { width: calc(var(--hmf, 17px) * 9) !important; height: calc(var(--hmf, 17px) * 17) !important; }
 .hm-stage .hm-isle:nth-of-type(10) .hm-star { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .hm-cl, .hm-beam, .hm-flame { animation: none; } }
-.hm-stage .hm-name { max-width: calc(var(--hmf, 17px) * 9.6) !important; font-size: calc(var(--hmf, 17px) * .68); }
+.hm-stage .hm-name { max-width: calc(var(--hmf, 17px) * 9.6) !important; font-size: calc(var(--hmf, 17px) * .68); width: max-content; box-sizing: border-box; text-wrap: balance; }   /* (dar düğme kutusuna sıkışıp 4 satıra bölünmesin: en çok 2 dengeli satır) */
 
 /* ── Kraliyet Atlası isim levhaları ve dalga katmanı ── */
 .hm-wv0 { animation: hm-wave 14s ease-in-out infinite alternate; }

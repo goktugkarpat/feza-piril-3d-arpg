@@ -188,12 +188,17 @@ const ZEMIN = (() => {
         float n = zF(p * 5.), a = mix(.5, zN(p * 31.), zAA(vec2(31.))), b = mix(.5, zN(p * 62. + n * 3.), zAA(vec2(62.))), c = mix(.5, zN(p * 17. + 4.3), zAA(vec2(17.))); h = .2 * a + .2 * b + .6 * c;   // (c: ekranda görünen çimen tanesi)
         col = mix(c0, c1, smoothstep(.2, .85, n * .6 + h * .5)); col = mix(col, c2, smoothstep(.62, .9, zF(p * 1.3 + 3.)) * .38); col *= .78 + .42 * h;
       } else if (t == 1) {
-        vec3 v = zV(p * 4.6); h = smoothstep(.62, .12, v.x); float k = fract(v.z * 7.3);
-        col = mix(c0, c1, v.z); col = mix(col, c2, step(.82, k) * .8); col *= .66 + .5 * h; col *= .92 + .16 * mix(.5, zN(p * 40.), zAA(vec2(40.)));
+        // çakıl: çoğu açık renkli yuvarlak taşlar, aralar hafif gölgeli (eskisi koyu kahve taşlar + simsiyah aralar: çamurlu görünüyordu);
+        // ekranın gösteremeyeceği kadar ince aralar uzakta yumuşar (kamera kayınca karıncalanmaz)
+        vec3 v = zV(p * 4.6); float e = v.y - v.x; h = smoothstep(.62, .12, v.x) * .7 + smoothstep(0., .3, e) * .3; float k = fract(v.z * 7.3);
+        col = mix(c0, c1, .42 + .58 * v.z); col = mix(col, c2, step(.8, k) * .75);
+        col *= mix(.97, .76 + .32 * h, zAA(vec2(14.))); col *= .95 + .1 * mix(.5, zN(p * 40.), zAA(vec2(40.)));
       } else if (t == 2) {
-        vec3 v = zV(p * 1.05 + vec2(zN(p * .8) * .25)); float e = v.y - v.x; h = smoothstep(0., .13, e) * .75 + mix(.5, zF(p * 11.), zAA(vec2(16.))) * .25;
-        col = mix(c0, c1, v.z * .85 + zN(p * 3.) * .15); col = mix(col, c2, step(.86, fract(v.z * 9.1)) * .6); col *= (.5 + .5 * smoothstep(0., .1, e)) * (.88 + .24 * mix(.5, zN(p * 22.), zAA(vec2(22.))));
-        col = mix(col, col * vec3(.72, .85, .6), smoothstep(.05, .0, e) * .5 * zN(p * 9.));
+        // taş levha: açık, temiz derz çizgileri (eskisi %50 karartıyordu); derz genişliği en az ~1 piksel, uzakta derz yumuşar
+        vec3 v = zV(p * 1.05 + vec2(zN(p * .8) * .25)); float e = v.y - v.x, fe = zPx.x * 1.4 + .006; h = smoothstep(0., .13, e) * .75 + mix(.5, zF(p * 11.), zAA(vec2(16.))) * .25;
+        col = mix(c0, c1, .25 + v.z * .65 + zN(p * 3.) * .1); col = mix(col, c2, step(.86, fract(v.z * 9.1)) * .5);
+        col *= mix(1., .7 + .3 * smoothstep(0., .07 + fe, e), zAA(vec2(7.))) * (.9 + .2 * mix(.5, zN(p * 22.), zAA(vec2(22.))));
+        col = mix(col, col * vec3(.8, .9, .72), smoothstep(.05 + fe, .0, e) * .4 * zN(p * 9.));
       } else if (t == 3) {
         float r = zF(p * .9) * 5.; float s = sin((p.x * .6 + p.y * 1.1 + r) * 7.); h = .5 + .22 * s + .2 * mix(.5, zN(p * 50.), zAA(vec2(50.)));
         col = mix(c0, c1, smoothstep(.2, .8, h * .6 + zF(p * 3.) * .4)); col = mix(col, c2, step(.972, zh(floor(p * 55.))) * .9 * zAA(vec2(55.))); col *= .9 + .2 * mix(.5, zN(p * 18.), zAA(vec2(18.)));
@@ -202,13 +207,21 @@ const ZEMIN = (() => {
         col = mix(col, c2, smoothstep(.22, .1, v.x) * step(.62, v.z)); col *= .85 + .3 * zN(p * 2.3); h += smoothstep(.22, .1, v.x) * step(.62, v.z) * .5;
       } else if (t == 5) {
         vec3 v = zV(p * 6.2); float k = fract(v.z * 3.7); h = smoothstep(0., .5, v.y - v.x) * .6 + .2 * mix(.5, zN(p * 30.), zAA(vec2(30.)));
-        col = k < .4 ? mix(c0, c1, k / .4) : mix(c1, c2, (k - .4) / .6); col *= .55 + .6 * h; col *= .85 + .3 * zF(p * 3.);
+        vec3 kc = k < .4 ? mix(c0, c1, k / .4) : mix(c1, c2, (k - .4) / .6);   // (yaprak yaprak renk farkı yumuşak; uzakta ortalamaya döner: karıncalanmaz)
+        col = mix(c1, kc, .3 + .45 * zAA(vec2(12.))); col *= mix(.92, .7 + .38 * h, zAA(vec2(18.))); col *= .92 + .16 * zF(p * 3.);
       } else if (t == 6) {
-        vec3 v = zV(p * 2.1); float e = v.y - v.x; h = mix(.5, zF(p * 9.), zAA(vec2(13.))) * .5 + smoothstep(0., .1, e) * .5;
-        col = mix(c0, c1, zF(p * 3. + v.z * 4.)); col = mix(col, c2, smoothstep(.55, .9, zN(p * 1.3)) * .35); col *= (.5 + .55 * smoothstep(0., .08, e)) * (.85 + .3 * mix(.5, zN(p * 26.), zAA(vec2(26.))));
+        // kaya: çatlaklar ince ve yumuşak (eskisi kalın siyah çizgiler), uzakta kaybolur
+        vec3 v = zV(p * 2.1); float e = v.y - v.x, fe = zPx.x * 2.8 + .01; h = mix(.5, zF(p * 9.), zAA(vec2(13.))) * .5 + smoothstep(0., .1, e) * .5;
+        col = mix(c0, c1, zF(p * 3. + v.z * 4.)); col = mix(col, c2, smoothstep(.55, .9, zN(p * 1.3)) * .35);
+        col *= mix(1., .7 + .33 * smoothstep(0., .07 + fe, e), zAA(vec2(9.))) * (.88 + .24 * mix(.5, zN(p * 26.), zAA(vec2(26.))));
       } else if (t == 7) {
-        vec3 v = zV(p * 2.5 * vec2(1., 1.25)); h = smoothstep(.62, .18, v.x); col = mix(c0, c1, v.z * .8 + .1 * zN(p * 10.)); col = mix(col, c2, step(.85, fract(v.z * 5.3)) * .6);
-        float eg = v.y - v.x; col = mix(col, col * vec3(.7, .95, .55), smoothstep(.2, .0, eg) * smoothstep(.4, .75, zF(p * 3. + 2.)) * .5); col *= .42 + .7 * pow(h, .7); col *= .9 + .2 * mix(.5, zN(p * 35.), zAA(vec2(35.)));
+        // arnavut taşı: yuvarlak, açık renkli taşlar; derzler gölge kadar (eskisi %42'ye kadar kararıp çamur gibi duruyordu), derz
+        // genişliği ekrana göre (uzakta yumuşar, titremez); derzlerde hafif yosun
+        vec3 v = zV(p * 2.5 * vec2(1., 1.25)); float eg = v.y - v.x, fe = zPx.x * 3.2 + .012;
+        float gr = smoothstep(0., .06 + fe, eg); h = smoothstep(.66, .16, v.x) * .7 + smoothstep(0., .25, eg) * .3;
+        col = mix(c0, c1, .3 + v.z * .6 + .1 * zN(p * 10.)); col = mix(col, c2, step(.85, fract(v.z * 5.3)) * .5);
+        col = mix(col, col * vec3(.8, .95, .7), (1. - smoothstep(0., .18, eg)) * smoothstep(.4, .75, zF(p * 3. + 2.)) * .45);
+        col *= mix(.95, (.64 + .36 * gr) * (.73 + .36 * h), zAA(vec2(8.))); col *= .95 + .1 * mix(.5, zN(p * 35.), zAA(vec2(35.)));
       } else {
         // saman: ince lif (yalnız çok yakında) + ekranda görünebilen saman çizgileri (küçük saman taneleri ~3 cm × 9 cm + hafif iri saman bantları)
         float sF = mix(.5, zN(vec2(p.x * 95., p.y * 9.)), zAA(vec2(95., 9.)));
@@ -287,17 +300,21 @@ const ZEMIN = (() => {
           col *= mix(vec3(1.), mix(uMacA, uMacB, smoothstep(.35, .65, m2)), smoothstep(.3, .7, m1) * .55);
           col *= .82 + .36 * smoothstep(.2, .8, m1 * .6 + m2 * .4);
           float walk = smoothstep(.28, .72, M.g + w1 * .13 + (w2 - .5) * .1);
-          float pr = smoothstep(.16, .55, M.r + w1 * .08);
-          float pw2 = smoothstep(.46, .6, M.r + (w2 - .5) * .32 + w1 * .1);
+          // yol: temiz, net kenarlı bir şerit (kenarı yumuşak dalgalı, 1-2 piksel kenar yumuşatma). Eskisi yolun dışına ~yarım metre koyu
+          // kahve bir leke ve dağınık koyu taşlar saçıyordu (çamurlu görünüyordu); şimdi kenarda yalnız hafif bir gölge ve birkaç taş
+          float pe = M.r + w1 * .07 + (w2 - .5) * .12;
+          float pr = smoothstep(.22, .5, pe), fP = fwidth(pe) * .7 + .02;
+          float pw2 = smoothstep(.5 - fP, .5 + fP, pe);
           if (pr > .01) {
             zMat(int(uT.z + .5), p, uP[0], uP[1], uP[2], cP, hP);
-            cP *= mix(.72, 1., smoothstep(.5, .95, M.r)) * (.86 + .22 * zF(p * 1.9 + 4.));
-            cP = mix(cP, uRim * vec3(.7, 1.3, .8), uPMoss * smoothstep(.5, .8, zF(p * 2.3 + 9.)) * (1. - hP) * (1. - smoothstep(.7, .95, M.r) * .5));
-            float rimW = pr * (1. - pw2) * smoothstep(.0, .5, w2 + .2);
-            col = mix(col, mix(col, uRim, .55) * (.85 + .3 * hB), rimW);
-            vec3 vs = zV(p * 4.6 + 3.1); float scat = step(.5, vs.z) * smoothstep(.55, .3, vs.x) * smoothstep(.1, .34, M.r + w1 * .06) * (1. - pw2);
-            col = mix(col, cP * .92, max(scat, pw2)); h = mix(h, hP, max(scat, pw2));
-            col *= 1. - .1 * pw2 * smoothstep(.5, .75, M.r) * (1. - smoothstep(.75, .95, M.r));
+            cP *= .93 + .12 * zF(p * 1.9 + 4.);
+            cP = mix(cP, uRim * vec3(.8, 1.25, .85), uPMoss * .7 * smoothstep(.55, .85, zF(p * 2.3 + 9.)) * (1. - hP) * (1. - smoothstep(.6, .9, M.r) * .6));
+            float rimO = pr * (1. - pw2);
+            col = mix(col, uRim, rimO * .14) * (1. - .2 * rimO * rimO);
+            float scat = 0.;
+            if (pe > .36 && pw2 < .99) { vec3 vs = zV(p * 4.6 + 3.1); scat = step(.7, vs.z) * smoothstep(.5, .28, vs.x) * smoothstep(.36, .47, pe) * (1. - pw2); }   // (yolun içinde 9 hücrelik arama yapılmaz)
+            float lip = pw2 * (1. - smoothstep(.5, .58 + fP, pe));
+            col = mix(col, cP * (1. - .1 * lip), max(scat * .9, pw2)); h = mix(h, hP, max(scat, pw2));
           }
           if (uOT > -.5 && walk < .98) { vec3 cO; float hO; zMat(int(uOT + .5), p, uA[0], uA[1], uA[2], cO, hO); float kw = smoothstep(.3, .9, walk); col = mix(cO * mix(vec3(1.), uMacB, .3), col, kw); h = mix(hO, h, kw); }
           col = mix(col * uOut * 2.4 * uOutK + uOut * .15, col, walk);
@@ -483,6 +500,11 @@ const ZEMIN = (() => {
         }
       }
       M.tex.needsUpdate = true; }
+    // PERF (tur 1): örnekli zemin örtüsü (ot, çiçek, çakıl…) oyunda HİÇ görünmüyordu — 03p'deki uzak parça budaması örnekli zemin-*
+    // parçalarında tek bir otun kendi sınır küresine bakıp hepsini gizliyor (ölçüm: bölüm başına 100-160 parça, 0'ı görünür).
+    // Görünmeyen parçaları kurmak yükleme süresi ve bellek harcıyordu → kurulmaz; görüntü aynı kalır. (?ortu ile eskisi gibi kurulur;
+    // örtü yeniden açılacaksa önce budama düzeltilmeli ve çizim bütçesi gözetilmeli.)
+    if (!(typeof Q !== 'undefined' && Q.has && Q.has('ortu'))) { Zk.stat = { tri: 0, inst: 0, calls: 0, blobs: blobs.length, kapali: 1 }; return; }
     const cell = 4, bw = Math.ceil(L.W / cell) + 12, bg = new Map();
     const bk = (i, j) => (j + 6) * bw + i + 6;
     for (const b of blobs) { const k = bk(Math.floor(b[0] / cell), Math.floor(b[1] / cell)); (bg.get(k) || bg.set(k, []).get(k)).push(b); }

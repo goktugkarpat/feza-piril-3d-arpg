@@ -7,7 +7,8 @@
      runTascik         Rün Taşçığı          gülen yassı taş, yavaşça kayar                                         base kratercik 'yakin'
      suzulenYildizcik  Süzülen Yıldızcık    tek yönde süzülüp geçer (yol işaretli)                                  base yildizcik 'kayan'
      mabetBekcisi      Ay Tavşanı        boss: taştan sevimli tavşan heykeli. Taş Zıplama (sarı daire), Baloncuk Yelpazesi (mavi koni),
-                       Kulak Dalgası (turkuaz halka; üstünden zıpla), Rün Yağmuru (turuncu kareler), Yıldız Toplama (3 yıldız → Bekçi kıkırdar).
+                       Kulak Dalgası (turkuaz halka; ZARARSIZ, Feza kendiliğinden hop diye üstünden zıplar — 8 Kasım, 5 yaş: zamanlama yok),
+                       Rün Yağmuru (turuncu kareler), Yıldız Toplama (3 yıldız → Bekçi kıkırdar).
    Genel ad: HZ_MABET. Cümleler: 02l_mabet.js (b06_...). */
 const HZ_MABET = (() => {
   'use strict';
@@ -102,7 +103,8 @@ const HZ_MABET = (() => {
     head.position.y = 0.5; mal.add(handle, head); mal.position.set(0.95, 0.95, 0.8); mal.rotation.z = -0.35; body.add(mal);
     // başının çevresinde dönen ay-ışığı yıldızları (altın, parlak) + her birinin hâlesi
     const orb = new THREE.Group(), om = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe9a8).multiplyScalar(1.5) });
-    for (let i = 0; i < 4; i++) { const q = new THREE.Mesh(new THREE.OctahedronGeometry(0.15, 0), om); q.userData.a = i / 4 * TAU; BB.halo(q, 0xffe08a, 1.6, [0, 0, 0], 0.5); orb.add(q); }
+    const og = new THREE.OctahedronGeometry(0.15, 0);   // (4 yıldız tek geometriyi paylaşır)
+    for (let i = 0; i < 4; i++) { const q = new THREE.Mesh(og, om); q.userData.a = i / 4 * TAU; BB.halo(q, 0xffe08a, 1.25, [0, 0, 0], 0.3); orb.add(q); }   // hâle küçük ve soluk: dört parlak top üst üste binip göz kırpmasın
     orb.position.y = 2.7; body.add(orb);
     m.mabetHeart = heart;
     const a0 = m.anim; let ot = 0, al = 0, hp = 0;
@@ -116,7 +118,7 @@ const HZ_MABET = (() => {
       heart.rotation.y += 0.02; heart.scale.set(0.8 * pul, 1.15 * pul, 0.7 * pul); hh.material.opacity = 0.45 + 0.15 * Math.sin(ot * 2.4) + al * 0.25 + hp * 0.2;
       gl.mat.opacity = gl.k * (0.9 + 0.1 * Math.sin(ot * 1.3) + al * 0.25);
       orb.rotation.y = 0; orb.position.y = 2.7 + hp * 0.25 * Math.sin(ot * 6);
-      orb.children.forEach((q, i) => { const a = q.userData.a + ot * 0.9, R = 1.7 + hp * 0.3; q.position.set(Math.sin(a) * R, Math.sin(ot * 1.7 + i * 1.6) * 0.2, Math.cos(a) * R); q.rotation.y = a * 2; q.scale.setScalar(1 + 0.25 * Math.sin(ot * 3 + i)); });
+      orb.children.forEach((q, i) => { const a = q.userData.a + ot * 0.9, R = 1.7 + hp * 0.3; q.position.set(Math.sin(a) * R, Math.sin(ot * 1.7 + i * 1.6) * 0.2, Math.cos(a) * R); q.rotation.y = a * 2; q.scale.setScalar(1 + 0.08 * Math.sin(ot * 1.6 + i)); });   // yavaş, hafif nefes (eskiden ±%25 hızlı titreme)
       return r;
     };
   }
@@ -200,7 +202,7 @@ const HZ_MABET = (() => {
     for (const s of W.shots) if (s.m && s.m.parent) s.m.parent.remove(s.m);
     for (const r of W.rain) { if (r.m && r.m.parent) r.m.parent.remove(r.m); markOff(r.mk); }
     for (const s of W.stars) { if (s.m && s.m.parent) s.m.parent.remove(s.m); markOff(s.mk); }
-    if (W.wave && W.wave.m && W.wave.m.parent) W.wave.m.parent.remove(W.wave.m);
+    if (W.waveM) { W.waveM.visible = false; if (W.waveM.parent) W.waveM.parent.remove(W.waveM); }
     W.shots.length = 0; W.rain.length = 0; W.stars.length = 0; W.wave = null;
     for (const m of MK.pool) { m.on = false; m.g.visible = false; }
   }
@@ -224,14 +226,19 @@ const HZ_MABET = (() => {
         markOff(r.mk); if (r.m.parent) r.m.parent.remove(r.m); W.rain.splice(i, 1);
       }
     }
-    // kulak dalgası
+    // kulak dalgası (8 Kasım, 5 yaş): ZARAR VERMEZ ve zamanlama istemez. Dalga Feza'ya yaklaşınca Feza KENDİLİĞİNDEN hop diye
+    // üstünden zıplar ("Dalga geliyor, zıpla!" cümlesi doğru kalır; çocuk Zıp'a basarsa da olur). Geçerken tek turkuaz parıltı.
     const w = W.wave;
     if (w) {
-      w.t += dt; const R = 1.6 + w.t * 4.2; w.m.scale.set(R, 1, R); w.m.position.set(w.x, 0.12, w.z); w.m.material.opacity = 0.8 * (1 - w.t / 3.1);
+      w.t += dt; const R = 1.6 + w.t * 4.2, k = w.t / 3.1; w.m.scale.set(R, 1, R); w.m.position.set(w.x, 0.12, w.z);
+      w.m.material.opacity = 0.7 * (1 - k * k) * Math.min(1, w.t * 5);   // yumuşak beliriş, yavaş sönüş (eskiden birden çıkıp düz azalıyordu)
       const d = hyp(P.pos.x - w.x, P.pos.z - w.z);
-      if (!w.hit && !P.dead && Math.abs(d - R) < 0.7 && heroUp() < 0.8 && b && !b.dead) { w.hit = true; try { A.hurtPlayer(dmgOf(b, 0.5), w.x, w.z, 0.5); } catch (e) { /* yok */ } }
-      if (!w.hit && !P.dead && Math.abs(d - R) < 0.7 && heroUp() >= 0.8 && !w.over) { w.over = true; A.burst('sparkle', P.pos.x, 0.6, P.pos.z, { color: '#aef8f0', count: 6 }); }
-      if (w.t > 3.1) { if (w.m.parent) w.m.parent.remove(w.m); W.wave = null; }
+      if (!w.hop && !P.dead && d > R && d - R < 1.25) {   // dalga 1,25 m kala otomatik zıplama (alçak yerçekimi: ~1,6 sn havada, dalga 0,3 sn'de geçer)
+        w.hop = true;
+        try { if (heroUp() < 0.3 && GAME.zip) GAME.zip(); } catch (e) { /* yok */ }
+      }
+      if (!w.over && !P.dead && Math.abs(d - R) < 0.6) { w.over = true; A.burst('sparkle', P.pos.x, 0.6 + heroUp(), P.pos.z, { color: '#aef8f0', count: 6 }); }
+      if (w.t > 3.1) { w.m.visible = false; W.wave = null; }
     }
     // yıldızlar (toplama oyunu)
     for (const s of W.stars) if (!s.done) {
@@ -309,8 +316,10 @@ const HZ_MABET = (() => {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) { b.did = 1; S.mk = mark('ring', b.x, b.z, 3.4, '#35e0d0', 1.8); warn(S, 'b06_dalga'); }
       if (b.did === 1 && t >= 1.7) {
-        b.did = 2; markOff(S.mk); const G = gm(), mesh = new THREE.Mesh(G.ringG, G.wave.clone()); mesh.material.userData.keep = false; scene.add(mesh);
-        W.wave = { x: b.x, z: b.z, t: 0, m: mesh, hit: false, over: false }; A.sfx('whoosh', { x: b.x, z: b.z, pitch: 0.7 });
+        b.did = 2; markOff(S.mk); const G = gm();
+        if (!W.waveM) { W.waveM = new THREE.Mesh(G.ringG, G.wave); W.waveM.renderOrder = 3; W.waveM.frustumCulled = false; W.waveM.userData.keep = true; }   // tek dalga ağı, her dalgada yeniden kullanılır (eskiden her dalgada yeni ağ + malzeme kopyası)
+        const mesh = W.waveM; if (mesh.parent !== scene) scene.add(mesh); mesh.visible = true; mesh.material.opacity = 0; mesh.scale.set(1.6, 1, 1.6); mesh.position.set(b.x, 0.12, b.z);
+        W.wave = { x: b.x, z: b.z, t: 0, m: mesh, hop: false, over: false }; A.sfx('whoosh', { x: b.x, z: b.z, pitch: 0.7 });
       }
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.4, 1.2); }
     },

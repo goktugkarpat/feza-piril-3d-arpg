@@ -84,8 +84,10 @@ const HZ_YANARDAG = (() => {
     });
     BB.rim(m, '#ffd9a0', 0.55);
     const gl = BB.ground(root, 0xffe0a0, 3.4, 0.12);
-    const em = new THREE.Group(), emM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa040).multiplyScalar(1.5) });
-    for (let i = 0; i < 8; i++) { const q = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), emM); q.userData.p = i / 8; q.userData.a = i * 2.4; em.add(q); }
+    // kabuğun çevresinde yükselen 8 kor: tek çizimlik çoğaltılmış küre (önceden 8 ayrı küre = 8 çizim). Kare başına yeni nesne yok.
+    const N = 8, emM = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffa040).multiplyScalar(1.5) });
+    const em = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 8, 6), emM, N); em.frustumCulled = false; em.name = 'lav-kor';
+    const _m = new THREE.Matrix4(), EP = [], EA = []; for (let i = 0; i < N; i++) { EP.push(i / N); EA.push(i * 2.4); }
     root.add(em);
     const a0 = m.anim; let ot = 0, al = 0;
     if (typeof a0 === 'function') m.anim = function (dt, st) {
@@ -93,7 +95,11 @@ const HZ_YANARDAG = (() => {
       const ph = st.phase || '', hot = (st.windup >= 0 && st.windup < 1) || ph === 'erupt' || ph === 'hide' || ph === 'roll' || ph === 'stomp';
       al += ((hot ? 1 : 0) - al) * Math.min(1, dt * 4); ot += dt * (1 + al * 1.5);
       gl.mat.opacity = gl.k * (0.9 + 0.1 * Math.sin(ot * 1.6) + al * 0.3);
-      em.children.forEach(q => { const u = (q.userData.p + ot * 0.18) % 1, a = q.userData.a + ot * 0.5; q.position.set(Math.sin(a) * (1.4 + u * 0.8), 0.8 + u * 2.6, Math.cos(a) * (1.4 + u * 0.8)); q.scale.setScalar(Math.sin(u * Math.PI) * (1 + al * 0.6) + 0.01); });
+      for (let i = 0; i < N; i++) {
+        const u = (EP[i] + ot * 0.18) % 1, a = EA[i] + ot * 0.5, s = Math.sin(u * Math.PI) * (1 + al * 0.6) + 0.01;
+        _m.makeScale(s, s, s).setPosition(Math.sin(a) * (1.4 + u * 0.8), 0.8 + u * 2.6, Math.cos(a) * (1.4 + u * 0.8)); em.setMatrixAt(i, _m);
+      }
+      em.instanceMatrix.needsUpdate = true;
       return r;
     };
   }

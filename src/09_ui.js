@@ -504,7 +504,20 @@ const UI = (() => {
     // subtitles live above every screen (the victory line plays over the victory panel)
     D.sub = el('div', 'u-sub', root, '<div class="u-subico">✨</div><div class="u-subtxt"></div>');
     D.subIco = D.sub.firstChild; D.subTxt = D.sub.lastChild;
-    D.fade = el('div', '', document.body, '<div class="u-fstar">✨</div>');
+    // yükleme perdesi: küçük Büyük Fener (ışığı yanıp söner) + altında zıplayan üç ışık (yazı yok)
+    D.fade = el('div', '', document.body, '<div class="u-fstar" aria-hidden="true"><svg viewBox="0 0 120 160">' +
+      '<defs><radialGradient id="uFg"><stop offset="0" stop-color="#fff3b0" stop-opacity=".95"/><stop offset=".45" stop-color="#ffd86b" stop-opacity=".35"/><stop offset="1" stop-color="#ffd86b" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="uFbR" gradientUnits="userSpaceOnUse" x1="60" y1="0" x2="124" y2="0"><stop offset="0" stop-color="#fff8d2"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="uFbL" gradientUnits="userSpaceOnUse" x1="60" y1="0" x2="-4" y2="0"><stop offset="0" stop-color="#fff8d2"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></linearGradient></defs>' +
+      '<path class="u-fb u-fb1" d="M60 39L124 20V58Z" fill="url(#uFbR)"/><path class="u-fb u-fb2" d="M60 39L-4 20V58Z" fill="url(#uFbL)"/>' +
+      '<circle class="u-fglow" cx="60" cy="39" r="30" fill="url(#uFg)"/>' +
+      '<path d="M18 142Q28 126 46 127H74Q92 126 102 142Q60 153 18 142Z" fill="#4a5f9a"/><path d="M28 134Q40 127 52 129" stroke="#8fa6dc" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M48 51L44 128H76L72 51Z" fill="#fff6e8"/><path d="M46.9 70H73.1L73.7 82H46.3Z" fill="#ff9fc0"/><path d="M45.7 94H74.3L74.9 106H45.1Z" fill="#7fd0f0"/>' +
+      '<path d="M48 51L44 128H52L54 51Z" fill="#ffffff" opacity=".55"/><circle cx="60" cy="88" r="3.2" fill="#ffd86b"/><path d="M55 128V119Q60 113 65 119V128Z" fill="#c98a52"/>' +
+      '<rect x="41" y="46" width="38" height="6" rx="3" fill="#6fb6e8"/><rect x="47" y="29" width="26" height="18" rx="4" fill="#ffe58a" stroke="#f3e2b8" stroke-width="2"/><rect class="u-flamp" x="51" y="32" width="18" height="12" rx="3" fill="#fffbe6"/>' +
+      '<path d="M43 30Q60 9 77 30Z" fill="#ff8fb8"/><circle cx="60" cy="13" r="3.4" fill="#ffd86b"/>' +
+      '<path d="M8 151q8-4 16 0t16 0t16 0t16 0t16 0t16 0t16 0" stroke="#bfe6ff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/></svg>' +
+      '<div class="u-fdots"><i></i><i></i><i></i></div></div>');
     D.fade.id = 'uiFade';
     wireButtons();
   }

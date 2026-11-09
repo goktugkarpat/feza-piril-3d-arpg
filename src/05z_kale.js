@@ -44,7 +44,8 @@ const HZ_KALE = (() => {
       if (anim0) anim0.apply(this, arguments);
       sh += dt; if (!pelus || !pelus.material || !pelus.material.emissive) return;
       const k = 1 - clamp(a.renkDegeri || 0, 0, 1);
-      pelus.material.emissive.setHSL(0.5 + 0.28 * Math.sin(sh * 0.5) + 0.12 * Math.sin(sh * 0.23), 0.55, 0.55); pelus.material.emissiveIntensity = 0.13 * k;
+      // (renk yolu pembe → şeftali → nane: lila/mor tonlarından geçmez — tanımadan önce mor yalnız Pırıl'ın; eskisi zaman zaman lilaya kayıyordu)
+      pelus.material.emissive.setHSL((0.95 + 0.25 * (1 + Math.sin(sh * 0.5)) + 0.03 * Math.sin(sh * 0.23)) % 1, 0.5, 0.55); pelus.material.emissiveIntensity = 0.12 * k;
     };
     const d0 = m.dispose; m.dispose = function () { try { if (d0) d0.call(m); } catch (e) { /* yok */ } if (a.root.parent) a.root.parent.remove(a.root); };
     return m;
@@ -120,7 +121,8 @@ const HZ_KALE = (() => {
     for (let i = W.kids.length; i < 4; i++) {
       try {
         const d = EJDERHA.yavru({}); d.root.scale.setScalar(0.8); scene.add(d.root);
-        W.kids.push({ d, a: i * TAU / 4, r: 3.5 + i * 0.5, x: b.x, z: b.z + 3, mv: 0 });
+        const a0 = i * TAU / 4, sx = b.x + Math.sin(a0) * 1.4, sz = b.z + 3 + Math.cos(a0) * 1.4, ok = BOSSDAV.api && BOSSDAV.api.isFloor ? BOSSDAV.api.isFloor(sx, sz) : true;   // (dördü aynı noktada iç içe doğmasın)
+        W.kids.push({ d, a: a0, r: 3.5 + i * 0.5, x: ok ? sx : b.x, z: ok ? sz : b.z + 3, mv: 0 });
       } catch (e) { /* yok */ }
     }
     say('b09_yumurta_cik', 2);
@@ -132,7 +134,9 @@ const HZ_KALE = (() => {
       const dx = tx - k.x, dz = tz - k.z, d = hyp(dx, dz), st = Math.min(d, 2.2 * dt);
       const nx = k.x + (dx / (d || 1)) * st, nz = k.z + (dz / (d || 1)) * st;
       if (A.isFloor(nx, nz)) { k.x = nx; k.z = nz; }
-      k.mv = d > 0.3 ? 1 : 0; k.d.root.position.set(k.x, 0, k.z); k.d.root.rotation.y = Math.atan2(dx, dz);
+      // yürü/dur eşiği aralıklı (titreşmesin) ve dönüş yumuşak (eskiden her kare hedefe anında dönüyordu: yerinde silkeleniyordu)
+      k.mv = d > (k.mv ? 0.2 : 0.5) ? 1 : 0; k.d.root.position.set(k.x, 0, k.z);
+      if (d > 0.25) k.d.root.rotation.y = dampAngle(k.d.root.rotation.y, Math.atan2(dx, dz), 7, dt);
       try { k.d.update(dt, k.mv > 0, false); } catch (e) { /* yok */ }
     }
   }
@@ -183,7 +187,7 @@ const HZ_KALE = (() => {
     if (!P) return;
     // renk geçişi (tanıma 3. adım)
     const r = W.rec;
-    if (r && r.tween && ANNE) { r.tween.t += dt; const u = clamp(r.tween.t / r.tween.sn, 0, 1), k = Math.round(u * u * (3 - 2 * u) * 25) / 25; if (k !== r.color) { r.color = k; ANNE.renk(k); } if (u >= 1) r.tween = null; }
+    if (r && r.tween && ANNE) { r.tween.t += dt; const u = clamp(r.tween.t / r.tween.sn, 0, 1), k = Math.round(u * u * (3 - 2 * u) * 48) / 48; if (k !== r.color) { r.color = k; ANNE.renk(k); } if (u >= 1) r.tween = null; }
     if (b && !b.dead && W.kids.length) kidsTick(dt, b, A);
     if (!b || b.dead) return;
     // kabarcıklar
@@ -245,7 +249,8 @@ const HZ_KALE = (() => {
     // Pembe Kabarcıklar: yerde pembe koni, sonra 3 yavaş kabarcık (yakın mesafeyi de kapsar)
     pembe(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
-      if (b.did === 0) { b.did = 1; S.yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = S.yaw; S.mk = mark('cone', b.x, b.z, 8, '#ff7fb4', 2.4, S.yaw); warn(S, 'b09_uyari_pembe'); }
+      if (b.did === 0) { b.did = 1; S.yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); S.mk = mark('cone', b.x, b.z, 8, '#ff7fb4', 2.4, S.yaw); warn(S, 'b09_uyari_pembe'); }
+      if (t < 2.1) faceTo(b, b.x + Math.sin(S.yaw) * 5, b.z + Math.cos(S.yaw) * 5, 6, dt);   // yüzünü yumuşakça çevirir (eskiden bir karede dönüyordu: ani sıçrama)
       if (b.did === 1 && t >= 2.1) {
         b.did = 2; markOff(S.mk); const G = gm(), sx = b.x + Math.sin(S.yaw) * 1.1, sz = b.z + Math.cos(S.yaw) * 1.1;
         for (const da of [-0.38, 0, 0.38]) {
@@ -260,7 +265,7 @@ const HZ_KALE = (() => {
     mavi(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
-        b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = yaw; S.yaw = yaw;
+        b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); S.yaw = yaw;
         const slow = S.stage >= 3 ? 1.35 : 1;
         for (const sd of [-1.1, 1.1]) {
           const x = b.x + Math.cos(yaw) * sd + Math.sin(yaw) * 4.4, z = b.z - Math.sin(yaw) * sd + Math.cos(yaw) * 4.4;
@@ -269,16 +274,18 @@ const HZ_KALE = (() => {
         }
         warn(S, 'b09_uyari_mavi');
       }
+      if (t < 2.2) faceTo(b, b.x + Math.sin(S.yaw) * 5, b.z + Math.cos(S.yaw) * 5, 6, dt);   // (yumuşak dönüş)
       if (t >= b.phD) { S.n++; A.bossEnd(b, 1.8, 1.4); }
     },
     // Yorgun Kuyruk: yeşil şerit (≥2 sn), sonra kuyruk yavaş süpürür (yakın mesafeyi de kapsar)
     kuyruk(b, S, dt) {
       const A = BOSSDAV.api, t = b.stT;
       if (b.did === 0) {
-        b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); b.face = yaw;
+        b.did = 1; const yaw = Math.atan2(A.P.pos.x - b.x, A.P.pos.z - b.z); S.yaw = yaw;
         const x = b.x + Math.sin(yaw) * 3.8, z = b.z + Math.cos(yaw) * 3.8, mk = mark('sq', x, z, 0.95, '#5cd06a', 5.0, yaw, 4.6);
         W.strips.push({ x, z, yaw, hw: 1.05, hl: 4.6, warn: 2.3, sweep: 2.2, off: 3.2, t: 0, mk, hit: false, over: 0.8 }); warn(S, 'b09_uyari_yesil');
       }
+      if (t < 2.3) faceTo(b, b.x + Math.sin(S.yaw) * 5, b.z + Math.cos(S.yaw) * 5, 6, dt);   // (yumuşak dönüş)
       if (t >= b.phD) { S.n++; A.bossEnd(b, 2.0, 1.4); }
     },
     // Dostluk Kalpleri: 3 pembe kalp; üçü toplanınca ejderha oturur (vurma fırsatı)

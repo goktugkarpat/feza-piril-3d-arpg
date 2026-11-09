@@ -43,16 +43,23 @@ const HUYSUZ = (() => {
   const baseOf = id => (T[id] ? T[id].base : id);
 
 
-  // G6: yumuşak belirme (patlama yok: 0,5 sn'de hafif taşarak büyür), "fark etti" şaşkınlığı (gözler iri, kaşlar kalkık), neşelenince kalpler
-  const easeBack = u => { const c = 1.9, x = u - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+  // G6: yumuşak belirme (patlama yok: 0,6 sn'de yerden "boing" diye büyür: önce ince uzun, sonra tombul, sonra yerine oturur),
+  // "fark etti" şaşkınlığı (gözler iri, kaşlar kalkık). Neşelenince ayrı kalp patlaması YOK: 07'nin tek neşe efekti yeter
+  // (eskiden burada ikinci bir kalp yağmuru vardı; kalpler üst üste binip huysuzun yüzünü örtüyordu).
+  const easeBack = u => { const c = 1.7, x = u - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+  const BORN = 0.6;
   function wrapAnim(m) {
     m._gAnim = 1;
-    const a0 = m.anim, base = m.mesh.scale.x, S = { age: 0, notice: -1, seen: false, hearts: false };
+    const a0 = m.anim, base = m.mesh.scale.x, S = { age: 0, notice: -1, seen: false };
     m.anim = function (dt, st) {
       a0.call(m, dt, st);
       S.age += dt;
-      if (S.age < 0.55) m.mesh.scale.setScalar(base * (0.25 + 0.75 * Math.max(0, easeBack(Math.min(1, S.age / 0.55)))));
-      else if (S.age < 0.6) m.mesh.scale.setScalar(base);
+      if (S.age < BORN) {
+        const u = S.age / BORN, k = Math.max(0.02, easeBack(u)), w = Math.sin(Math.PI * Math.min(1, u * 1.25));
+        // (boing: önce yukarı uzar (y × 1,18, yanlar × 0,9), sonra hafifçe yayılır ve tam boyuna yerleşir)
+        const sy = k * (1 + 0.18 * w * (1 - u)), sx = k * (1 - 0.1 * w * (1 - u));
+        m.mesh.scale.set(base * sx, base * sy, base * sx);
+      } else if (S.age < BORN + 0.05) m.mesh.scale.setScalar(base);
       if (!st) return;
       const dying = st.dying >= 0;
       if (!S.seen && !dying && (st.move > 0.6 || st.windup >= 0 || st.attack >= 0) && S.age > 0.8) { S.seen = true; S.notice = 0; }
@@ -63,11 +70,9 @@ const HUYSUZ = (() => {
         else if (m.B && m.B.eyes && m.s.mood !== 'happy') {
           const k = Math.sin(Math.PI * Math.min(1, u * 1.3)); m.B.eyes.scale.y *= 1 + 0.3 * k; m.B.eyes.scale.x *= 1 + 0.12 * k;
           if (m.B.brow) m.B.brow.position.y += 0.05 * k * m.height / (base || 1);
+          // (and a tiny surprised hop — "oh, Feza!" — like the bosses' double take; only a look, nothing to dodge)
+          if (m.B.root) m.B.root.position.y += Math.sin(Math.PI * Math.min(1, u * 1.6)) * 0.06 * m.height / (base || 1);
         }
-      }
-      if (dying && !S.hearts) {
-        S.hearts = true;
-        try { if (typeof FX !== 'undefined' && FX && FX.burst) { const p = m.root.position; FX.burst('hearts', p.x, p.y + m.height * 0.8, p.z, { count: 6, scale: 0.7 }); } } catch (e) { /* yok */ }
       }
     };
   }

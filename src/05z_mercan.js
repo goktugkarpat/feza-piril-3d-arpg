@@ -234,18 +234,20 @@
       open = w; ry = w * PI / 2 * 0.5; rx = -0.12 * w; b.position.x += Math.sin(s.t * 55) * 0.01 * w; s.eyeK = 1 + 0.25 * w;
     }
     if (st.attack >= 0) {
-      if (st.attack < 1 && s.mv > 0.5) {   // tekerlek gibi takla
-        roll = true; s.roll = (s.roll || 0) + dt * 12;
-        b.rotation.set(s.roll, PI / 2, 0); b.position.y += 0.06;
-      } else { s.roll = 0; rz += Math.sin(s.t * 9) * 0.15; s.eyeWob = 1; }
-    } else s.roll = 0;
+      if (st.attack < 1 && s.mv > 0.5) { roll = true; s.roll = (s.roll || 0) + dt * 12; }   // tekerlek gibi takla
+      else { rz += Math.sin(s.t * 9) * 0.15; s.eyeWob = 1; }
+    }
+    // CİLA (akıcılık): takla bitince birden dikilmesin — açı en yakın tam tura yumuşakça döner, yan dönüş de yavaşça çözülür
+    if (!roll && s.roll) { let r = s.roll % TAU; if (r > PI) r -= TAU; s.roll = damp(r, 0, 9, dt); if (Math.abs(s.roll) < 0.02) s.roll = 0; }
+    s.rk = damp(s.rk || 0, roll ? 1 : 0, 12, dt);
     { const u = gag(s, st, dt, 2.6, 5);   // bekleme: yerinde ters takla + alkış
       if (u >= 0) {
         const f = sm(u / 0.6); rx -= TAU * f; y += 0.35 * bumpU(u, 0, 0.6);
         wave += Math.sin(u * 50) * 0.5 * bumpU(u, 0.6, 1); s.eyeK = 1 + 0.3 * bumpU(u, 0, 0.6);
       }
     }
-    if (!roll) { b.rotation.set(rx, ry, rz); b.position.y += y; }
+    if (roll) { b.rotation.set(s.roll, PI / 2, 0); b.position.y += 0.06; }
+    else { b.rotation.set(rx + (s.roll || 0), ry + (PI / 2 - ry) * s.rk, rz * (1 - s.rk)); b.position.y += y + 0.06 * s.rk; }
     B.armL.rotation.z = -wave * 0.6 - 0.4 * open; B.armR.rotation.z = wave * 0.6 + 0.4 * open;
     B.top.rotation.z = Math.sin(s.t * 2.2 + s.ph) * 0.12;
     if (!roll) boing(s, st, dt, b);
@@ -452,7 +454,10 @@
     const P = 1 + 0.5 * s.pf;
     b.position.y += y + 0.5 * s.pf;
     if (roll) b.rotation.set(s.roll, 0, 0);
-    else b.rotation.set(rx, spin * TAU * 3, rz);
+    else {   // CİLA (akıcılık): yuvarlanma bitince birden dikilmez; en yakın tam tura yumuşakça döner
+      if (s.roll) { let r = s.roll % TAU; if (r > PI) r -= TAU; s.roll = damp(r, 0, 7, dt); if (Math.abs(s.roll) < 0.02) s.roll = 0; }
+      b.rotation.set(rx + (s.roll || 0), spin * TAU * 3, rz);
+    }
     b.scale.setScalar(P);
     B.spk.scale.setScalar(0.72 + 0.35 * s.pf);
     B.finL.rotation.z = flap; B.finR.rotation.z = -flap; B.finL.rotation.y = 0.25 * flap; B.finR.rotation.y = -0.25 * flap;

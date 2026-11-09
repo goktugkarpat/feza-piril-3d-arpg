@@ -124,7 +124,8 @@ const DEGIRMEN_DEKOR = (() => {
         }
         case 'flowers': { const n = 8 + ((rnd() * 6) | 0); const dx = ca * 0.45, dz = sa * 0.45; for (let i = 0; i < n; i++) { const t = (i - n / 2) * 0.45, px = x + dx * t * 2 + (rnd() - 0.5) * 0.4, pz = z + dz * t * 2 + (rnd() - 0.5) * 0.4; if (ok(px, pz, 0.15)) { flowerAt(px, pz, 1 + rnd() * 0.7); if (rnd() < 0.5) tuftAt(px + 0.2, pz, 1); } } st.flo += n; break; }
         case 'barrels': { barrelAt(x, z, 1.1); if (ok(x + 0.8, z + 0.2, 0.4)) barrelAt(x + 0.8, z + 0.2, 1.0); if (rnd() < 0.7 && ok(x + 0.3, z + 0.9, 0.4)) sackAt(x + 0.3, z + 0.9, 1.1); if (ok(x - 0.7, z + 0.5, 0.4)) sackAt(x - 0.7, z + 0.5, 0.9); if (rnd() < 0.5) put(P.stonePath(0), x, 0, z + 0.2, 1.2, 0.5, 1.2, 0xc8b898, 0, 0, 0, 'shinyNS'); around(x, z, 1.6, 3, (px, pz) => tuftAt(px, pz, 1)); break; }
-        case 'fence': { const n = 3 + ((rnd() * 2) | 0); for (let i = 0; i < n; i++) { const t = (i - (n - 1) / 2) * 1.6, px = x + ca * t, pz = z + sa * t; if (ok(px, pz, 0.3)) { put(P.fenceSeg(0), px, 0, pz, 1, 1, 1, 0xffffff, yaw, 0, 0, 'shinyNS'); st.fence++; } }
+        case 'fence': { const n = 3 + ((rnd() * 2) | 0); for (let i = 0; i < n; i++) { const t = (i - (n - 1) / 2) * 1.6, px = x + ca * t, pz = z + sa * t;
+            if (ok(px, pz, 0.3) && free(px + ca * 0.8, pz + sa * 0.8, 0.2) && free(px - ca * 0.8, pz - sa * 0.8, 0.2)) { put(P.fenceSeg(0), px, 0, pz, 1, 1, 1, 0xffffff, yaw, 0, 0, 'shinyNS'); st.fence++; } }   // (iki ucu da boşta: 1,6 m'lik çit dereye/kuma taşmasın)
           for (const sg of [-1, 1]) around(x - sa * sg * 0.55, z + ca * sg * 0.55, 1.6, 4, (px, pz) => { if (rnd() < 0.6) flowerAt(px, pz, 1.1); else tuftAt(px, pz, 1.2); }); break; }
         default: { const s = 0.5 + rnd() * 0.3; stoneAt(x, z, s); /* (alçak taş: içinden geçilir; eskiden 1,4 m'lik kaya) */ around(x, z, 1.7, 3, (px, pz) => { if (rnd() < 0.5) stoneAt(px, pz, 0.25 + rnd() * 0.25); else tuftAt(px, pz, 1.3); }); }
       }

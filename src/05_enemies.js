@@ -900,7 +900,8 @@ const EMODEL = (function (G0) {
 
   function buildYarasa(r, o) {
     const E = o.elite;
-    const fur = E ? '#6f3fd0' : '#8a62dc', furL = E ? '#a57cf5' : '#b99cf3', furD = E ? '#4a2596' : '#5f3fad', mem = E ? '#7a45d8' : '#9471e0', ear = '#ff9ccb';
+    // (cocoa fruit bat with a cream belly and peachy wings: purple belongs to Pırıl alone — a purple bat next to her confused Feza)
+    const fur = E ? '#8a5a3e' : '#a7714f', furL = E ? '#efcfa6' : '#f6dcb8', furD = E ? '#5e3a26' : '#7a4c34', mem = E ? '#d97a5e' : '#ea9272', ear = '#ff9ccb';
     const cy = 0.32;
     r.bone('body', 'root', [0, cy, 0]);
     r.bone('wingL', 'body', [0.2, cy + 0.04, -0.03]); r.bone('wingR', 'body', [-0.2, cy + 0.04, -0.03]);
@@ -929,10 +930,10 @@ const EMODEL = (function (G0) {
     }
     r.on('feet');
     for (const s of [-1, 1]) r.add(G.sphere(10, 8), furD, [0.07 * s, cy - 0.27, 0.02], null, [0.045, 0.035, 0.05]);
-    face(r, [0, cy, 0], 0.27, { bone: 'body', tilt: 0.4, ex: 0.1, ey: 0.04, er: 0.09, iris: '#5a2a50', skin: mixc(fur, furL, 0.3), browCol: '#3a1c5a', browY: 1.32, mouthY: -0.085, mouthW: 0.085, heartY: 0.55, heartX: 1.1 });
+    face(r, [0, cy, 0], 0.27, { bone: 'body', tilt: 0.4, ex: 0.1, ey: 0.04, er: 0.09, iris: '#4a2a18', skin: mixc(fur, furL, 0.45), browCol: '#4a2616', browY: 1.32, mouthY: -0.085, mouthW: 0.085, heartY: 0.55, heartX: 1.1 });
     if (E) crown(r.on('body'), [0, cy + 0.25, -0.02], 0.5);
     r.mark('muzzle', [0, cy - 0.05, 0.3]);
-    return { height: 0.62, glowC: col('#ff4a7a'), mat: { rough: 0.62, sss: col('#c9a8ff').multiplyScalar(0.05) } };
+    return { height: 0.62, glowC: col('#ff7a4a'), mat: { rough: 0.62, sss: col('#ffd2b0').multiplyScalar(0.06) } };
   }
   function animYarasa(m, dt, st, s) {
     const B = m.B;
@@ -5731,9 +5732,13 @@ const EMODEL = (function (G0) {
           const e = smooth01(rt / 0.05) * (1 - smooth01((rt - 0.2) / 0.08));
           s.eyeK = Math.max(s.eyeK, 1 + 0.3 * e); s.browY = Math.max(s.browY, 0.04 * e); s.mouthO = Math.max(s.mouthO, e);
         }
-        if (st.hurt > 0 && !dying && !def.ownHurt) {   // (bosses: a smaller squash — they are big and get hit a lot; each adds its own reaction)
-          const h = st.hurt * st.hurt * (boss ? 0.3 : 1);
-          R.scale.set(1 + 0.2 * h, 1 - 0.2 * h, 1 + 0.2 * h); R.rotation.x -= 0.22 * h; R.position.z -= 0.08 * h;
+        // hit: a jelly wobble — squash, a small springy stretch, settle (≈0,35 s, a damped spring timed from the hit) + the
+        // lean back while st.hurt lasts. (bosses: a smaller squash — they are big and get hit a lot; each adds its own reaction)
+        if (st.hurt > (s.hPrev || 0) + 0.2) s.hT = 0;
+        s.hPrev = st.hurt; s.hT = (s.hT ?? 9) + dt;
+        if ((st.hurt > 0 || s.hT < 0.45) && !dying && !def.ownHurt) {
+          const hk = boss ? 0.3 : 1, q = Math.exp(-s.hT * 9) * Math.cos(s.hT * 22) * 0.2 * hk, h = st.hurt * st.hurt * hk;
+          R.scale.x *= 1 + q; R.scale.y *= 1 - q; R.scale.z *= 1 + q; R.rotation.x -= 0.22 * h; R.position.z -= 0.08 * h;
         }
         if (def.lava) m.U.uLava.value.w = def.lava.k * (0.82 + 0.18 * Math.sin(s.t * 2.1 + s.ph));   // molten cracks breathe
         if (I.B.eyes && s.mood !== 'happy') {   // blink, playful giggles, squint-giggle wind-up
@@ -5786,20 +5791,26 @@ const EMODEL = (function (G0) {
           R.position.y += Math.abs(Math.sin(d * PI * 4.5)) * H * (def.dieHop ?? 0.12) * (1 - smooth01((d - 0.5) / 0.25)) * landed;
           R.rotation.y += smooth01((d - 0.62) / 0.38) * TAU;
           R.rotation.z += Math.sin(d * 30) * 0.05 * (1 - d);
-          const k = d < 0.7 ? 1 + 0.05 * Math.sin(d * PI * 9) : Math.max(0.0001, 1 - smooth01((d - 0.7) / 0.3));
+          // (the goodbye ends like the small ones' now: a little happy swell while it twirls, then one quick clean "puf" —
+          // it used to dwindle slowly, a tiny boss lingering in the air)
+          const k = d < 0.7 ? 1 + 0.05 * Math.sin(d * PI * 9) : d < 0.84 ? 1 + 0.1 * Math.sin(0.5 * PI * (d - 0.7) / 0.14)
+            : Math.max(0.0001, 1.1 * (1 - (d - 0.84) / 0.16));
           R.scale.multiplyScalar(k);
         } else if (dying) {
-          const d = st.dying, H = m.height / sc;
-          const hop = Math.abs(Math.sin(d * PI * 2.2)) * H * 0.32 * (1 - smooth01(d));
-          R.position.y += hop;
+          const d = st.dying, H = m.height / sc, sn = Math.abs(Math.sin(d * PI * 2.2)), fade = 1 - smooth01(d);
+          R.position.y += sn * H * 0.32 * fade;
           // the creatures keep their overjoyed face to Feza for the two happy hops, then one twirl while they shrink away
           // (flat-faced ones — cheese wedge, cream swirl, yogurt cup — would otherwise show their edge/back at the happy moment)
           R.rotation.y += smooth01((d - 0.5) / 0.5) * TAU;
-          R.rotation.z += Math.sin(d * 26) * 0.12 * (1 - d);
-          const k = d < 0.55 ? 1 + 0.12 * Math.sin(PI * d / 0.55) : Math.max(0.0001, 1 - smooth01((d - 0.55) / 0.45));
-          R.scale.multiplyScalar(k);
+          R.rotation.z += Math.sin(d * 26) * 0.1 * (1 - d);
+          // each landing squashes them a little (soft "boing"), then the goodbye: a small happy swell and a quick, clean "puf"
+          const land = Math.pow(1 - sn, 3) * 0.16 * (1 - smooth01((d - 0.5) / 0.15));
+          const k = d < 0.6 ? 1 + 0.1 * Math.sin(PI * d / 0.6) : d < 0.78 ? 1 + 0.16 * Math.sin(0.5 * PI * (d - 0.6) / 0.18)
+            : Math.max(0.0001, 1.16 * (1 - (d - 0.78) / 0.22));   // (≈0,25 s, steady: quick but still seen, no blink-out)
+          R.scale.x *= k * (1 + land); R.scale.y *= k * (1 - land); R.scale.z *= k * (1 + land);
         }
-        s.glow = st.windup >= 0 ? st.windup * st.windup * (0.15 + 0.1 * Math.sin(s.t * 28)) * (m.def.glowK ?? 1) : damp(s.glow, 0, 10, dt);
+        // telegraph glow: a soft warm "breath" (≈1,8 Hz) that grows with the wind-up — no strobe (it used to flicker at 4,5 Hz)
+        s.glow = damp(s.glow, st.windup >= 0 && !dying ? st.windup * st.windup * (0.17 + 0.06 * Math.sin(s.t * 11)) * (m.def.glowK ?? 1) : 0, st.windup >= 0 ? 16 : 10, dt);
         applyEm(m);
       },
       setMood(md) {

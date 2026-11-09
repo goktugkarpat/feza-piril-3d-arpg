@@ -50,7 +50,7 @@ const HZ_FENER = (() => {
     }
     const bridge = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 5, 8, PI), rimM); bridge.position.set(0, 1.8, 0.35); g.add(bridge);
     // küçük taç: başın üstünde, bir köşesi kopuk (3 sivri uç)
-    const crown = new THREE.Group(); crown.position.set(0.03, 2.1, 0.02); crown.rotation.z = -0.18; crown.scale.setScalar(1.3);   // BOSSC: mavi şapkanın üstünde net görünsün g.add(crown);
+    const crown = new THREE.Group(); crown.position.set(0.03, 2.1, 0.02); crown.rotation.z = -0.18; crown.scale.setScalar(1.3); g.add(crown);   // BOSSC: mavi şapkanın üstünde net görünsün (cila: g.add yorumun içinde kalmıştı → taç hiç görünmüyordu)
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 0.12, 14, 1, true), crownM); crownM.side = THREE.DoubleSide; crown.add(band);
     for (let i = 0; i < 5; i++) { if (i === 3) continue; const a = -0.9 + i * 0.45 + 1.1, sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 6), crownM); sp.position.set(Math.sin(a) * 0.27, 0.14, Math.cos(a) * 0.27); crown.add(sp); }
     const jewel = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff9ab0 })); jewel.position.set(0, 0.0, 0.3); crown.add(jewel);

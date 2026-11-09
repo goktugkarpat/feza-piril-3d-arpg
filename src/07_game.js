@@ -4754,7 +4754,10 @@ const GAME = (() => {
     if (e.boss) bossCheered(e);
     const cy = e.y + e.height * 0.7;
     if (e.boss) burst('hearts', e.x, cy, e.z, { count: 10, force: true });   // (Pırıl: boss neşesi = küçük kalp patlaması, başka bir şey yok)
-    else { burst('cheer', e.x, cy, e.z, { scale: e.elite ? 1.6 : 1 }); burst('sparkle', e.x, cy, e.z, { count: e.elite ? 18 : 10 }); }
+    else {   // the hearts rise from just over its head: its happy face shows from the first frame (they covered it for 0.3 s)
+      const hy = e.y + e.height + 0.15;
+      burst('cheer', e.x, hy, e.z, { scale: e.elite ? 1.6 : 1 }); burst('sparkle', e.x, hy, e.z, { count: e.elite ? 11 : 6 });
+    }
     sfx('pop', { x: e.x, z: e.z, pitch: e.boss ? 0.7 : e.elite ? 0.85 : frand(0.95, 1.2) });
     if (!e.boss && Math.random() < (e.elite ? 0.25 : 0.08) && wordOK()) ftext(e.x, e.y + e.height + 0.7, e.z, fpick(WORDS), 'word');   // (Pırıl: kelime balonu seyrek)
     hitstop = Math.max(hitstop, 0.06);
@@ -4991,7 +4994,7 @@ const GAME = (() => {
         const d = dist2(q.x, q.z, P.pos.x, P.pos.z);
         if (d < bd && los(P.pos.x, P.pos.z, q.x, q.z)) { bd = d; e = q; }
       }
-    } else e = nearestEnemy(P.pos.x, P.pos.z, 4.8);
+    } else e = nearestEnemy(P.pos.x, P.pos.z, 5.4);   // (4.8 → 5.4: a huysuz a step further away still turns him to it and he lunges, instead of a swing at the air)
     let face = null, breakable = false;
     // running away from it (moving fast, the other way): no lunge back into it, and no sword swing that would stop him
     const flee = e && C.vel > 1.5 && (C.drag || C.keyX !== 0 || C.keyZ !== 0) &&
@@ -5021,6 +5024,13 @@ const GAME = (() => {
     const target = nearestEnemy(P.pos.x, P.pos.z, 12, true);
     let ax = Math.sin(P.face), az = Math.cos(P.face);
     if (target) { const dx = target.x - P.pos.x, dz = target.z - P.pos.z, d = Math.hypot(dx, dz) || 1; ax = dx / d; az = dz / d; }
+    else if (C.vel < 0.6) {
+      // Nobody in sight and he stands still: idle, he turns to look at the kid (toward the camera), so a "forward" cast went
+      // down the screen — the candy rain landed under the subtitle, the health orb and the buttons (portrait: almost all
+      // of it). Standing still, an aim toward the camera is mirrored up the screen (its sideways part stays): it all shows.
+      const cx = Math.sin(CAM.yaw || 0), cz = Math.cos(CAM.yaw || 0), dc = ax * cx + az * cz;
+      if (dc > 0.2) { ax -= 2 * dc * cx; az -= 2 * dc * cz; const l = Math.hypot(ax, az) || 1; ax /= l; az /= l; }
+    }
     let ok = false;
     try { ok = s.def.cast({ P, H, target, aim: { x: ax, z: az }, game: GAME }); } catch (err) { console.error('[GAME] skill ' + (s.def.id || i), err); ok = false; }
     if (ok === false) return false;
@@ -6352,7 +6362,7 @@ const GAME = (() => {
       if (!e.m.root.visible || hidden(e)) continue;
       toScreen(_v.set(e.x, e.y + e.height * 0.5, e.z), _scr);
       if (!_scr.vis) continue;
-      const lim = 70 * (e.boss ? 2.4 : e.elite ? 1.3 : 1), d = Math.hypot(_scr.x - sx, _scr.y - sy);
+      const lim = 84 * (e.boss ? 2.4 : e.elite ? 1.3 : 1), d = Math.hypot(_scr.x - sx, _scr.y - sy);   // (5 yaş parmağı: 70 → 84 px, biraz yanına dokunsa da tutar)
       if (d < lim && d < bd) { bd = d; best = e; }
     }
     pickD = bd;

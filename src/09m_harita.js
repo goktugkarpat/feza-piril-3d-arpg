@@ -203,8 +203,9 @@ const HARITA = (() => {
       }
       g += '</g>';
       ovs.push(box(p.x, p.y - 60 * sc, 210 * sc, 150 * sc, `<g transform="translate(${p.x} ${p.y}) scale(${sc})">${m.ov.join('')}</g>`));
-      if (!ok) {
-        veils.push(`<g transform="translate(${p.x} ${p.y}) scale(${sc})"><ellipse cy="-6" rx="86" ry="52" fill="url(#hmFog)" opacity=".48"/><ellipse cx="32" cy="8" rx="46" ry="11" fill="#e2eaf8" opacity=".4"/><ellipse cx="-24" cy="14" rx="44" ry="10" fill="#e2eaf8" opacity=".38"/></g>`);
+      if (!ok) {   // henüz açılmamış diyar: pus yok (resim net kalır) — yalnız hafif bir tül ve eteğinde iki küçük bulut
+        const puff = (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><ellipse cy="4" rx="30" ry="6.5" fill="#7f94c4" opacity=".45"/><ellipse rx="29" ry="7.5" fill="#e6edfa"/><ellipse cx="-11" cy="-5" rx="13" ry="7.5" fill="#f2f6fe"/><ellipse cx="8" cy="-7" rx="15" ry="8.5" fill="#ffffff"/></g>`;
+        veils.push(`<g transform="translate(${p.x} ${p.y}) scale(${sc})"><ellipse cy="-6" rx="82" ry="48" fill="url(#hmFog)" opacity=".12"/><g opacity=".78">${puff(44, 12, .9)}${puff(-46, 17, .78)}</g></g>`);
       }
     });
     g += veils.join('');

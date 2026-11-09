@@ -578,7 +578,13 @@ const BABA = (() => {
   function kur(env) {
     if (cur) cur.dispose();
     const model = BABA.model(); const root = model.root; if (env.scene) env.scene.add(root);
-    const fol = BILBO_FOLLOW.create({ spacing: 2.6, personal: 1.3, radius: .39, side: -1.0, free: env.free || (() => true), move: env.move || ((p, dx, dz) => { p.x += dx; p.z += dz; }), route: env.route });
+    // Bilbo ile iç içe girmesin (eskiden Baba'nın eli Bilbo'nun kafasının içinde duruyordu): Baba'nın takip hedefi Bilbo'nun
+    // 1,2 m yakınına düşerse o yer "dolu" sayılır, Baba boş bir yana geçer. Yalnız Baba kayar; Bilbo ve Feza itilmez.
+    const BILBO_ARA = 1.2;
+    const bilboYer = () => (typeof BILBO !== 'undefined' && BILBO.aktif && !BILBO.aktif.riding && BILBO.aktif.pos) || null;
+    const free0 = env.free || (() => true);
+    const freeB = (x, z, r) => { if (!free0(x, z, r)) return false; const b = bilboYer(); return !b || Math.hypot(x - b.x, z - b.z) >= BILBO_ARA; };
+    const fol = BILBO_FOLLOW.create({ spacing: 2.6, personal: 1.3, radius: .39, side: -1.0, free: freeB, move: env.move || ((p, dx, dz) => { p.x += dx; p.z += dz; }), route: env.route });
     const pos = fol.pos; let started = false, act = null, fxs = [], line = null, face = 0, speed = 0, kampX = null;
     const hp = () => { const h = env.hero(); return h.pos || h; };
     // kamp ateşi (küçük alev: kıvrık koni + parlak tabanlı yumuşak ışık yok; yalnız malzeme)
@@ -620,6 +626,11 @@ const BABA = (() => {
         // QA 7 Kasım: Baba Feza'nın kamera tarafında (güneyinde) dip dibe durup onu kapatmasın → yavaşça yana/arkaya kayar
         const ox = pos.x - p.x, oz = pos.z - p.z;
         if (oz > 0.2 && Math.abs(ox) < 1.8 && Math.hypot(ox, oz) < 3.2) { const sx = (ox >= 0 ? 1 : -1) * 2.2 * dt, sz = -1.6 * dt; env.move ? env.move(pos, sx, sz, .39) : (pos.x += sx, pos.z += sz); }
+        // Bilbo dibine gelirse (ör. Bilbo koşup yanından geçerken) Baba yumuşakça bir adım çekilir: gövdeler hiç iç içe girmez
+        const bb = bilboYer();
+        if (bb) { const ex = pos.x - bb.x, ez = pos.z - bb.z, ed = Math.hypot(ex, ez);
+          if (ed < .9) { const ux = ed > .001 ? ex / ed : Math.sin(face + Math.PI / 2), uz = ed > .001 ? ez / ed : Math.cos(face + Math.PI / 2), s = Math.min(.9 - ed, 2.5 * dt);
+            env.move ? env.move(pos, ux * s, uz * s, .39) : (pos.x += ux * s, pos.z += uz * s); } }
       }
       if (fire.visible) { const t = performance.now() / 1000; const u = fire.userData; u.f1.scale.set(1, 1 + .12 * Math.sin(t * 9), 1); u.f2.scale.set(1, 1 + .18 * Math.sin(t * 13 + 1), 1); }
       root.position.set(pos.x, 0, pos.z); root.rotation.y += Math.atan2(Math.sin(face - root.rotation.y), Math.cos(face - root.rotation.y)) * (1 - Math.exp(-10 * dt));
@@ -682,5 +693,6 @@ const BABA = (() => {
     tetik(ctx) { return ctx.canOrani < (ctx.bolum >= 9 ? UYKU.canEsikB9 : UYKU.canEsik) || ctx.yakinDusman >= UYKU.dusman; },
     eylem() { return cur ? cur.uykuSarkisi() : 0; }, hazir() { return !!cur && !cur.mesgul; },
   };
-  Object.assign(BABA, { kur, kayit, UYKU, get aktif() { return cur; } });
+  Object.assign(BABA, { kur, kayit, UYKU });
+  Object.defineProperty(BABA, 'aktif', { get() { return cur; }, configurable: true });   // canlı alıcı (Object.assign değeri bir kez okuyordu)
 })();

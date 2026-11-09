@@ -138,8 +138,10 @@ const SEHIR = (() => {
   }
   function tabelaTex(i, boyali) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 160; const x = c.getContext('2d');
-    x.fillStyle = boyali ? ['#ffe6a8', '#cfeedd', '#ffd3c4'][i % 3] : '#d9d3c6'; x.fillRect(0, 0, 256, 160);
-    x.strokeStyle = boyali ? '#a0743a' : '#b0a898'; x.lineWidth = 10; x.strokeRect(6, 6, 244, 148);
+    // boş tabela: gri karton gibi değil, solmuş sıcak tahta (ince damar çizgileri); resimli olunca renkli
+    x.fillStyle = boyali ? ['#ffe6a8', '#cfeedd', '#ffd3c4'][i % 3] : '#e2d2b6'; x.fillRect(0, 0, 256, 160);
+    if (!boyali) { x.strokeStyle = 'rgba(150,118,80,0.28)'; x.lineWidth = 3; for (let k = 0; k < 6; k++) { const y = 26 + k * 22; x.beginPath(); x.moveTo(14, y); x.bezierCurveTo(90, y - 5, 170, y + 5, 242, y - 2); x.stroke(); } }
+    x.strokeStyle = boyali ? '#a0743a' : '#a88a64'; x.lineWidth = 10; x.strokeRect(6, 6, 244, 148);
     if (boyali) {
       x.fillStyle = ['#e0903a', '#4fa86a', '#e0607a'][i % 3];
       if (i % 3 === 0) { x.beginPath(); x.ellipse(128, 84, 70, 38, 0, 0, TAU); x.fill(); x.fillStyle = '#ffe6a8'; x.beginPath(); x.ellipse(128, 84, 24, 12, 0, 0, TAU); x.fill(); }
@@ -219,6 +221,14 @@ const SEHIR = (() => {
       }
       return origPut.call(api, geo, x, y, z, sx, sy, sz, color, yaw, rx, rz, matKey);
     };
+    // alçak-orta süsler (tezgâh, araba, fıçı, sandık, bank; ≤ 2,6 m) için dar kural: kameradan Feza'ya bakış çizgisi bu boyu ancak ~2 m'de geçer,
+    // yalnız yürünür alanın hemen dibindekiler gizlensin (16 m'lik koni yolların güneyini bomboş çimen bırakıyordu). Yalnız 07m_dekor_sehir seçerek kullanır.
+    Z.lowHides = (x, z, h = 2.4) => {
+      const dMax = 1.0 + Math.min(h, 2.6) * 0.95;
+      for (let dz = 0.4; dz <= dMax; dz += 0.6) { const xm = 1.2 + dz * 0.5; for (let dx = -xm; dx <= xm + 0.01; dx += 0.8) if (api.isFloor(x + dx, z - dz)) return true; }
+      return false;
+    };
+    Z.putRaw = (...a) => origPut.apply(api, a);
     try { if (typeof SUS610 !== 'undefined') SUS610.ekle(L, api, 'sehir'); } catch (e) { console.warn('SUS610', e); }
     const box = api.tmp(new THREE.BoxGeometry(1, 1, 1)), cyl = api.tmp(new THREE.CylinderGeometry(1, 1, 1, 12)), cone4 = api.tmp(new THREE.ConeGeometry(1, 1, 4)),
       sph = api.tmp(new THREE.SphereGeometry(1, 10, 7)), cone = api.tmp(new THREE.ConeGeometry(1, 1, 9)), hemi = api.tmp(new THREE.SphereGeometry(1, 12, 6, 0, TAU, 0, PI / 2));
@@ -242,7 +252,7 @@ const SEHIR = (() => {
       if (typeof SEHIR_DEKOR !== 'undefined' && typeof YAPI !== 'undefined') {
         const origBake = typeof PROPKIT !== 'undefined' && PROPKIT.bake;
         if (origBake) PROPKIT.bake = list => {
-          const flt = Array.isArray(list) ? list.filter(it => !it || !southHides(it.x || 0, it.z || 0, (it.y || 0) + 2.2)) : list;
+          const flt = Array.isArray(list) ? list.filter(it => !it || !(it.low ? Z.lowHides(it.x || 0, it.z || 0, 2.6) : southHides(it.x || 0, it.z || 0, (it.y || 0) + 2.2))) : list;   // (low: tezgâh tentesi gövdesiyle aynı kuralla)
           PROPKIT.sonSecilen = Array.isArray(flt) ? flt : null;   // bakeAwake: rüzgâr değerleri (aFl) sağ kalan parçalarla hizalansın
           if (Array.isArray(flt) && !flt.length) {   // hepsi elendiyse: boş ama geçerli geometri (renk özniteliği de olsun)
             const bos = new THREE.BufferGeometry();
@@ -287,9 +297,10 @@ const SEHIR = (() => {
     const flags = [], flagCols = [0xe8554a, 0x4f86d8, 0xffd23f, 0x5ab870, 0xe8884a, 0x6ab8e8];
     (Z.poles || []).forEach((p, i) => {
       PO(cyl, p.x, 1.6, p.z, 0.07, 3.2, 0.07, 0xe8d8b8); PO(sph, p.x, 3.25, p.z, 0.1, 0.1, 0.1, 0xffd24a);
-      const mt = new THREE.MeshBasicMaterial({ color: 0xb9b4b0, side: THREE.DoubleSide }); api.dispose(mt);
-      // bayrak direğin kenarından döner (eskiden ortasından dönüp sallanırken direkten ayrılıp havada asılı kalıyordu)
-      const m = new THREE.Mesh(geo('fl2', () => kp(new THREE.PlaneGeometry(1.1, 0.7).translate(0.55, 0, 0))), mt); m.position.set(p.x + 0.05, 2.85, p.z); api.add(m); flags.push({ m, mt, col: flagCols[i % flagCols.length], ph: i });
+      const mt = new THREE.MeshBasicMaterial({ color: 0xd6cdc2, side: THREE.DoubleSide }); api.dispose(mt);   // solmuş krem bez (soğuk beton grisi değil)
+      // bayrak direğin kenarından döner (eskiden ortasından dönüp sallanırken direkten ayrılıp havada asılı kalıyordu); kırlangıç kuyruklu flama biçimi
+      const m = new THREE.Mesh(geo('fl3', () => { const s = new THREE.Shape(); s.moveTo(0, 0.36); s.lineTo(1.05, 0.33); s.lineTo(0.78, 0); s.lineTo(1.05, -0.33); s.lineTo(0, -0.36); s.lineTo(0, 0.36); return kp(new THREE.ShapeGeometry(s)); }), mt);
+      m.position.set(p.x + 0.05, 2.85, p.z); api.add(m); flags.push({ m, mt, col: flagCols[i % flagCols.length], ph: i });
       api.solid(p.x, p.z, 0.4, 'bayrak');
     });
     // sis tutamları: alçak, saydam, seyrek (alan 1–4); hatırlayanla incelir
@@ -307,7 +318,7 @@ const SEHIR = (() => {
     // alçak gökyüzü şeridi: sıcak şeftali
     const skyMat = new THREE.ShaderMaterial({ transparent: true, depthTest: false, depthWrite: false,
       vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'varying vec2 vUv; void main(){float e=smoothstep(0.0,.7,vUv.y); vec3 c=mix(vec3(.99,.84,.74),vec3(.78,.88,.98),vUv.y); gl_FragColor=vec4(c,e*.5);}' });
+      fragmentShader: 'varying vec2 vUv; void main(){float e=smoothstep(0.25,1.0,vUv.y); vec3 c=mix(vec3(.99,.86,.76),vec3(.80,.89,.98),vUv.y); gl_FragColor=vec4(c,e*.26);}' });   // (ebeveyn: sis azalsın, uzak evler net görünsün — eskiden ekranın üst çeyreğini yarı yarıya beyazlatıyordu)
     const skyGeo = new THREE.PlaneGeometry(1, 1), sky = new THREE.Mesh(skyGeo, skyMat); sky.renderOrder = 28; sky.frustumCulled = false; api.add(sky); api.dispose(skyGeo); api.dispose(skyMat);
     const up = new THREE.Vector3(), fwd = new THREE.Vector3();
     Z.vis = { boards, flags, wisps, lamps, k: 0.4, fogBase: null };
@@ -335,7 +346,7 @@ const SEHIR = (() => {
       sky.position.copy(camera.position).addScaledVector(fwd, depth).addScaledVector(up, (1 - 0.06 * 2) * hh); sky.quaternion.copy(camera.quaternion); sky.scale.set(hh * 2 * camera.aspect, hh * 2 * 0.23, 1);
       const V = Z.vis;
       for (const f of V.flags) f.m.rotation.y = Math.sin(T * 2 + f.ph) * 0.18;
-      for (const w of V.wisps) { const dd = hyp(hx - w.x, hz - w.z), want = (1 - V.k) * 0.5 * clamp((dd - 3) / 5, 0, 1); w.sp.material.opacity += (want - w.sp.material.opacity) * Math.min(1, dt * 2); w.sp.position.x = w.x + Math.sin(T * 0.3 + w.ph) * 0.6; }
+      for (const w of V.wisps) { const dd = hyp(hx - w.x, hz - w.z), want = (1 - V.k) * 0.42 * clamp((dd - 3) / 5, 0, 1), mo = w.sp.material; mo.opacity += (want - mo.opacity) * Math.min(1, dt * 2); w.sp.visible = mo.opacity > 0.012; w.sp.position.x = w.x + Math.sin(T * 0.3 + w.ph) * 0.6; }   // (görünmeyen tutam çizilmesin)
     });
   }
 
@@ -349,12 +360,15 @@ const SEHIR = (() => {
     // şehirliler
     const npcs = [];
     const EM = typeof EMODEL !== 'undefined' ? EMODEL : null;
+    const HZR = typeof HZ_SEHIR !== 'undefined' && HZ_SEHIR && HZ_SEHIR.morKaldir ? HZ_SEHIR.morKaldir : null;
+    const renklen = n => { try { n.m.setTint(null); if (HZR) HZR(n.m.root, n.m, false); } catch (e) { /* yok */ } };
     WHO.forEach((w, i) => {
       const p = Z.npc && Z.npc[i]; if (!p || !EM) return;
       let m = null; try { m = EM.build.call(EM, w.model, {}); } catch (e) { m = null; }
       if (!m || !m.root) return;
       m.root.position.set(p.x, 0, p.z); api.add(m.root);
-      try { m.setMood('happy'); m.setTint('#9aa0aa'); } catch (e) { /* yok */ }
+      // unutmuşken süt-gri pastel (sisli ama sevimli; koyu/mavimsi değil), hatırlayınca tam renk; tellalın mor şapkası maviye (mor yalnız Pırıl'ın)
+      try { m.setMood('happy'); if (HZR) HZR(m.root, m, true); else m.setTint('#9aa0aa'); } catch (e) { /* yok */ }
       if (w.beret) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 6, 0, TAU, 0, PI / 2), new THREE.MeshStandardMaterial({ color: w.beret })); b.position.set(0, (m.height || 1.3) + 0.02, 0); b.scale.set(1.3, 0.7, 1.3); m.root.add(b); }
       if (api.solid) api.solid(p.x, p.z, 0.6, 'sehirli');
       const mt = new THREE.SpriteMaterial({ map: balonTex(w.esya, false), transparent: true, depthWrite: false, depthTest: false, opacity: 0.0 }); api.dispose(mt);
@@ -400,19 +414,24 @@ const SEHIR = (() => {
           const w = TAU * R / N * 1.12;
           wk.add(wbox, 0xc8ad86, [x, 0.1, z], [0, a, 0], [w + 0.05, 0.2, 0.94]); wk.add(wbox, 0xf4e8d0, [x, h / 2, z], [0, a, 0], [w, h, 0.82]);
           wk.add(wbox, 0xd9965e, [x, h + 0.05, z], [0, a, 0], [w + 0.03, 0.12, 0.98]); if (!south) wk.add(wbox, 0xe6cfa6, [x, h * 0.58, z], [0, a, 0], [w + 0.02, 0.1, 0.88]);
-          if (q % 3 === 0) {
-            const gm = new THREE.MeshStandardMaterial({ color: q % 2 ? 0xd8a24a : 0xc08a3a, roughness: 0.4, metalness: 0.5 }); api.dispose(gm);
-            const gk = new Kit(); const tb = geo('tooth', () => kp(new THREE.BoxGeometry(1, 1, 1))), disk = geo('disk', () => kp(new THREE.CylinderGeometry(1, 1, 0.4, 20)));
-            gk.add(disk, 0xffffff, [0, 0, 0], [PI / 2, 0, 0], 1); for (let tI = 0; tI < 10; tI++) { const ta = tI * TAU / 10; gk.add(tb, 0xffffff, [Math.cos(ta) * 1.12, Math.sin(ta) * 1.12, 0], [0, 0, ta], [0.3, 0.38, 0.4]); }
-            const mesh = new THREE.Mesh(gk.build(), gm); api.dispose(mesh.geometry);
-            const sz = south ? 0.48 : 0.68 + (q % 3) * 0.14; mesh.scale.setScalar(sz);
-            if (south) { mesh.position.set(x, h + 0.22, z); mesh.rotation.set(PI / 2, 0, 0); }   // kapağın üstünde dursun (içine gömülmesin)
-            else { mesh.position.set(x - Math.sin(a) * 0.48, 1.25 + (q % 2) * 0.35, z - Math.cos(a) * 0.48); mesh.rotation.y = a + PI; }
-            api.add(mesh); cogs.push({ mesh, sp: (q % 2 ? 1 : -1) * (0.5 + (q % 3) * 0.2) });
+          if (q % 3 === 0) {   // çark: hepsi TEK çizimde (eskiden her çark ayrı malzeme + ayrı geometri = ~12 çizim)
+            const sz = south ? 0.48 : 0.68 + (q % 3) * 0.14, sp = (q % 2 ? 1 : -1) * (0.5 + (q % 3) * 0.2);
+            if (south) cogs.push({ x, y: h + 0.22, z, rx: PI / 2, ry: 0, sz, sp, ang: 0, gold: q % 2 });   // kapağın üstünde dursun (içine gömülmesin)
+            else cogs.push({ x: x - Math.sin(a) * 0.48, y: 1.25 + (q % 2) * 0.35, z: z - Math.cos(a) * 0.48, rx: 0, ry: a + PI, sz, sp, ang: 0, gold: q % 2 });
           }
         }
       }
       if (wk.parts.length) { const wm = new THREE.Mesh(wk.build(), stoneMat()); wm.receiveShadow = true; api.add(wm); api.dispose(wm.geometry); }
+      if (cogs.length) {
+        const cg = geo('cogG', () => { const gk = new Kit(), tb = geo('tooth', () => kp(new THREE.BoxGeometry(1, 1, 1))), disk = geo('disk', () => kp(new THREE.CylinderGeometry(1, 1, 0.4, 20)));
+          gk.add(disk, 0xffffff, [0, 0, 0], [PI / 2, 0, 0], 1); gk.add(disk, 0xffffff, [0, 0, 0], [PI / 2, 0, 0], [0.32, 1.25, 0.32]);   // (ortada küçük göbek)
+          for (let tI = 0; tI < 10; tI++) { const ta = tI * TAU / 10; gk.add(tb, 0xffffff, [Math.cos(ta) * 1.12, Math.sin(ta) * 1.12, 0], [0, 0, ta], [0.3, 0.38, 0.4]); }
+          return kp(gk.build()); });
+        const cmt = geo('cogM', () => kp(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.5 })));
+        const im = new THREE.InstancedMesh(cg, cmt, cogs.length), cc = new THREE.Color(), dm = new THREE.Object3D(); im.name = 'sehir-carklar';
+        cogs.forEach((c, i) => { im.setColorAt(i, cc.setHex(c.gold ? 0xd8a24a : 0xc08a3a)); dm.position.set(c.x, c.y, c.z); dm.rotation.set(c.rx, c.ry, 0); dm.scale.setScalar(c.sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); });
+        im.computeBoundingSphere(); api.add(im); V.cogIM = im; V.cogD = dm; V.cogAt = T0.a;
+      }
       V.cogs = cogs;
       // büyük kadran (2. odanın zemininde, dev anahtarın altında: koridoru ve kamerayı asla kapatmaz)
       const cmat = new THREE.MeshBasicMaterial({ map: clockTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); api.dispose(cmat);
@@ -420,27 +439,32 @@ const SEHIR = (() => {
       // raf
       const sh = T0.shelf; shelfAt = sh;
       const g = new THREE.Group(); g.position.set(sh.x, 0, sh.z); g.rotation.y = sh.yaw || 0; api.add(g);
-      const wm = new THREE.MeshStandardMaterial({ color: 0xa87a4a, roughness: 0.85 }), mk = (geom, mat, x, y, z) => { const o = new THREE.Mesh(geom, mat); o.position.set(x, y, z); g.add(o); return o; };
-      api.dispose(wm);
-      mk(new THREE.BoxGeometry(2.2, 0.12, 0.8), wm, 0, 0.55, 0); mk(new THREE.BoxGeometry(0.12, 0.55, 0.8), wm, -1.05, 0.28, 0); mk(new THREE.BoxGeometry(0.12, 0.55, 0.8), wm, 1.05, 0.28, 0); mk(new THREE.BoxGeometry(2.2, 1.0, 0.1), wm, 0, 1.1, -0.35);
-      const tm = (c, o = {}) => { const m = new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.7 }, o)); api.dispose(m); return m; };
-      mk(new THREE.CylinderGeometry(0.22, 0.22, 0.28, 12), tm(0xd84a4a), -0.7, 0.75, 0); mk(new THREE.SphereGeometry(0.2, 10, 8), tm(0xe8c58a), -0.1, 0.8, -0.1); mk(new THREE.BoxGeometry(0.45, 0.3, 0.18), tm(0x8a6a4a), 0.45, 0.76, -0.05);
-      mk(new THREE.SphereGeometry(0.1, 8, 6), tm(0x8a6a4a), 0.62, 0.98, -0.05);
-      // kırık taç: açık silindir halka + 4 diken (5. diken yok), önde, hafif eğik
-      const crown = new THREE.Group(), cm2 = tm(0xc9a24a, { metalness: 0.5, roughness: 0.45 });
-      crown.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 14, 1, true), cm2));
-      for (let i = 0; i < 5; i++) { if (i === 3) continue; const a = i * TAU / 5, c = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 5), cm2); c.position.set(Math.sin(a) * 0.2, 0.15, Math.cos(a) * 0.2); crown.add(c); }
+      // raf + oyuncaklar TEK çizimde (eskiden ~10 ayrı parça/malzeme): davul, bez bebek, tahta at
+      const ub = geo('wbox', () => kp(new THREE.BoxGeometry(1, 1, 1))), uc = geo('ucyl', () => kp(new THREE.CylinderGeometry(1, 1, 1, 14))), us = geo('usph', () => kp(new THREE.SphereGeometry(1, 12, 9))), uk = geo('ucone', () => kp(new THREE.ConeGeometry(1, 1, 12)));
+      const sk = new Kit(), WD = 0xb4844e, WD2 = 0x9a6c40;
+      sk.add(ub, WD, [0, 0.55, 0], null, [2.2, 0.12, 0.8]); sk.add(ub, WD2, [-1.05, 0.28, 0], null, [0.12, 0.55, 0.8]); sk.add(ub, WD2, [1.05, 0.28, 0], null, [0.12, 0.55, 0.8]);
+      sk.add(ub, WD2, [0, 1.1, -0.35], null, [2.2, 1.0, 0.1]); sk.add(ub, WD, [0, 1.63, -0.31], null, [2.32, 0.08, 0.22]);
+      sk.add(uc, 0xd84a4a, [-0.7, 0.76, 0], null, [0.22, 0.3, 0.22]); sk.add(uc, 0xfff0d8, [-0.7, 0.92, 0], null, [0.235, 0.035, 0.235]); sk.add(uc, 0xfff0d8, [-0.7, 0.6, 0], null, [0.235, 0.035, 0.235]);   // davul
+      sk.add(uk, 0xf3a0b0, [-0.12, 0.79, -0.06], null, [0.17, 0.36, 0.17]); sk.add(us, 0xf6d8bc, [-0.12, 1.02, -0.06], null, 0.13); sk.add(us, 0xc88a5a, [-0.12, 1.08, -0.09], null, [0.135, 0.09, 0.12]);   // bez bebek (elbise, yüz, saç)
+      sk.add(ub, 0xa8743e, [0.43, 0.86, -0.08], null, [0.42, 0.16, 0.17]); sk.add(ub, 0xa8743e, [0.66, 0.99, -0.08], [0, 0, 0.45], [0.15, 0.26, 0.14]); sk.add(ub, 0x6a4424, [0.6, 1.0, -0.08], [0, 0, 0.45], [0.05, 0.22, 0.16]);   // tahta at
+      for (const lx of [0.27, 0.59]) for (const lz of [-0.14, -0.02]) sk.add(ub, 0x8a5a30, [lx, 0.7, lz], null, [0.05, 0.18, 0.05]);
+      const shm = new THREE.Mesh(sk.build(), stoneMat()); g.add(shm); api.dispose(shm.geometry);
+      // kırık taç: açık silindir halka + 4 diken (5. diken yok), önde, hafif eğik — tek parça
+      const cm2 = new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.5, roughness: 0.45, side: THREE.DoubleSide }); api.dispose(cm2);
+      const ck = new Kit(); ck.add(geo('crownR', () => kp(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 14, 1, true))), 0xffffff, [0, 0, 0]);
+      for (let i = 0; i < 5; i++) { if (i === 3) continue; const a = i * TAU / 5; ck.add(geo('crownC', () => kp(new THREE.ConeGeometry(0.06, 0.16, 5))), 0xffffff, [Math.sin(a) * 0.2, 0.15, Math.cos(a) * 0.2]); }
+      const crown = new THREE.Mesh(ck.build(), cm2); api.dispose(crown.geometry);
       crown.scale.setScalar(1.9); crown.position.set(0.6, 0.78, 0.25); crown.rotation.set(0.12, 0.4, 0.2); g.add(crown);
-      cm2.side = THREE.DoubleSide;
     }
     // anahtar (2. oda)
     let keyObj = null;
     if (Z.tower) {
       const kg = new THREE.Group(), km = new THREE.MeshStandardMaterial({ color: 0xe0b04a, metalness: 0.55, roughness: 0.35 }); api.dispose(km);
-      const bow = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.18, 10, 22), km); bow.position.y = 2.1; kg.add(bow);
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.9, 10), km); shaft.position.y = 0.95; kg.add(shaft);
-      for (const [y, w] of [[0.15, 0.55], [0.5, 0.4]]) { const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.22, 0.2), km); t.position.set(w / 2, y, 0); kg.add(t); }
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.25, 16), new THREE.MeshStandardMaterial({ color: 0x8a6a4a })); base.position.y = 0.12; kg.add(base); api.dispose(base.material);
+      const kk = new Kit();   // halka + sap + dişler tek çizimde (eskiden 4 parça)
+      kk.add(geo('keyBow', () => kp(new THREE.TorusGeometry(0.7, 0.18, 10, 22))), 0xffffff, [0, 2.1, 0]); kk.add(geo('keyShaft', () => kp(new THREE.CylinderGeometry(0.14, 0.14, 1.9, 10))), 0xffffff, [0, 0.95, 0]);
+      for (const [y, w] of [[0.15, 0.55], [0.5, 0.4]]) kk.add(geo('wbox', () => kp(new THREE.BoxGeometry(1, 1, 1))), 0xffffff, [w / 2, y, 0], null, [w, 0.22, 0.2]);
+      const keyM = new THREE.Mesh(kk.build(), km); kg.add(keyM); api.dispose(keyM.geometry);
+      const base = new THREE.Mesh(geo('keyBase', () => kp(new THREE.CylinderGeometry(0.9, 1.0, 0.25, 16))), new THREE.MeshStandardMaterial({ color: 0x8a6a4a })); base.position.y = 0.12; kg.add(base); api.dispose(base.material);
       const k = Z.tower.key; kg.scale.setScalar(0.62); kg.position.set(k.x, 0, k.z);
       keyObj = { id: 'anahtar', tur: 'cevrilir', x: k.x, z: k.z, r: 1.9, acilar: [0, PI * 2], mesh: kg, elle: false };
       (L.nesneler = L.nesneler || []).push(keyObj); api.glow(k.x, k.z, 2.6, 0xffe08a, 0.16);
@@ -462,7 +486,7 @@ const SEHIR = (() => {
     };
     function remember(i) {
       if (S.done[i]) return; S.done[i] = true; const n = npcs[i]; if (!n) return;
-      try { n.m.setTint(null); n.m.setMood('happy'); } catch (e) { /* yok */ }
+      renklen(n); try { n.m.setMood('happy'); } catch (e) { /* yok */ }
       n.joy = 1.6; n.mt.map = balonTex(n.w.esya, true); n.mt.needsUpdate = true; n.hearted = true;
       burst('heart', n.p.x, (n.m.height || 1.3) + 0.4, n.p.z, { count: 4 }); sfx('heart', { x: n.p.x, z: n.p.z });
       say(n.w.hat, { force: true, once: false }); setTimeout(() => { if (g0 && g0.L === L) say(n.w.adi, { force: true, once: false }); }, 3600);
@@ -517,13 +541,18 @@ const SEHIR = (() => {
         const act = !S.done[n.i] && n.i === S.act && S.items[n.i], target = n.hearted ? 0.95 : act ? 1 : S.done[n.i] ? 0 : 0.0;
         n.mt.opacity += (target - n.mt.opacity) * Math.min(1, dt * 3); n.bl.position.y = (n.m.height || 1.3) + 1.4 + Math.sin(T * 2 + n.i) * 0.08;
         if (n.hearted && n.joy <= 0) n.mt.opacity *= 1 - Math.min(1, dt * 0.4);
+        n.bl.visible = n.mt.opacity > 0.01;   // (saydam balon boşuna çizilmesin)
       }
       for (const s of S.items) if (s) { const o = s.o; s.halo.visible = !o.tut && !o.yerlesik; s.halo.scale.setScalar(2.2 + Math.sin(T * 3) * 0.25); s.halo.position.set(o.x, 0.6, o.z); }
       pawM.opacity = 0.6 + 0.18 * Math.sin(T * 3);   // koyu iz: hep seçilir (0,42–0,78), yanıp sönmez
       // rüzgâr/sis, renk, dikkat
-      if (V.cogs) for (const c of V.cogs) c.mesh.rotation.z += c.sp * dt;
+      if (V.cogIM && hyp(hx - V.cogAt.x, hz - V.cogAt.z) < 48) {   // (kuleden uzaktayken çarklar hesaplanmaz)
+        const im = V.cogIM, dm = V.cogD;
+        V.cogs.forEach((c, i) => { c.ang += c.sp * dt; dm.position.set(c.x, c.y, c.z); dm.rotation.set(c.rx, c.ry, c.ang); dm.scale.setScalar(c.sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); });
+        im.instanceMatrix.needsUpdate = true;
+      }
       try {
-        if (scene.fog) { if (!V.fogBase) { V.fogBase = { n: scene.fog.near, f: scene.fog.far }; V.satBase = POST.saturation; } const k = V.k; scene.fog.near = V.fogBase.n * (0.45 + 0.55 * k); scene.fog.far = V.fogBase.f * (0.6 + 0.4 * k); POST.saturation = V.satBase * (0.45 + 0.55 * k); }
+        if (scene.fog) { if (!V.fogBase) { V.fogBase = { n: scene.fog.near, f: scene.fog.far }; V.satBase = POST.saturation; } const k = V.k; scene.fog.near = V.fogBase.n * (0.86 + 0.14 * k); scene.fog.far = V.fogBase.f * (0.9 + 0.1 * k); POST.saturation = V.satBase * (0.8 + 0.2 * k); }   // (ebeveyn: sis azalsın, renkler soluk kalmasın — sisli başlangıç yalnız hafif; asıl "renk geri geliyor" şehirlilerde)
       } catch (e) { /* yok */ }
       // kapı
       if (gate) {
@@ -546,7 +575,7 @@ const SEHIR = (() => {
       if (S.wave) {
         const w = S.wave; w.t += dt; const u = clamp(w.t / 2.4, 0, 1), R = 2 + u * 70;
         wave.position.set(w.x, 0.5, w.z); wave.scale.set(R, 1, R); waveM.opacity = 0.7 * (1 - u) * Math.min(1, w.t * 3);
-        if (w.t > 0.6 && !S.lit) { S.lit = 1; V.lampM && V.lampM.color.setHex(0xffe08a); npcs.forEach(n => { try { n.m.setTint(null); } catch (e) { /* yok */ } n.joy = 2.5; }); V.flags.forEach(f => f.mt.color.setHex(f.col)); V.boards.forEach(b => { b.mt.map = tabelaTex(b.i, true); b.mt.needsUpdate = true; }); setLook(); say('b08_pirilhatirladi', { force: true, once: false }); }
+        if (w.t > 0.6 && !S.lit) { S.lit = 1; V.lampM && V.lampM.color.setHex(0xffe08a); npcs.forEach(n => { renklen(n); n.joy = 2.5; }); V.flags.forEach(f => f.mt.color.setHex(f.col)); V.boards.forEach(b => { b.mt.map = tabelaTex(b.i, true); b.mt.needsUpdate = true; }); setLook(); say('b08_pirilhatirladi', { force: true, once: false }); }
         if (u >= 1) { wave.visible = false; S.wave = null; S.bell = 3; }
       }
       // kule kadranı HUD'u: arenada, sinematikte/duraklatmada ve başka bölümde gizli (QA: boss girişinde arenada açık kalıyordu)

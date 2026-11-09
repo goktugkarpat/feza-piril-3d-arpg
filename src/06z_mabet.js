@@ -117,13 +117,15 @@ const MABET = (() => {
   const litMat = () => GM.litM || (GM.litM = kp(new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd45a).multiplyScalar(1.25), transparent: true, opacity: 0.95, depthWrite: false })));
   // yüzen taş basamak: tepe y=0 (motor yüzey yüksekliğine koyar), altında kaya sivrisi, üstünde oyma yıldız
   function padGeo(r, ph) {
-    return geo('pad' + r + '_' + ph, () => {
-      const k = new Kit();
-      k.add(new THREE.CylinderGeometry(1, 0.96, 1, 20), 0xd9d1bd, [0, -0.28, 0], null, [r, 0.56, r]);
-      k.add(new THREE.CylinderGeometry(1, 1, 1, 20), 0xb9b09a, [0, -0.5, 0], null, [r * 1.01, 0.1, r * 1.01]);
+    return geo('pad2_' + r + '_' + ph, () => {   // 8 Kasım: ay taşları rün taşlarıyla aynı dil: gece mavisi oyukta gümüş ay, altın çentikler
+      const k = new Kit(), top = new THREE.Color(0xeee6d2), side = new THREE.Color(0xd2c9b2), nb = new THREE.BoxGeometry(1, 1, 1);
+      k.add(new THREE.CylinderGeometry(1, 0.96, 1, 28), (x, y) => (y > -0.02 ? top : side), [0, -0.28, 0], null, [r, 0.56, r]);
+      k.add(new THREE.CylinderGeometry(1, 1, 1, 28), 0xb9b09a, [0, -0.5, 0], null, [r * 1.01, 0.1, r * 1.01]);
       k.add(new THREE.ConeGeometry(1, 1, 10), 0x8e8774, [0, -1.0, 0], [PI, 0, 0], [r * 0.85, 0.9, r * 0.85]);
-      k.add(moonFlat(ph, r * 0.62), 0x7f8aa0, [0, 0.03, 0], null, 1);   // 0,03: iPad derinlik hassasiyetinde taşın yüzüyle titreşmesin
-      const g = k.build(); g.userData.keep = true; return g;
+      k.add(new THREE.CylinderGeometry(1, 1, 0.02, 28), 0x5274ab, [0, 0.01, 0], null, [r * 0.76, 1, r * 0.76]);   // gece mavisi oyuk
+      k.add(moonFlat(ph, r * 0.6), 0xf6f0dc, [0, 0.035, 0], null, 1);   // gümüş ay (oyuğun 1,5 cm üstü: iPad'de titreşmez)
+      for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + PI / 8; k.add(nb, 0xd6b25e, [Math.sin(a) * r * 0.88, 0.008, Math.cos(a) * r * 0.88], [0, a, 0], [0.07, 0.03, 0.12 * Math.min(1.3, r)]); }
+      const g = k.build(); nb.dispose(); g.userData.keep = true; return g;
     });
   }
   function makePad(api, p) {
@@ -138,18 +140,75 @@ const MABET = (() => {
     const t = new THREE.CanvasTexture(c); t.userData = { keep: true }; return (GM.haloT = t);
   }
   // rün taşı: yassı taş disk, üstünde turuncu-altın rün
+  function ringHaloTex() {   // taşın kenarından dışa doğru sönen yumuşak ışık halkası (128 px)
+    if (GM.ringT) return GM.ringT;
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(0.62, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.78, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.userData = { keep: true }; return (GM.ringT = t);
+  }
+  // 8 Kasım: taş artık "basılacak düğme" gibi okunur: krem taş, içinde gece mavisi oyuk, oyukta gümüş ay (basınca altın), kenarda
+  // altın rün çentikleri; çevresinde yerde yumuşak davetkâr ışık hâlesi (eskiden soluk tabak + ince mavi halka). Taş gövdesi ortak
+  // taş malzemesiyle tek ağ; çizim sayısı aynı (gövde + ay + hâle).
+  function runeDiscGeo() {
+    const k = new Kit(), top = new THREE.Color(0xeee6d2), side = new THREE.Color(0xc9bea4);
+    k.add(new THREE.CylinderGeometry(1.0, 1.07, 0.2, 32), (x, y) => (y > 0.19 ? top : side), [0, 0.1, 0], null, 1);
+    k.add(new THREE.CylinderGeometry(0.8, 0.8, 0.02, 32), 0x5274ab, [0, 0.2, 0], null, 1);                     // gece mavisi oyuk
+    const nb = new THREE.BoxGeometry(1, 1, 1);
+    for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + PI / 8; k.add(nb, 0xd6b25e, [Math.sin(a) * 0.9, 0.205, Math.cos(a) * 0.9], [0, a, 0], [0.07, 0.025, 0.13]); }   // altın rün çentikleri
+    const g = k.build(); nb.dispose(); return g;
+  }
   function runeMesh(api, x, z, s = 1, full = false) {   // s: genişlik (y ölçeği 1 kalır: basınca motor y'yi esnetir); full: dolunay oyması
     const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.set(s, 1, s);
-    const disc = new THREE.Mesh(geo('runeDisc', () => kp(new THREE.CylinderGeometry(0.9, 1.0, 0.16, 22))), kp(new THREE.MeshStandardMaterial({ color: 0xd8cfb8, roughness: 0.85 })));
-    disc.position.y = 0.08; disc.receiveShadow = true; g.add(disc);
+    const disc = new THREE.Mesh(geo('runeDisc2', () => kp(runeDiscGeo())), stoneMat());
+    disc.receiveShadow = true; g.add(disc);
     const dm = o => new THREE.MeshBasicMaterial(Object.assign({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }, o));   // iPad: taşın yüzüyle titreşmesin
-    const glyph = new THREE.Mesh(full ? geo('runeF', () => kp(new THREE.CircleGeometry(0.6, 30).rotateX(-PI / 2))) : geo('runeG', () => kp(moonFlat(1, 0.62))), dm({ color: 0x7ea2c8, opacity: 0.9 }));
-    glyph.position.y = 0.19; glyph.renderOrder = 3; g.add(glyph);
-    const ring = new THREE.Mesh(geo('runeR', () => kp(new THREE.RingGeometry(0.72, 0.86, 30).rotateX(-PI / 2))), dm({ color: 0xa8d4ff, opacity: 0.8 }));
-    ring.position.y = 0.195; ring.renderOrder = 3; g.add(ring);
+    const glyph = new THREE.Mesh(full ? geo('runeF', () => kp(new THREE.CircleGeometry(0.6, 30).rotateX(-PI / 2))) : geo('runeG', () => kp(moonFlat(1, 0.62))), dm({ color: 0xfaf4e0, opacity: 0.95 }));
+    glyph.position.y = 0.215; glyph.renderOrder = 3; g.add(glyph);
+    const ring = new THREE.Mesh(geo('runeHalo', () => kp(new THREE.PlaneGeometry(2, 2).rotateX(-PI / 2))), dm({ map: ringHaloTex(), color: 0xbfdcff, opacity: 0.5, fog: false }));
+    ring.scale.setScalar(1.75); ring.position.y = 0.07; ring.renderOrder = 2; g.add(ring);   // yerde yumuşak hâle (taşın altından taşar)
     api.add(g); api.dispose(glyph.material); api.dispose(ring.material); return { g, glyph, ring };
   }
 
+  // uyuyan taş Ay Tavşanı heykeli (iç salon): taş kaidede kıvrılmış, gözleri kapalı (︶), kulakları sırtına yatık, ön patileri
+  // çenesinin altında; kaidenin önünde altın hilal. TEK ağ, ortak taş malzemesi (eskiden 4 parça gri top + boynuz gibi dik kulak).
+  function uyuyanTavsanGeo() {
+    const k = new Kit(), s16 = new THREE.SphereGeometry(1, 18, 12), s10 = new THREE.SphereGeometry(1, 12, 8), s8 = new THREE.SphereGeometry(1, 8, 6);
+    const ST = 0xf1e8d2, ST2 = 0xe6dac0, IN = 0xf4d9c6, DK = 0x75624e;
+    k.add(new THREE.CylinderGeometry(1.06, 1.16, 0.24, 28), (x, y) => (y > 0.2 ? new THREE.Color(0xd9d0bb) : new THREE.Color(0xbfb59f)), [0, 0.12, 0.05], null, 1);   // kaide
+    k.add(moonFlat(1, 0.13), 0xd8b25a, [0, 0.12, 1.135], [PI / 2, 0, 0], 1);                       // kaidenin önünde altın hilal
+    k.add(s16, ST, [0, 0.72, -0.05], null, [0.84, 0.6, 0.95]);                                    // tombul gövde
+    k.add(s16, ST, [0, 1.0, 0.6], [0.16, 0, 0], [0.54, 0.46, 0.5]);                               // baş (hafif öne eğik)
+    for (const sx of [-1, 1]) {
+      const er = [-1.77, 0, -sx * 0.22];
+      k.add(s10, ST2, [sx * 0.21, 1.4, -0.08], er, [0.14, 0.52, 0.08]);                          // kulak: sırtına yatık
+      k.add(s8, IN, [sx * 0.21 + sx * 0.01, 1.452, -0.09], er, [0.075, 0.38, 0.05]);              // kulak içi (sıcak krem)
+      k.add(s10, ST, [sx * 0.3, 0.3, 0.92], null, [0.2, 0.14, 0.26]);                             // ön pati
+      k.add(new THREE.TorusGeometry(0.08, 0.02, 5, 12, PI), DK, [sx * 0.19, 1.06, 1.065], [0.12, 0, PI], 1);   // kapalı göz (︶)
+      k.add(s8, 0xf3d2c2, [sx * 0.31, 0.93, 1.0], null, [0.1, 0.065, 0.04]);                      // yanak
+    }
+    k.add(s8, 0xc99f88, [0, 0.95, 1.1], null, [0.06, 0.046, 0.045]);                              // burun
+    const g = k.build(); [s16, s10, s8].forEach(q => q.dispose()); return g;
+  }
+
+  function curtainTex() {   // 64×128: alttan yukarı sönen yumuşak ışık + birkaç dikey ışık şeridi
+    if (GM.curtT) return GM.curtT;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d'), gr = x.createLinearGradient(0, 128, 0, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.6)'); gr.addColorStop(0.8, 'rgba(255,255,255,0.15)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 128);
+    for (const [px, w, a] of [[9, 5, 0.35], [22, 3, 0.25], [35, 6, 0.3], [51, 4, 0.28]]) { const g2 = x.createLinearGradient(0, 128, 0, 10); g2.addColorStop(0, 'rgba(255,255,255,' + a + ')'); g2.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g2; x.fillRect(px, 10, w, 118); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.userData = { keep: true }; return (GM.curtT = t);
+  }
+  // silik resmin taş duvarı: düz gri blok yerine antik duvar (alt basamak, iki yan payanda, üst korniş, kornişte altın hilal). TEK ağ.
+  function duvarGeo(k) {
+    const K = new Kit(), b = new THREE.BoxGeometry(1, 1, 1);
+    K.add(b, 0xd9d0bb, [0, 3.1 * k, -0.3], null, [7.4 * k, 6.2 * k, 0.6]);                        // duvar
+    K.add(b, 0xc8bea5, [0, 0.175, -0.22], null, [7.9 * k, 0.35, 0.86]);                            // alt basamak
+    for (const sx of [-1, 1]) K.add(b, 0xe8dfca, [sx * 3.35 * k, 3.1 * k, -0.26], null, [0.7 * k, 6.2 * k, 0.82]);   // yan payandalar
+    K.add(b, 0xe8dfca, [0, 6.4 * k, -0.28], null, [7.9 * k, 0.4 * k, 0.92]);                         // korniş
+    K.add(moonFlat(1, 0.34 * k), 0xd8b25a, [0, 6.4 * k, 0.185], [PI / 2, 0, 0], 1);                    // altın hilal (efekt yok, yalnız oyma)
+    const g = K.build(); b.dispose(); return g;
+  }
   // taş kapı: iki sütun + lento + yıldız perdesi; kapalıyken perde parlak mavi-beyaz (bölüm 3 sis duvarı değil: taş kapı)
   function kapi(api, L, gate, id) {
     let dx = 0, dz = -1;
@@ -163,10 +222,10 @@ const MABET = (() => {
     const k = new Kit(), cyl = geo('kCyl', () => kp(new THREE.CylinderGeometry(1, 1, 1, 14))), box = geo('kBox', () => kp(new THREE.BoxGeometry(1, 1, 1)));
     for (const sx of [w0 - 0.2, w1 + 0.2]) {
       k.add(box, 0xd8d0bb, [sx, 0.22, 0], null, [0.92, 0.44, 0.92]); k.add(cyl, 0xe6dfcb, [sx, 0.95, 0], null, [0.36, 1.15, 0.36]); k.add(box, 0xcfc6ae, [sx, 1.62, 0], null, [0.92, 0.26, 0.92]);
-      k.add(moonFlat(1, 0.2), 0xd9dde8, [sx, 1.0, 0.41], [PI / 2, 0, 0], 1);
+      k.add(moonFlat(1, 0.2), 0xd8b25a, [sx, 1.0, 0.41], [PI / 2, 0, 0], 1);   // altın hilal (ay taşlarındaki altınla aynı)
     }
     const frame = new THREE.Mesh(k.build(), stoneMat()); frame.castShadow = true; grp.add(frame); api.dispose(frame.geometry);
-    const pm = new THREE.MeshBasicMaterial({ color: 0x9cc8ff, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const pm = new THREE.MeshBasicMaterial({ map: curtainTex(), color: 0xb4d8ff, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide, fog: false });   // ay ışığı perdesi: altta parlak, yukarı doğru söner (eskiden düz mavi cam levha)
     const panel = new THREE.Mesh(geo('kPlane', () => kp(new THREE.PlaneGeometry(1, 1))), pm); panel.scale.set(wd + 0.4, 1.55, 1); panel.position.set(cx, 0.92, 0); panel.renderOrder = 4; grp.add(panel); api.dispose(pm);
     const solids = [];
     for (let o = w0 + 0.2; o <= w1 - 0.2 + 0.01; o += 0.8) { const so = { x: gate.x + nx * o, z: gate.z + nz * o, r: 0.7, alive: true, tag: 'mabetKapi' }; L.solids.push(so); solids.push(so); }
@@ -203,7 +262,7 @@ const MABET = (() => {
       o.position.copy(camera.position).addScaledVector(fwd, depth).addScaledVector(right, (sx * 2 - 1) * hh * camera.aspect).addScaledVector(up, (1 - sy * 2) * hh);
       o.quaternion.copy(camera.quaternion); o.scale.setScalar(hh * 2 * rf);
     };
-    let t = 0;
+    let t = 0, arenaIn = false, moonK = 1;
     api.anim(dt => {
       t += Math.min(dt, 0.05); anchor(sky, 0.5, 0.06, 0.23, 30); sky.scale.x *= camera.aspect / 0.23;
       // ay ekranın en üstünde, yarısı ufuk şeridinde: eskiden (0,16 / 0,5) zeminin üstüne yapışıp rün taşlarını, huysuzları saklıyordu
@@ -212,8 +271,13 @@ const MABET = (() => {
       moon.scale.y = moon.scale.x * (1 + Math.sin(t * 0.5) * 0.004);   // 23 m: uzak zeminin önünde, Feza'nın yanındaki duvar/sütunların arkasında
       // tek kuyruklu yıldız: üst düğmelerin hemen altında görünür geçer ("Kuyruklu yıldız geçiyor!" cümlesi doğru kalsın); boss salonunda
       // yok (eskiden 3 tanesi boss adının/çubuğunun arkasından ok gibi geçiyordu)
-      const g9 = G_(), arenada = !!(g9 && g9.L && g9.L.areas && g9.P && g9.P.area === g9.L.areas.length - 1);
-      moon.visible = !(arenada && camera.aspect > 1);   // yatay boss salonu: boss adı + çubuğu tam ayın yerinde (üst orta); ay orada saklanır
+      // boss salonu (yatay VE dikey): ay ve kuyruklu yıldız gizli (boss adı/çubuğu üstte; dikeyde ay mor geçidin üstüne biniyordu).
+      // Salonun 5 m yakınında gizlenir, ancak 9 m uzaklaşınca geri gelir (eşikte yanıp sönmesin) ve yavaşça solar/belirir.
+      const g9 = G_(), L9 = g9 && g9.L, a9 = L9 && L9.mb && L9.mb.arena, P9 = g9 && g9.P;
+      if (a9 && P9) { const dd = hyp(P9.pos.x - a9.x, P9.pos.z - a9.z); if (dd < a9.r + 5) arenaIn = true; else if (dd > a9.r + 9) arenaIn = false; }
+      const arenada = arenaIn || !!(g9 && g9.boss && !g9.boss.dead);
+      moonK += ((arenada ? 0 : 1) - moonK) * Math.min(1, dt * 2.5); if (moonK < 0.01) moonK = 0;
+      moonMat.opacity = moonK; moon.visible = moonK > 0;
       comets.forEach((o, k) => { const u = (t * 0.06 + k * 0.34) % 1; o.visible = !arenada; anchor(o, 0.1 + 0.8 * u, (camera.aspect > 1 ? 0.15 : 0.2) + Math.sin(u * PI) * 0.01, 0.022, 19); o.rotateZ(0.06); });
     });
   }
@@ -247,15 +311,19 @@ const MABET = (() => {
     };
     const rawPut = api.put.bind(api);
     const sphLow = api.tmp(new THREE.SphereGeometry(1, 10, 7));
-    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0) => {
+    // PERF (8 Kasım): süs sınıfı (12. değer) eskiden burada düşüyordu → 560 ay çiçeği dahil her süs 'shiny' sayılıp GÖLGE düşürüyordu
+    // (gölge geçişinde ~200 bin fazla üçgen). Artık sınıf korunur; yalnız 'shiny' (büyük sütun/kemer/dikilitaş) gölge düşürür, gerisi
+    // aynı malzemeyle gölgesiz ('shinyNS' = aynı görünüm). 'glow' da 'shinyNS' kalır: 560 parlak çiçek ekranı ışıl ışıl yapardı.
+    const cls = k => (k === undefined || k === 'shiny' ? 'shiny' : 'shinyNS');
+    api.put = (g, x, y, z, sx = 1, sy = 1, sz = 1, c = 0xffffff, yaw = 0, rx = 0, rz = 0, mk) => {
       const h = Math.abs(sy || 1), topY = (y || 0) + h * 0.5;
       if (southHides(x, z, topY)) {
         if (!flGrid(x, z) && ((Math.abs(Math.round(x * 3 + z * 5))) % 5 === 0)) {
-          rawPut(sphLow, x, 0.14, z, 0.55, 0.22, 0.55, 0xd8d0bc, 0, 0, 0);
+          rawPut(sphLow, x, 0.14, z, 0.55, 0.22, 0.55, 0xd8d0bc, 0, 0, 0, 'shinyNS');
         }
         return;
       }
-      rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz);
+      rawPut(g, x, y, z, sx, sy, sz, c, yaw, rx, rz, cls(mk));
     };
     let origBake = null;
     if (typeof PROPKIT !== 'undefined' && PROPKIT && PROPKIT.bake) {
@@ -330,7 +398,7 @@ const MABET = (() => {
     // yıldız tozu: yürüyüş alanının kıyısında minik parlak taşlar (sınır belli olsun)
     for (let z = 1; z < L.H - 1; z += 3) for (let x = 1; x < L.W - 1; x += 3) {
       const c = z * L.W + x; if (!L.grid[c] || (L.dWall && L.dWall[c] > 1.6)) continue;
-      const s = 0.07 + rnd() * 0.08; P(sph, x + 0.4, s * 0.6, z + 0.4, s, s * 0.6, s, 0xdfeaff);
+      const s = 0.07 + rnd() * 0.08; api.put(ico, x + 0.4, s * 0.6, z + 0.4, s, s * 0.6, s, 0xdfeaff, rnd() * TAU, 0, 0, 'shinyNS');   // PERF: 20 üçgenli taşçık (eskiden 168), gölgesiz
     }
     // arena: zeminde büyük soluk altın yıldız, çevrede sütunlar
     const ar = L.mb && L.mb.arena;
@@ -429,17 +497,14 @@ const MABET = (() => {
       }
       if (spot) {
         const k = spot.k, wz = spot.z;
-        const slabM = kp(new THREE.MeshStandardMaterial({ color: 0xcfc6ae, roughness: 0.9 }));
-        const slab = new THREE.Mesh(geo('slab', () => kp(new THREE.BoxGeometry(1, 1, 1))), slabM); slab.scale.set(7.4 * k, 6.2 * k, 0.6); slab.position.set(spot.x, 3.1 * k, wz - 0.3); api.add(slab);
+        const slab = new THREE.Mesh(geo('duvar' + k, () => kp(duvarGeo(k))), stoneMat()); slab.position.set(spot.x, 0, wz); slab.receiveShadow = true; api.add(slab);
         const pm = new THREE.MeshBasicMaterial({ map: paintTex(), side: THREE.FrontSide, fog: false }); api.dispose(pm);
         paint = new THREE.Mesh(geo('paintP', () => kp(new THREE.PlaneGeometry(1, 1))), pm); paint.scale.set(4.0 * k, 5.0 * k, 1); paint.position.set(spot.x, 3.15 * k, wz + 0.02); api.add(paint);
         paint.userData.at = { x: spot.x, z: wz + 4 };
       }
-      // uyuyan taş tavşan: kenarda küçük heykel
-      const sg = new THREE.Group(), sm = kp(new THREE.MeshStandardMaterial({ color: 0xd6cfbb, roughness: 0.9 }));
-      const body = new THREE.Mesh(geo('slS', () => kp(new THREE.SphereGeometry(1, 14, 10))), sm); body.scale.set(0.8, 0.65, 0.9); body.position.y = 0.6; sg.add(body);
-      const head = new THREE.Mesh(body.geometry, sm); head.scale.set(0.5, 0.45, 0.5); head.position.set(0, 0.95, 0.75); sg.add(head);
-      for (const sx of [-1, 1]) { const ear = new THREE.Mesh(body.geometry, sm); ear.scale.set(0.12, 0.5, 0.1); ear.position.set(sx * 0.2, 1.5, 0.72); ear.rotation.z = -sx * 0.25; sg.add(ear); }
+      // uyuyan taş tavşan: kenarda küçük heykel (tek ağ; bkz. uyuyanTavsanGeo)
+      const sg = new THREE.Group(), sb = new THREE.Mesh(geo('uyuyanTavsan', () => kp(uyuyanTavsanGeo())), stoneMat());
+      sb.castShadow = true; sb.receiveShadow = true; sg.add(sb);
       // yer: salon kenarında, yoldan en uzak boş nokta (eskiden hep sol-kuzey: bazı tohumlarda yolun 1,3 m yanında Feza'nın önünü kesiyordu)
       let sx0 = sal.x - sal.r * 0.62, sz0 = sal.z - sal.r * 0.2, bestD = -1;
       const pDist = (x, z) => { let m = 1e9; for (const q of L.path || []) m = Math.min(m, hyp(q.x - x, q.z - z)); return m; };
@@ -450,7 +515,7 @@ const MABET = (() => {
         const d = pDist(x, z); if (d > bestD) { bestD = d; sx0 = x; sz0 = z; }
       }
       sg.position.set(sx0, 0, sz0); sg.scale.setScalar(1.3); api.add(sg); sleeper = sg;
-      if (api.solid) api.solid(sx0, sz0, 1.0, 'bekci');
+      if (api.solid) api.solid(sx0, sz0, 1.3, 'bekci');   // kaide dahil (r ≈ 1,5 m)
     }
     // (ay evresi göstergesi ve 12 basamaklı zıplama görevi ebeveyn isteğiyle kaldırıldı: 5 yaş için sıra/tekrarlı zıplama yok)
     const unlock = (id, why) => { const gt = gates.find(q => q.id === id); if (gt && !gt.open) { gt.open = true; sfx('unlock', { x: gt.x, z: gt.z }); burst('sparkle', gt.x, 1.6, gt.z, { color: '#bfe2ff', count: 10 }); if (why) say(why, { force: true, once: false }); } };
@@ -496,13 +561,17 @@ const MABET = (() => {
         if (s.mesh && s.on && s.k >= 1) s.mesh.position.set(s.x, s.top, s.z);
       }
       // rün taşları: basılınca parlar
-      for (const k of ['R0', 'R3']) { const r = S[k]; if (!r) continue; const on2 = r.o.done ? 1 : 0.6 + 0.3 * Math.sin(T * 3 + k.charCodeAt(1)); r.R.glyph.material.opacity = on2; r.R.glyph.material.color.setHex(r.o.done ? (k === 'R3' ? 0xffd860 : 0xfff0b0) : (k === 'R3' ? 0xe4e6f2 : 0x7ea2c8)); r.R.ring.material.opacity = r.o.done ? 0.95 : 0.5; }
+      for (const k of ['R0', 'R3']) {   // basılmamış: gümüş ay + hâle yavaşça "nefes alır" (beni bas); basılınca: ikisi de sabit altın
+        const r = S[k]; if (!r) continue; const br = 0.5 + 0.5 * Math.sin(T * 2.2 + k.charCodeAt(1)), gm = r.R.glyph.material, hm = r.R.ring.material;
+        if (r.o.done) { gm.opacity = 1; gm.color.setHex(0xffd65a); hm.opacity = 0.55; hm.color.setHex(0xffd27a); }
+        else { gm.opacity = 0.78 + 0.22 * br; gm.color.setHex(0xfaf4e0); hm.opacity = 0.28 + 0.24 * br; hm.color.setHex(0xbfdcff); }
+      }
       // kapılar
       for (const gt of gates) {
         if (gt.open) {
-          if (gt.anim < 1) { gt.anim = Math.min(1, gt.anim + dt / 1.6); gt.pm.opacity = 0.42 * (1 - gt.anim); gt.panel.position.y = 1.4 + gt.anim * 2.4; if (gt.anim >= 1) { gt.panel.visible = false; for (const so of gt.solids) so.alive = false; L._sh = null; } }
+          if (gt.anim < 1) { gt.anim = Math.min(1, gt.anim + dt / 1.6); gt.pm.opacity = 0.58 * (1 - gt.anim); gt.panel.position.y = 1.4 + gt.anim * 2.4; if (gt.anim >= 1) { gt.panel.visible = false; for (const so of gt.solids) so.alive = false; L._sh = null; } }
         } else {
-          gt.pm.opacity = 0.34 + 0.1 * Math.sin(T * 2.2);
+          gt.pm.opacity = 0.5 + 0.08 * Math.sin(T * 1.6);   // perde yavaşça nefes alır (doku zaten yukarı doğru söner)
           const d = hyp(P.pos.x - gt.x, P.pos.z - gt.z);
           // YUMUŞAK KAPI: görev isteğe bağlı. Feza kapının yanında (6 m) toplam ~4,5 sn durursa (gidip gelse de sayılır) Pırıl kapıyı kendisi açar.
           if (playing && d < 6) { S.stuck[gt.id] = (S.stuck[gt.id] || 0) + dt; gt.near += dt; }
@@ -542,7 +611,7 @@ const MABET = (() => {
         if (ar === 4 && !S.areaT) S.areaT = T;
         if (ar === 0 && !S.tas && !S.soft.tas1 && M.tas1 && T > 3 && hyp(P.pos.x - M.tas1.x, P.pos.z - M.tas1.z) < 6) say('b06_ziplama');
       }
-      if (sleeper) sleeper.rotation.z = Math.sin(T * 1.4) * 0.02;
+      if (sleeper) { const br = Math.sin(T * 1.5); sleeper.scale.set(1.3, 1.3 * (1 + 0.014 * br), 1.3 * (1 + 0.006 * br)); }   // uykuda yavaş nefes (kaide de hafifçe; göze batmaz)
     });
   }
 

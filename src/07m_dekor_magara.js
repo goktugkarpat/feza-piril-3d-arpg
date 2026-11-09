@@ -20,6 +20,8 @@ const MAGARA_DEKOR = (() => {
     const placed = [];
     if (L.mg && L.mg.dragon) placed.push({ x: L.mg.dragon.cx, z: L.mg.dragon.z, r: 5.5 });   // QA (görsel): uyuyan ejderhanın yerine kaya/kemer konmasın (ejderha kayaların içinden taşıyordu)
     const spaced = (x, z, r) => { for (const q of placed) if (hyp(q.x - x, q.z - z) < r + q.r) return false; placed.push({ x, z, r }); return true; };
+    // CİLA: uyuyan ejderhanın önüne/içine iri kaya konmasın (ejderha görününce ayaklarını kapatıyordu)
+    const DG = L.mg && L.mg.dragon, nearDragon = (x, z) => !!DG && hyp(x - DG.cx, (z - DG.z) * 0.8) < 7.2;
 
     // ── bileşenler ──
     const stalagmite = (x, z, h, w) => { put(P.spire((rnd() * 5) | 0, false, 0), x, 0, z, w, h, w, rockTint(), rnd() * TAU, 0, 0, h > 5 ? 'shiny' : 'shinyNS'); };
@@ -106,7 +108,7 @@ const MAGARA_DEKOR = (() => {
         else if (r < 0.84) D.crystals(p.x, p.z, 0.4 + rnd() * 0.5);
         else D.rockGroup(p.x, p.z, 0.4 + rnd() * 0.3);
         if (rnd() < 0.45) D.patch2(p.x - Math.sin(p.a) * 0.5, p.z - Math.cos(p.a) * 0.5, 0.8);
-        if (rnd() < 0.7) { const wx = p.x + Math.sin(p.a) * 2.0, wz = p.z + Math.cos(p.a) * 2.0, wh = Math.min(coneH(wx, wz), 1.4 + rnd() * 2.2), ws = 1.0 + rnd() * 1.1; if (!isF(wx, wz) && wh > 0.8) put(P.rock((rnd() * 5) | 0, 'magara'), wx, 0, wz, ws * 1.3, Math.min(ws * 1.4, wh * 1.1), ws * 1.2, rockTint(), rnd() * TAU, 0, 0, 'shiny'); }
+        if (rnd() < 0.7) { const wx = p.x + Math.sin(p.a) * 2.0, wz = p.z + Math.cos(p.a) * 2.0, wh = Math.min(coneH(wx, wz), 1.4 + rnd() * 2.2), ws = 1.0 + rnd() * 1.1; if (!isF(wx, wz) && wh > 0.8) { const rg = P.rock((rnd() * 5) | 0, 'magara'), rt = rockTint(), ry = rnd() * TAU; if (!nearDragon(wx, wz)) put(rg, wx, 0, wz, ws * 1.3, Math.min(ws * 1.4, wh * 1.1), ws * 1.2, rt, ry, 0, 0, 'shiny'); } }   // (rastgele sayılar yine çekilir: dekor dizilişi aynı kalır)
         void j;
       });
       // fener direği: bir oda başına en çok 1 (alçak, yoldan uzak)

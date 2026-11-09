@@ -213,9 +213,11 @@ const MAGARA = (() => {
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
         const m = new THREE.ShaderMaterial({ uniforms: { uTime: TIME.u }, transparent: true, depthWrite: false,
           vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: `uniform float uTime; varying vec2 vUv; void main(){ float e = smoothstep(0.0,0.2,vUv.y)*smoothstep(1.0,0.8,vUv.y);
-            float f = sin(vUv.x*1.6 - uTime*1.6 + sin(vUv.y*6.0)*1.2)*0.5+0.5; float sp = pow(max(0.0, sin(vUv.x*6.0-uTime*2.4+vUv.y*12.0)*sin(vUv.x*3.1+uTime-vUv.y*8.0)), 10.0);
-            vec3 c = mix(vec3(0.2,0.78,0.8), vec3(1.0,0.82,0.4), f*0.5) + vec3(1.0,0.95,0.7)*sp*0.5; gl_FragColor = vec4(c, e*0.85); }` });
+          // CİLA: düz parlak şerit yerine gerçek dere gibi: kenarları yumuşak, ortası derin turkuaz, akan ince dalgalar, içinde altın kıvılcımlar
+          fragmentShader: `uniform float uTime; varying vec2 vUv; void main(){ float e = smoothstep(0.0,0.42,vUv.y)*smoothstep(1.0,0.58,vUv.y);
+            float w = sin(vUv.x*2.6 - uTime*1.7 + sin(vUv.y*7.0 + vUv.x*0.7)*0.9); float rp = smoothstep(0.72,1.0,w)*smoothstep(0.1,0.5,e);
+            float sp = pow(max(0.0, sin(vUv.x*6.0-uTime*2.4+vUv.y*12.0)*sin(vUv.x*3.1+uTime-vUv.y*8.0)), 14.0);
+            vec3 c = mix(vec3(0.3,0.76,0.78), vec3(0.09,0.44,0.54), e) + vec3(0.55,0.95,0.92)*rp*0.45 + vec3(1.0,0.84,0.42)*sp*1.1; gl_FragColor = vec4(c, e*0.84); }` });
         const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 1; mesh.name = 'magara-dere'; api.add(mesh); api.dispose(m); api.dispose(g);
         for (let i = 3; i < sp.length; i += 6) api.glow(sp[i].x, sp[i].z, 2.4, 0x48e0d8, 0.12);
       } }
@@ -277,11 +279,11 @@ const MAGARA = (() => {
       const P = { key, lay, srcOn: false, srcT: 0, lit: false, idle: 0, dirty: true, segs: [], onLit, door: doors[doorKey], told: false, hinted: 0, ids: [], beams: [], fade: 0 };
       // kaynak
       const src = crystalBig(AMBER, 1.3, 'magara-kaynak', 0.08); src.position.set(lay.S.x, 0, lay.S.z); api.add(src); P.src = src;
-      const baseK = new Kit(); baseK.add(G.cyl(1, 1.15, 14), 0xa39a88, [0, 0.08, 0], null, [0.8, 0.16, 0.8]); const base = kitMesh(api, baseK, { name: 'magara-kaide' });
+      const baseK = new Kit(); baseK.add(G.cyl(1, 1.15, 14), 0xa39a88, [0, 0.08, 0], null, [0.8, 0.16, 0.8]); const base = kitMesh(api, baseK, { name: 'magara-kaide', cast: false });   // (yassı kaide: gölge düşürmesine gerek yok)
       base.position.set(lay.S.x, 0, lay.S.z); api.add(base); api.solid(lay.S.x, lay.S.z, 0.7, 'kaynak'); api.glow(lay.S.x, lay.S.z, 3, AMBER, 0.12);
       // hedef (gri kapı kristali)
       const tgt = crystalBig(0x8c92a8, 1.3, 'magara-hedef', 0.0); tgt.position.set(lay.T.x, 0, lay.T.z); api.add(tgt); P.tgt = tgt;
-      const b2 = kitMesh(api, baseK, { name: 'magara-kaide' }); b2.position.set(lay.T.x, 0, lay.T.z); api.add(b2); api.solid(lay.T.x, lay.T.z, 0.7, 'hedef');
+      const b2 = kitMesh(api, baseK, { name: 'magara-kaide', cast: false }); b2.position.set(lay.T.x, 0, lay.T.z); api.add(b2); api.solid(lay.T.x, lay.T.z, 0.7, 'hedef');
       // aynalar (dokununca / yaklaşınca çeyrek döner)
       lay.M.forEach((p, i) => {
         const req = lay.out[i], durum0 = 0, acilar = [0, 1, 2, 3].map(j => -(((req + j) % 4)) * PI / 2);   // SADE (ebeveyn): ayna çevirme bulmacası 5 yaş için zordu → aynalar baştan doğru yönde, dokunulmaz
@@ -372,7 +374,7 @@ const MAGARA = (() => {
       const E = R.echo = { gl: [0, 0, 0, 0], inn: [false, false, false, false], items: [] };
       D.echo.pts.forEach((p, i) => {
         const kk = new Kit(); crystalKit(kk, NOTE[i].c, 1.7); kk.add(G.cyl(1, 1.15, 14), 0xa39a88, [0, 0.09, 0], null, [0.9, 0.18, 0.9]);
-        const m = kitMesh(api, kk, { name: 'magara-yanki-' + i, rough: 0.25, emissive: NOTE[i].c, ei: 0.12 }); m.position.set(p.x, 0, p.z); api.add(m); E.items.push(m);
+        const m = kitMesh(api, kk, { name: 'magara-yanki-' + i, rough: 0.25, emissive: NOTE[i].c, ei: 0.16, cast: false });   // CİLA: ışık veren kristal gölge düşürmez (Yankı Salonu bütçe içinde kalsın) m.position.set(p.x, 0, p.z); api.add(m); E.items.push(m);
         api.solid(p.x, p.z, 0.8, 'yanki'); api.glow(p.x, p.z, 3, NOTE[i].c, 0.1);
       });
     }
@@ -390,13 +392,17 @@ const MAGARA = (() => {
         ej = EJDERHA.uykulu('toprak'); ej.root.position.set(D.dragon.x, 0, D.dragon.z); ej.root.scale.setScalar(2.6); ej.root.rotation.y = 0.25; api.add(ej.root);   // QA (görsel): yüzü kameraya dönük uyusun (eskiden yalnız sırtı/kuyruğu görünüyordu, kocaman bir top gibiydi)
         ej.root.visible = false;   // QA (görsel): ejderhanın sırtı/kuyruğu kaya yığınının İÇİNDEN taşıyordu (iç içe karışık görüntü) → kayalar inmeye başlayınca görünür
         // kaya "dağ": mağaranın açık kaya rengi (eski koyu lacivert bloklar sırıtıyordu), üstünde yosun ve minik amber kristaller (tek parça, tek çizim)
-        const ck = new Kit(), CR = [0x9fb2bc, 0x8fa4b2, 0xacbcc2, 0x96acc0];
-        for (let i = 0; i < 14; i++) { const a = i / 14 * PI * 2, rr = 3.4 + (i % 3) * 0.6; ck.add(G.dodeca(), CR[i % 4], [Math.sin(a) * rr * 1.2, 1.6 + (i % 4) * 0.5, Math.cos(a) * rr * 0.9], [i, a, 0], [2.1 + (i % 3) * 0.3, 2.3 + (i % 2) * 0.6, 2.0]); }
-        ck.add(G.dodeca(), CR[2], [0, 3.3, 0], null, [3.4, 2.6, 3.0]);
-        for (let i = 0; i < 7; i++) { const a = i / 7 * PI * 2 + 0.4; ck.add(G.sphere(8, 5), [0x5aa88a, 0x6ab894, 0x4f9a80][i % 3], [Math.sin(a) * 2.6, 4.3 + (i % 2) * 0.35, Math.cos(a) * 2.0], null, [1.3, 0.32, 1.0]); }
-        for (let i = 0; i < 5; i++) { ck.push([(i - 2) * 1.15, 4.7 + (i % 2) * 0.3, (i % 2 ? 0.5 : -0.4)], [0, i * 1.3, (i - 2) * 0.12]); crystalKit(ck, i % 2 ? GOLD : AMBER, 0.75, false); ck.pop(); }
-        cover = kitMesh(api, ck, { name: 'magara-ejder-kaya', rough: 0.75, emissive: 0x302414, ei: 0.25 }); cover.position.set(D.dragon.x, 0, D.dragon.z); api.add(cover); cover.userData.y0 = 0;
-        for (let i = 0; i < 6; i++) { const kk = new Kit(); crystalKit(kk, AMBER, 1.3, false); const m = kitMesh(api, kk, { name: 'magara-ejder-kristal', rough: 0.25, emissive: AMBER, ei: 0 }); const a = (i / 5 - 0.5) * 2.4; m.position.set(D.dragon.x + Math.sin(a) * 4.4, 0, D.dragon.z + Math.cos(a) * 4.4); m.visible = false; m.scale.setScalar(1.0); api.add(m); ejCr.push(m); }   // QA (görsel): kristaller ejderhanın gövdesinin içinde kalıyordu (görünmüyordu) → önünde yerde yay; soldan sağa yanar
+        // CİLA: köşeli dev bloklar yerine yuvarlak, yumuşak kaya tepeciği (ön tarafta alçak, arkada sırt gibi yükselen); renkler mağaranın açık kayalarıyla aynı
+        const ck = new Kit(), CR = [0xa8bcc4, 0x98b0bc, 0xb6c6ca, 0x9fb6c8], MO = [0x5fae8e, 0x6dbc98, 0x58a488];
+        for (let i = 0; i < 13; i++) { const a = (i / 12 - 0.5) * PI * 1.9, rr = 3.5 + (i % 3) * 0.45, back = Math.max(0, -Math.cos(a)), s = 1.5 + (i % 3) * 0.32 + back * 0.6;
+          ck.add(G.ico(1), CR[i % 4], [Math.sin(a) * rr * 1.15, s * 0.55, Math.cos(a) * rr * 0.85], [i * 0.7, a, 0], [s * 1.25, s * (0.85 + back * 0.35), s * 1.1]); }
+        ck.add(G.ico(1), CR[2], [0, 2.4, -0.4], [0.2, 0.4, 0], [3.6, 2.9, 3.2]); ck.add(G.ico(1), CR[0], [-1.5, 2.0, 0.9], [0.5, 1.1, 0], [2.0, 1.6, 1.8]); ck.add(G.ico(1), CR[3], [1.6, 2.1, 0.6], [1.3, 0.2, 0], [2.1, 1.7, 1.9]);
+        for (let i = 0; i < 6; i++) { const a = (i / 6 - 0.5) * 2.6; ck.add(G.sphere(10, 6), MO[i % 3], [Math.sin(a) * 2.3, 4.55 - Math.abs(a) * 0.55, Math.cos(a) * 1.2 - 0.6], [0, a, 0], [1.25, 0.3, 0.95]); }   // yosun örtüsü
+        for (let i = 0; i < 5; i++) { ck.push([(i - 2) * 1.05, 4.75 - Math.abs(i - 2) * 0.32, -0.7 + (i % 2) * 0.3], [0, i * 1.3, (i - 2) * 0.16]); crystalKit(ck, i % 2 ? GOLD : AMBER, 0.62, false); ck.pop(); }   // sırttaki minik kristaller
+        cover = kitMesh(api, ck, { name: 'magara-ejder-kaya', rough: 0.8, emissive: 0x2a2418, ei: 0.22 }); cover.position.set(D.dragon.x, 0, D.dragon.z); api.add(cover); cover.userData.y0 = 0;
+        { const kk = new Kit(); for (let i = 0; i < 6; i++) { const a = (i / 5 - 0.5) * 2.4; kk.push([Math.sin(a) * 4.4, 0, Math.cos(a) * 4.4], [0, i * 1.1, 0]); crystalKit(kk, AMBER, 1.3, false); kk.pop(); }
+          const m = kitMesh(api, kk, { name: 'magara-ejder-kristal', rough: 0.25, emissive: AMBER, ei: 0, cast: false }); m.position.set(D.dragon.x, 0, D.dragon.z); m.visible = false; api.add(m);
+          ejCr = { m, per: m.geometry.index ? m.geometry.index.count / 6 : 0, n: 6 }; }   // QA (görsel): kristaller ejderhanın gövdesinin içinde kalıyordu → önünde yerde yay; soldan sağa yanar. CİLA: 6 kristal tek parça (sırayla görünür), gölgesiz → 12 çizim yerine 1
         api.solid(D.dragon.x, D.dragon.z, 4.6, 'ejder'); api.glow(D.dragon.x, D.dragon.z + 3, 6, AMBER, 0.12);
       } catch (e) { ej = null; }
     }
@@ -457,19 +463,25 @@ const MAGARA = (() => {
           if (R.ejder === 0 && (d < 12.5 || (ai === 4 && areaT > 1.5 && d < 20))) {   // QA: ejderha oda kenarının 4 m ötesinde; yol oda ortasından geçince 9 m'ye hiç girilmiyordu → sahne kaçıyordu
             R.ejder = 1; R.ejderT = 0; say('b05_dag', { gap: 0, force: true, prio: 3 }); sfx('rumble', { x: dg.x, z: dg.z, vol: 0.3, pitch: 0.7 });
             // QA: ejderha ekranın üst kenarının dışında kalıyordu (yalnız kuyruk ucu görünüyordu) → kısa, atlanabilir kamera bakışı (~6 sn, sonra Feza'ya döner)
-            try { if (GAME.sinematik && GAME.sinematik.oyna) GAME.sinematik.oyna({ adimlar: [{ sure: 6.4, bak: { x: dg.x, z: dg.z + 0.8, y: 2.6 }, gecis: 1.2 }, { sure: 1.3, gecis: 1.0 }], atlanabilir: true }); } catch (e) { /* yok */ } }
+            // CİLA: kamera biraz geride durur → ejderhanın tamamı ekrana sığar (eskiden kafası ekranı kaplıyordu); dikey ekranda daha da geride
+            const dik = typeof camera !== 'undefined' && camera && camera.aspect < 0.9;
+            try { if (GAME.sinematik && GAME.sinematik.oyna) GAME.sinematik.oyna({ adimlar: [{ sure: 6.4, bak: { x: dg.x, z: dg.z + 1.6, y: 2.2 }, zoom: dik ? 1.45 : 1.32, gecis: 1.2 }, { sure: 1.3, gecis: 1.0 }], atlanabilir: true }); } catch (e) { /* yok */ } }
           if (R.ejder === 1) {
-            R.ejderT += dt; const u = clamp((R.ejderT - 1.2) / 2.2, 0, 1); cover.position.y = -u * 7; cover.rotation.z = Math.sin(R.ejderT * 20) * 0.01 * (1 - u); cover.scale.y = 1;
-            ej.root.visible = u > 0;   // kayalar inmeye başlayınca ejderha görünür
+            // CİLA: kaya örtüsü yumuşakça yayılıp yere iner (battaniye gibi kayar); ejderha kayalar yarıya inince görünür (kaya içinden taşma yok)
+            R.ejderT += dt; const u = clamp((R.ejderT - 1.2) / 1.9, 0, 1), e = u * u * (3 - 2 * u);
+            cover.position.y = -e * 1.6; cover.scale.set(1 + e * 0.3, Math.max(0.02, 1 - e * 0.98), 1 + e * 0.3); cover.rotation.z = Math.sin(R.ejderT * 20) * 0.01 * (1 - u);
+            ej.root.visible = e > 0.42;
             if (R.ejderT > 2.0 && !R.ejS1) { R.ejS1 = true; say('pp_b05_dag', { gap: 0, force: true, prio: 3 }); }
             if (u >= 1) { R.ejder = 2; R.ejderT = 0; cover.visible = false; }
           }
           if (R.ejder === 2) {
             R.ejderT += dt;
             if (R.ejderT > 2.5 && !R.said3) { R.said3 = true; say('pp_b05_dag2', { gap: 0, force: true }); }
-            const n = Math.min(ejCr.length, Math.floor(R.ejderT / 0.45));   // sırt kristalleri soldan sağa: kamera bakışı bitmeden tamamlanır
-            while (ejCrN < n) { const c = ejCr[ejCrN++]; c.visible = true; sfx('chime', { x: dg.x, z: dg.z, vol: 0.4, pitch: 0.9 + ejCrN * 0.08 }); }
-            ejCr.forEach((c, i) => { if (c.visible) c.material.emissiveIntensity = 0.35 + 0.25 * Math.sin(tt * 1.8 + i * 0.9); });
+            if (ejCr && ejCr.per) {   // sırt kristalleri soldan sağa: kamera bakışı bitmeden tamamlanır (tek parça; görünen kristal sayısı kadar çizilir)
+              const n = Math.min(ejCr.n, Math.floor(R.ejderT / 0.45));
+              if (ejCrN < n) { while (ejCrN < n) { ejCrN++; sfx('chime', { x: dg.x, z: dg.z, vol: 0.4, pitch: 0.9 + ejCrN * 0.08 }); } ejCr.m.geometry.setDrawRange(0, ejCr.per * ejCrN); ejCr.m.visible = true; }
+              if (ejCrN) ejCr.m.material.emissiveIntensity = 0.38 + 0.2 * Math.sin(tt * 1.8);
+            }
             if (R.ejderT > 7 && !R.said4) { R.said4 = true; say('b05_ejder_sirt', { gap: 4 }); }
           }
         }
@@ -487,7 +499,7 @@ const MAGARA = (() => {
         E.gl[i] = Math.max(0, E.gl[i] - dt * 1.2);
         if (d < 2.1 && !E.inn[i]) { E.inn[i] = true; E.gl[i] = 1; sfx('bell', { x: p.x, z: p.z, pitch: NOTE[i].p, vol: 0.7 }); burst('sparkle', p.x, 1.4, p.z, { color: NOTE[i].h, count: 6 }); }
         else if (d > 2.8) E.inn[i] = false;
-        E.items[i].material.emissiveIntensity = 0.12 + E.gl[i] * 0.9;
+        E.items[i].material.emissiveIntensity = 0.16 + E.gl[i] * 0.9;
       }
     }
     // test kancası: bulmacayı çözdürür
